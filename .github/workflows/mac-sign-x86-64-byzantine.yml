@@ -124,7 +124,7 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           find ${{runner.workspace}}/build -name "Nunchuk.app"
           ls
-          macdeployqt Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
+          macdeployqt ${{runner.workspace}}/build/Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
 
           mkdir nunchuk-mac-qt
           mv Nunchuk.app nunchuk-mac-qt
