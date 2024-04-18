@@ -1,4 +1,4 @@
-name: 3-build-macos-11-arm64
+name: 2-mac-sign-mix-x86-64-ago2week
 
 on:
   push:
@@ -9,26 +9,46 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: macos-11
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
- 
-      - name: Checkout nunchuk-qt
+    
+      - name: Build HWI
         working-directory: ${{runner.workspace}}
-        env:
-          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        shell: bash
         run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          git clone -b online https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
-          cd nunchuk-qt
-          git submodule update --init --recursive
-        
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/2.4.0.zip" -O - | tar -xz
+          cd HWI-2.4.0
+          pip3 install poetry
+          poetry install
+          pip3 install .
+          pip3 install -U setuptools
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"
+          find ${{runner.workspace}} -name "hwi-2.4.0-mac-x86_64.tar.gz"
+      
       - name: Install dependencies
         run: |
-          brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 boost@1.76 qt@5 libevent sqlite sqlcipher libolm          
-
+          brew unlink glib
+          cd /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula
+          git stash
+          git checkout 8264919fc5b75b989d8371f15508022f15921aaf
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install qt@5.rb
+          brew install glib.rb
+          brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 boost@1.76 libevent sqlite sqlcipher libolm
+          
+          # brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 boost@1.76 qt@5 libevent sqlite sqlcipher libolm
+          # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
+          # brew update && brew reinstall qt@5 glib freetype
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
@@ -39,7 +59,15 @@ jobs:
           cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
           cmake --build .
           sudo cmake --install . --prefix "/usr/local"
-
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          git clone -b online https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
+          cd nunchuk-qt
+          git submodule update --init --recursive
       - name: Cache Bitcoin Core
         uses: actions/cache@v2
         id: cache-contrib
@@ -58,7 +86,6 @@ jobs:
           ./autogen.sh
           ./configure --enable-module-ecdh --without-gui --disable-zmq --with-miniupnpc=no --with-incompatible-bdb --disable-bench --disable-tests --with-boost-libdir="/usr/local/opt/boost@1.76/lib"
           make -j8
-
       - name: Build nunchuk-qt
         working-directory: ${{runner.workspace}}
         shell: bash
@@ -73,22 +100,6 @@ jobs:
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake -DUR__DISABLE_TESTS=ON -DBOOST_ROOT=/usr/local/opt/boost@1.76
           cmake --build . --config Release -j8
-
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        run: |
-          brew install libusb python3 poetry pyenv
-          pyenv install 3.9.7
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/2.2.1.zip" -O - | tar -xz
-          cd HWI-2.2.1
-          pip3 install poetry
-          poetry install
-          pip3 install .
-          pip3 install -U setuptools
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"
-          find ${{runner.workspace}} -name "hwi-2.2.1-mac-amd64.tar.gz"
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
@@ -97,14 +108,15 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib -L/usr/local/Cellar/sqlcipher/4.5.1/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include -I/usr/local/Cellar/sqlcipher/4.5.1/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.76"
-          mv ${{runner.workspace}}/HWI-2.2.1/dist/hwi-2.2.1-mac-amd64.tar.gz .
-          tar -xf hwi-2.2.1-mac-amd64.tar.gz
+          mv ${{runner.workspace}}/HWI-2.4.0/dist/hwi-2.4.0-mac-x86_64.tar.gz .
+          tar -xf hwi-2.4.0-mac-x86_64.tar.gz
+          #wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/2.3.1/hwi-2.3.1-mac-x86_64.tar.gz" -O - | tar -xz
           find ${{runner.workspace}} -name "hwi"
           mv hwi nunchuk-qt.app/Contents/MacOS/hwi
           mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
           mv nunchuk-qt.app Nunchuk.app
           macdeployqt Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
-
+          # chmod +x ${{runner.workspace}}/macdeploynunchuk/macdeployqt
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
         # Extract the secrets we defined earlier as environment variables
@@ -128,7 +140,6 @@ jobs:
           # We need to create a new keychain, otherwise using the certificate will prompt
           # with a UI dialog asking for the certificate password, which we can't
           # use in a headless CI environment
-
           security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
           security default-keychain -s build.keychain
           security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
@@ -140,22 +151,15 @@ jobs:
           #Codesign ========================================================================================================================================================
            #sign all *.dylib
           find "$APP_PATH" -name *.dylib | xargs -I $ codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" $
-
           #sign Qt frameworks
           find "$APP_PATH" -name Qt* -type f | xargs -I $ codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" $
-
           #sign Qt plugin
           find "$APP_PATH" -name *.plugin -type f | xargs -I $ codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" $
-
           #sign app
           codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS"  "${APP_PATH}/Contents/MacOS/hwi" -v
           codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS"  "${APP_PATH}/Contents/MacOS/Nunchuk" -v
-
           codesign -dvvv "$APP_PATH"
-
           #spctl -a -vvvv "$APP_PATH"
-
-
       - name: "Notarize app bundle"
         working-directory: ${{runner.workspace}}/build
         # Extract the secrets we defined earlier as environment variables
@@ -171,27 +175,21 @@ jobs:
           # security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           echo "Create keychain profile"
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
-
           # We can't notarize an app bundle directly, but we need to compress it as an archive.
           # Therefore, we create a zip file containing our app bundle, so that we can send it to the
           # notarization service
-
           echo "Creating temp notarization archive"
           ditto -c -k --keepParent "$APP_PATH" "notarization.zip"
-
           # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
           # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
           # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
           # you're curious
-
           echo "Notarize app"
           xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
-
           # Finally, we need to "attach the staple" to our executable, which will allow our app to be
           # validated by macOS even when an internet connection is not available.
           echo "Attach staple"
           xcrun stapler staple "$APP_PATH"
-
           #way 4 ========================================================================================================================================================
           mkdir nunchuk-mac-qt
           #mv hwi nunchuk-mac-qt
