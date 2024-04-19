@@ -118,12 +118,11 @@ jobs:
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
           
-          mv hwi nunchuk-qt.app/Contents/MacOS/hwi
-          mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
-          mv nunchuk-qt.app Nunchuk.app
+          mv hwi Nunchuk.app/Contents/MacOS/hwi
+          #mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
+          #mv nunchuk-qt.app Nunchuk.app
           find ${{runner.workspace}} -name "Nunchuk.app"
-          macdeployqt Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
-          # chmod +x ${{runner.workspace}}/macdeploynunchuk/macdeployqt
+          macdeployqt ${{runner.workspace}}/build/Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
 
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
