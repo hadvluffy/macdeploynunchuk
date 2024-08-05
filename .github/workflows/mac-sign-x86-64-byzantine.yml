@@ -87,7 +87,7 @@ jobs:
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.76"
           ./autogen.sh
-          ./configure --enable-module-ecdh --without-gui --disable-zmq --with-miniupnpc=no --with-incompatible-bdb --disable-bench --disable-tests --with-boost-libdir="/usr/local/opt/boost@1.76/lib"
+          ./configure  --disable-shared --enable-wallet --without-gui --disable-zmq --with-miniupnpc=no --without-bdb --disable-bench --disable-tests --disable-fuzz-binary --enable-module-schnorrsig --enable-module-ecdh --with-boost-libdir="/usr/local/opt/boost@1.76/lib"
           make -j8
 
       - name: Build nunchuk-qt
