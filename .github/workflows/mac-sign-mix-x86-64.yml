@@ -112,8 +112,8 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib -L/usr/local/Cellar/sqlcipher/4.5.1/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include -I/usr/local/Cellar/sqlcipher/4.5.1/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.76"
-          mv ${{runner.workspace}}/HWI-3.0.0/dist/hwi-3.0.0-mac-x86_64.tar.gz .
-          tar -xf hwi-3.0.0-mac-x86_64.tar.gz
+          mv ${{runner.workspace}}/HWI-3.1.0/dist/hwi-3.1.0-mac-x86_64.tar.gz .
+          tar -xf hwi-3.1.0-mac-x86_64.tar.gz
           #wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/2.3.1/hwi-2.3.1-mac-x86_64.tar.gz" -O - | tar -xz
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
