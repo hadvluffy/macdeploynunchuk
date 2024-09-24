@@ -24,15 +24,15 @@ jobs:
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.0.0.zip" -O - | tar -xz
-          cd HWI-3.0.0
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
           pip3 install poetry
           poetry install
           pip3 install .
           pip3 install -U setuptools
           bash contrib/build_bin.sh --without-gui
           echo "find hwi"
-          find ${{runner.workspace}} -name "hwi-3.0.0-mac-x86_64.tar.gz"
+          find ${{runner.workspace}} -name "hwi-3.1.0-mac-x86_64.tar.gz"
       
       - name: Install dependencies
         run: |
