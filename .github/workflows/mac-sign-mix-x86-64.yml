@@ -45,6 +45,7 @@ jobs:
           brew install qt@5.rb
           brew install glib.rb
           brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite sqlcipher libolm
+          # brew install ./boost@1.76.rb
 
           wget https://archives.boost.io/release/1.76.0/source/boost_1_76_0.tar.gz
           tar -xvzf boost_1_76_0.tar.gz
