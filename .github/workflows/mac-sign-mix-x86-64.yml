@@ -46,7 +46,7 @@ jobs:
           brew install glib.rb
           brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite sqlcipher libolm
 
-          wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz
+          wget -v https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz
           tar -xvzf boost_1_76_0.tar.gz
           cd boost_1_76_0
           ./bootstrap.sh
