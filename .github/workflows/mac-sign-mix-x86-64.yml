@@ -45,6 +45,7 @@ jobs:
           brew install qt@5.rb
           brew install glib.rb
           brew install ./boost@1.76.rb
+          brew install llvm@14
           brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite sqlcipher libolm
 
           # wget https://archives.boost.io/release/1.76.0/source/boost_1_76_0.tar.gz
@@ -89,6 +90,7 @@ jobs:
         if: steps.cache-contrib.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/bitcoin
         run: |
+          export PATH="/usr/local/opt/llvm@14/bin:$PATH"
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include"
