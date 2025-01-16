@@ -96,7 +96,7 @@ jobs:
           
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
-        working-directory: ${{ github.workspace }}/contrib/libnunchuk/contrib/openssl
+        working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
         run: |
           set -e
           source ~/.bashrc
