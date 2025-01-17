@@ -61,7 +61,7 @@ jobs:
           brew install qt@5.rb
           brew install glib.rb
           brew install ./boost@1.76.rb
-          brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite sqlcipher libolm
+          brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite libolm
 
           # wget https://archives.boost.io/release/1.76.0/source/boost_1_76_0.tar.gz
           # tar -xvzf boost_1_76_0.tar.gz
@@ -69,7 +69,7 @@ jobs:
           # ./bootstrap.sh --prefix=/usr/local/opt/boost@1.76
           # ./b2 install
           
-          # brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 boost@1.76 qt@5 libevent sqlite sqlcipher libolm
+          # brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 boost@1.76 qt@5 libevent sqlite libolm
           # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
           # brew update && brew reinstall qt@5 glib freetype
 
@@ -131,11 +131,9 @@ jobs:
         shell: bash
         run: |
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib -L/usr/local/Cellar/sqlcipher/4.5.1/lib"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include -I/usr/local/Cellar/sqlcipher/4.5.1/include"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.76"
-          mkdir ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/sqlcipher/.libs
-          cp /usr/local/lib/libsqlcipher.a ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/sqlcipher/.libs/libsqlcipher.a
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt  -DRANDLIB=$(which gcc-randlib-14) -DAR=$(which gcc-ar-14) -DNM=$(which gcc-nm-14) -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake -DUR__DISABLE_TESTS=ON -DBOOST_ROOT=/usr/local/opt/boost@1.76
@@ -145,8 +143,8 @@ jobs:
         working-directory: ${{runner.workspace}}/build
         run: |
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib -L/usr/local/Cellar/sqlcipher/4.5.1/lib"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include -I/usr/local/Cellar/sqlcipher/4.5.1/include"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.76/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.76/include -I/usr/local/opt/berkeley-db@4/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.76"
           find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "*mac-x86_64.tar.gz" -exec mv {} ./ \;
           find ${{runner.workspace}} -name "*mac-x86_64.tar.gz" -exec tar -xf {} \;
