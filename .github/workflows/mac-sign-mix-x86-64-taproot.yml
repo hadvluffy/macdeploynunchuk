@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Set compiler
         run: |
@@ -105,7 +105,7 @@ jobs:
           make install_dev
 
       - name: Cache Bitcoin Core
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache-contrib
         with:
           path: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/bitcoin
@@ -259,7 +259,7 @@ jobs:
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
 
       - name: Upload Artifact
-        uses: 'actions/upload-artifact@v3'
+        uses: 'actions/upload-artifact@v4'
         with:
           name: nunchuk-mac-${{ steps.get_version.outputs.VERSION }}
           path: ${{runner.workspace}}/build/nunchuk-mac-qt.zip
