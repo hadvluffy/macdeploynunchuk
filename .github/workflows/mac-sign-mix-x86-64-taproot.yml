@@ -52,16 +52,9 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew unlink glib
-          cd /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula
-          git stash
-          git checkout 8264919fc5b75b989d8371f15508022f15921aaf
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install qt@5.rb
-          brew install glib.rb
-          # brew install boost@1.81
-          brew install automake libtool pkg-config berkeley-db@4 libevent sqlite libolm
+          brew install libolm qt@5
 
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
