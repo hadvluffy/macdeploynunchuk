@@ -60,7 +60,7 @@ jobs:
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install qt@5.rb
           brew install glib.rb
-          brew install ./boost@1.85.rb
+          brew install boost@1.85
           brew install automake libtool pkg-config berkeley-db@4 openssl@1.1 libevent sqlite libolm
 
           # wget https://archives.boost.io/release/1.85.0/source/boost_1_85_0.tar.gz
