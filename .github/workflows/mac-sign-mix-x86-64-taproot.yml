@@ -18,7 +18,7 @@ jobs:
       - name: Set compiler
         run: |
           #set -e
-          
+          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           echo "export CC=gcc-14" >> ~/.bashrc
           echo "export CXX=g++-14" >> ~/.bashrc
           echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
@@ -117,7 +117,6 @@ jobs:
         env:
           OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
         run: |
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include"
