@@ -52,15 +52,15 @@ jobs:
       
       - name: Install dependencies
         run: |
-          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-          export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install libolm qt@5
-
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
           cd boost_1_81_0
           ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
           ./b2 install
+
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install libolm qt@5
           
           # brew install automake libtool pkg-config berkeley-db@4 boost@1.86 qt@5 libevent sqlite libolm
           # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
@@ -138,6 +138,8 @@ jobs:
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
         run: |
+          set -e
+          source ~/.bashrc
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
