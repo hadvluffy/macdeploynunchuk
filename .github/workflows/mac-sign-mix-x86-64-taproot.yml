@@ -97,27 +97,6 @@ jobs:
           make -j8
           make install_dev
 
-      - name: Cache Bitcoin Core
-        uses: actions/cache@v4
-        id: cache-contrib
-        with:
-          path: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/bitcoin
-          key: mac-a0988140b71485ad12c3c3a4a9573f7c21b1eff8-2
-
-      - name: Build Bitcoin Core
-        if: steps.cache-contrib.outputs.cache-hit != 'true'
-        working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/bitcoin
-        run: |
-          set -e
-          source ~/.bashrc
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include"
-          export BOOST_ROOT="/usr/local/opt/boost@1.81"
-          ./autogen.sh
-          ./configure --enable-module-ecdh --without-gui --disable-zmq --with-miniupnpc=no --with-incompatible-bdb --disable-bench --disable-tests --with-boost-libdir="/usr/local/opt/boost@1.81/lib"
-          make -j8
-
       - name: Build nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
