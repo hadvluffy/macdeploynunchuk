@@ -167,8 +167,6 @@ jobs:
           # Kiểm tra
           codesign -dvvv "$APP_PATH"
 
-
-
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
         env:
@@ -177,27 +175,46 @@ jobs:
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          # Tạo profile notarization
+          # Step 1: Create Notarization Profile
+          echo "Creating notarization profile..."
           xcrun notarytool store-credentials "notarytool-profile" \
             --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
             --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
             --password "$PROD_MACOS_NOTARIZATION_PWD"
-
-          # Đóng gói ứng dụng thành file ZIP
-          ditto -c -k --keepParent "$APP_PATH" "notarization.zip"
-
-          # Gửi ứng dụng lên dịch vụ notarization của Apple
-          xcrun notarytool submit "notarization.zip" \
+        
+          # Step 2: Package the app bundle into a ZIP file
+          echo "Packaging the app bundle..."
+          zip_file="${{runner.workspace}}/build/notarization.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$zip_file"
+        
+          # Step 3: Submit the app for notarization
+          echo "Submitting app bundle for notarization..."
+          xcrun notarytool submit "$zip_file" \
             --keychain-profile "notarytool-profile" \
             --wait
-
-          # Đính notarization vào app bundle
+        
+          # Step 4: Staple the notarization ticket to the app bundle
+          echo "Stapling notarization ticket to the app bundle..."
           xcrun stapler staple "$APP_PATH"
-
-          # Kiểm tra trạng thái notarization
+        
+          # Step 5: Verify the stapling process
+          echo "Validating the stapling..."
+          xcrun stapler validate "$APP_PATH"
+        
+          # Step 6: Perform Gatekeeper verification
+          echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
-
-
+        
+          # Step 7: Package the notarized app into the final ZIP for distribution
+          echo "Repackaging the notarized app bundle..."
+          final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
+          mkdir -p "$final_package_dir"
+          cp -R "$APP_PATH" "$final_package_dir/"
+          final_zip="${{runner.workspace}}/build/nunchuk-mac-qt.zip"
+          ditto -c -k --keepParent "$final_package_dir" "$final_zip"
+        
+          echo "Notarization and packaging complete!"
+            
           #way 4 ========================================================================================================================================================
           mkdir nunchuk-mac-qt
           #mv hwi nunchuk-mac-qt
