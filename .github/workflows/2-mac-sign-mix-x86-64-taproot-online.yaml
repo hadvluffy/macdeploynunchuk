@@ -137,7 +137,7 @@ jobs:
 
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
-        env: 
+        env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
@@ -146,26 +146,34 @@ jobs:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
           ENTITLEMENTS: ${{runner.workspace}}/nunchuk-qt/entitlements.plist
         run: |
-          # Tạo keychain
+          echo "Setting up keychain and certificate..."
+      
+          # Step 1: Create and unlock keychain
           echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          
-          # Ký mã các file bên trong app bundle
-          find "$APP_PATH" -name "*.dylib" -exec codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
-          find "$APP_PATH" -name "Qt*" -type f -exec codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
-          find "$APP_PATH" -name "*.plugin" -type f -exec codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
-
-          # Ký mã file chính và app bundle
-          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/hwi" -v
-          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/Nunchuk" -v
-          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH" -v
-
-          # Kiểm tra
-          codesign -dvvv "$APP_PATH"
+      
+          # Step 2: Codesign all components inside the app bundle
+          echo "Signing internal components..."
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -exec codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+      
+          # Step 3: Sign frameworks and Qt components
+          echo "Signing frameworks and Qt components..."
+          find "$APP_PATH" -name "Qt*" -type f -exec codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+      
+          # Step 4: Sign main executable and other key components
+          echo "Signing main executables and app bundle..."
+          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/hwi"
+          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/Nunchuk"
+          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
+      
+          # Step 5: Verify codesigning
+          echo "Verifying codesigning integrity..."
+          codesign -dv --verbose=4 "$APP_PATH"
+          spctl -a -vvvv "$APP_PATH"
 
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
