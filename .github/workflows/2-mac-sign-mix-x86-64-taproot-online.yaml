@@ -173,7 +173,7 @@ jobs:
           # Step 5: Verify codesigning
           echo "Verifying codesigning integrity..."
           codesign -dv --verbose=4 "$APP_PATH"
-          spctl -a -vvvv "$APP_PATH"
+          # spctl -a -vvvv "$APP_PATH"
 
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
@@ -212,6 +212,7 @@ jobs:
           # Step 6: Perform Gatekeeper verification
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
+          spctl --assess --type exec --verbose=4 "$APP_PATH"
         
           # Step 7: Package the notarized app into the final ZIP for distribution
           echo "Repackaging the notarized app bundle..."
