@@ -223,12 +223,6 @@ jobs:
           ditto -c -k --keepParent "$final_package_dir" "$final_zip"
         
           echo "Notarization and packaging complete!"
-            
-          #way 4 ========================================================================================================================================================
-          mkdir nunchuk-mac-qt
-          #mv hwi nunchuk-mac-qt
-          mv notarization.zip nunchuk-mac-qt
-          zip -r nunchuk-mac-qt.zip nunchuk-mac-qt
      
       
       - name: Get the version
