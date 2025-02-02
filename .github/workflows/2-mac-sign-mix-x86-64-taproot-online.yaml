@@ -210,8 +210,6 @@ jobs:
           # Step 5: Verify the stapling process
           echo "Validating the stapling..."
           xcrun stapler validate "$APP_PATH"
-          echo "Remove quarantine flags: "
-          xattr -r -d com.apple.quarantine
         
           # Step 6: Perform Gatekeeper verification
           echo "Performing Gatekeeper verification..."
@@ -225,6 +223,8 @@ jobs:
           cp -R "$APP_PATH" "$final_package_dir/"
           final_zip="${{runner.workspace}}/build/nunchuk-mac-qt.zip"
           ditto -c -k --keepParent "$final_package_dir" "$final_zip"
+          echo "Remove quarantine flags... "
+          xattr -r -d com.apple.quarantine "$final_zip"
         
           echo "Notarization and packaging complete!"
      
