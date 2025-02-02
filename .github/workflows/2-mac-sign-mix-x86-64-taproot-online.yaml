@@ -168,13 +168,14 @@ jobs:
           echo "Signing main executables and app bundle..."
           codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/hwi"
           codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/Nunchuk"
-          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
+          codesign --force --deep --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
       
           # Step 5: Verify codesigning
           echo "Verifying codesigning integrity..."
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           codesign -dv --verbose=4 "$APP_PATH"
           # spctl -a -vvvv "$APP_PATH"
-          otool -L "$APP_PATH"
+          # otool -L "$APP_PATH"
 
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
@@ -209,6 +210,8 @@ jobs:
           # Step 5: Verify the stapling process
           echo "Validating the stapling..."
           xcrun stapler validate "$APP_PATH"
+          echo "Remove quarantine flags: "
+          xattr -r -d com.apple.quarantine
         
           # Step 6: Perform Gatekeeper verification
           echo "Performing Gatekeeper verification..."
