@@ -129,7 +129,7 @@ jobs:
           #wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/2.3.1/hwi-2.3.1-mac-x86_64.tar.gz" -O - | tar -xz
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
-          otool -L "$APP_PATH"
+          # otool -L "$APP_PATH"
           
           mv hwi Nunchuk.app/Contents/MacOS/hwi
           #mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
