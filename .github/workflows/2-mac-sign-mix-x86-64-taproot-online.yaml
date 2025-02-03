@@ -101,6 +101,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         env:
           OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         shell: bash
         run: |
           set -e
@@ -128,6 +129,7 @@ jobs:
           #wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/2.3.1/hwi-2.3.1-mac-x86_64.tar.gz" -O - | tar -xz
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
+          otool -L "$APP_PATH"
           
           mv hwi Nunchuk.app/Contents/MacOS/hwi
           #mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
@@ -146,6 +148,7 @@ jobs:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
           ENTITLEMENTS: ${{runner.workspace}}/nunchuk-qt/entitlements.plist
         run: |
+          set -e
           echo "Setting up keychain and certificate..."
       
           # Step 1: Create and unlock keychain
@@ -158,11 +161,11 @@ jobs:
       
           # Step 2: Codesign all components inside the app bundle
           echo "Signing internal components..."
-          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -exec codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -exec codesign --deep --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
       
           # Step 3: Sign frameworks and Qt components
           echo "Signing frameworks and Qt components..."
-          find "$APP_PATH" -name "Qt*" -type f -exec codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+          find "$APP_PATH" -name "Qt*" -type f -exec codesign --deep --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
       
           # Step 4: Sign main executable and other key components
           echo "Signing main executables and app bundle..."
@@ -185,49 +188,57 @@ jobs:
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          # Step 1: Create Notarization Profile
+          set -e
+          # Notarize App Bundle
+          # ===============================
           echo "Creating notarization profile..."
           xcrun notarytool store-credentials "notarytool-profile" \
             --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
             --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
             --password "$PROD_MACOS_NOTARIZATION_PWD"
-        
-          # Step 2: Package the app bundle into a ZIP file
+          
+          # Đóng gói ứng dụng thành file ZIP
           echo "Packaging the app bundle..."
-          zip_file="${{runner.workspace}}/build/notarization.zip"
+          zip_file="$APP_PATH/../notarization.zip"
           ditto -c -k --keepParent "$APP_PATH" "$zip_file"
-        
-          # Step 3: Submit the app for notarization
+          
+          # Gửi app lên Apple Notary
           echo "Submitting app bundle for notarization..."
-          xcrun notarytool submit "$zip_file" \
-            --keychain-profile "notarytool-profile" \
-            --wait
-        
-          # Step 4: Staple the notarization ticket to the app bundle
+          if ! xcrun notarytool submit "$zip_file" --keychain-profile "notarytool-profile" --wait; then
+            echo "Notarization failed! Check logs:"
+            xcrun notarytool log "$zip_file"
+            exit 1
+          fi
+          
+          # Staple notarization vào app bundle
           echo "Stapling notarization ticket to the app bundle..."
-          xcrun stapler staple "$APP_PATH"
-        
-          # Step 5: Verify the stapling process
+          if ! xcrun stapler staple "$APP_PATH"; then
+            echo "Stapler validation failed!"
+            exit 1
+          fi
+          
+          # Xác thực stapler
           echo "Validating the stapling..."
           xcrun stapler validate "$APP_PATH"
-        
-          # Step 6: Perform Gatekeeper verification
+          
+          # Gatekeeper verification
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
-        
-          # Step 7: Package the notarized app into the final ZIP for distribution
+          
+          # Đóng gói ứng dụng notarized
           echo "Repackaging the notarized app bundle..."
-          final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
+          final_package_dir="$APP_PATH/../nunchuk-mac-qt"
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
-          final_zip="${{runner.workspace}}/build/nunchuk-mac-qt.zip"
+          final_zip="$APP_PATH/../nunchuk-mac-qt.zip"
           ditto -c -k --keepParent "$final_package_dir" "$final_zip"
-          echo "Remove quarantine flags... "
+          
+          # Loại bỏ cờ quarantine
+          echo "Removing quarantine flags..."
           xattr -r -d com.apple.quarantine "$final_zip"
-        
+          
           echo "Notarization and packaging complete!"
-     
       
       - name: Get the version
         id: get_version
