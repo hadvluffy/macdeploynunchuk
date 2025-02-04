@@ -18,7 +18,7 @@ jobs:
       - name: Set compiler
         run: |
           #set -e
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
+          #sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           echo "export CC=gcc-14" >> ~/.bashrc
           echo "export CXX=g++-14" >> ~/.bashrc
           echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
