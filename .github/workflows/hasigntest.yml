@@ -173,13 +173,13 @@ jobs:
           set -e
           # Notarize App Bundle
           # ===============================
+          ditto -c -k --keepParent "$APP_PATH" "nunchuk-mac-qt.zip"
           echo "Creating notarization profile..."
-          xcrun notarytool submit "$APP_PATH" \
+          xcrun notarytool submit "nunchuk-mac-qt.zip" \
             --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
             --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
             --password "$PROD_MACOS_NOTARIZATION_PWD" --wait
-
-          ditto -c -k --keepParent "$APP_PATH" "nunchuk-mac-qt.zip"
+          
           echo "Notarization and packaging complete!"
       
       - name: Get the version
