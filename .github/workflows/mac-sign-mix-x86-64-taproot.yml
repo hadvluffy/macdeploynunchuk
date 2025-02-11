@@ -163,20 +163,20 @@ jobs:
           # Step 2: Ký các thành phần bên trong ứng dụng
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -exec \
-            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
+            codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
       
           # Step 3: Ký framework và Qt components
           echo "Signing frameworks and Qt components..."
           find "$APP_PATH" -name "Qt*" -type f -exec \
-            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
+            codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
       
           # Step 4: Ký ứng dụng và các tệp thực thi chính
           echo "Signing main executables and app bundle..."
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for exe in "${MAIN_EXECUTABLES[@]}"; do
-            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$exe"
+            codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$exe"
           done
-          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
+          codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
       
           # Step 5: Xác minh chữ ký
           echo "Verifying codesigning integrity..."
