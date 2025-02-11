@@ -169,8 +169,8 @@ jobs:
       
           # Step 4: Sign main executable and other key components
           echo "Signing main executables and app bundle..."
-          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/hwi"
-          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/Nunchuk"
+          codesign --force --deep --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/hwi"
+          codesign --force --deep --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "${APP_PATH}/Contents/MacOS/Nunchuk"
           codesign --force --deep --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
       
           # Step 5: Verify codesigning
