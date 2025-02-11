@@ -125,13 +125,10 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "*mac-x86_64.tar.gz" -exec mv {} ./ \;
           find ${{runner.workspace}} -name "*mac-x86_64.tar.gz" -exec tar -xf {} \;
-          #wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/2.3.1/hwi-2.3.1-mac-x86_64.tar.gz" -O - | tar -xz
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
           
           mv hwi Nunchuk.app/Contents/MacOS/hwi
-          #mv nunchuk-qt.app/Contents/MacOS/nunchuk-qt nunchuk-qt.app/Contents/MacOS/Nunchuk
-          #mv nunchuk-qt.app Nunchuk.app
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt ${{runner.workspace}}/build/Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
 
@@ -158,27 +155,32 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
       
+          echo "Checking Developer ID"
+          security find-identity -v -p codesigning
+          
+          echo "$MACOS_CERTIFICATE_NAME"
+          
           # Step 2: Ký các thành phần bên trong ứng dụng
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -exec \
-            codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
       
           # Step 3: Ký framework và Qt components
           echo "Signing frameworks and Qt components..."
           find "$APP_PATH" -name "Qt*" -type f -exec \
-            codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" {} \;
+            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" {} \;
       
           # Step 4: Ký ứng dụng và các tệp thực thi chính
           echo "Signing main executables and app bundle..."
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for exe in "${MAIN_EXECUTABLES[@]}"; do
-            codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/$exe"
+            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$exe"
           done
-          codesign --force --verify --verbose --options runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
+          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
       
           # Step 5: Xác minh chữ ký
           echo "Verifying codesigning integrity..."
-          codesign -dv --verbose=4 "$APP_PATH"
+          codesign -dvvvvvv "$APP_PATH"
       
           # Step 6: Dọn dẹp tài nguyên
           echo "Cleaning up temporary files..."
@@ -210,7 +212,7 @@ jobs:
           echo "Submitting app bundle for notarization..."
           xcrun notarytool submit "$zip_file" \
             --keychain-profile "notarytool-profile" \
-            --wait
+            --wait --verbose
       
           # Step 4: Gắn notarization ticket vào app
           echo "Stapling notarization ticket to the app bundle..."
