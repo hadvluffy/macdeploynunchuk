@@ -175,12 +175,19 @@ jobs:
           # ===============================
           ditto -c -k --keepParent "$APP_PATH" "nunchuk-mac-qt.zip"
           echo "Creating notarization profile..."
-          xcrun notarytool submit "nunchuk-mac-qt.zip" \
+          OUTPUT=$(xcrun notarytool submit "nunchuk-mac-qt.zip" \
             --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
             --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
-            --password "$PROD_MACOS_NOTARIZATION_PWD" --wait
+            --password "$PROD_MACOS_NOTARIZATION_PWD" --wait)
           
           echo "Notarization and packaging complete!"
+          echo "$OUTPUT"
+          echo "NOTARIZATION_ID=$(echo "$OUTPUT" | grep -oE 'id: [a-f0-9-]+' | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Fetch Notarization Log if Failed
+        if: failure()
+        run: |
+          xcrun notarytool log ${{ env.NOTARIZATION_ID }}
       
       - name: Get the version
         id: get_version
