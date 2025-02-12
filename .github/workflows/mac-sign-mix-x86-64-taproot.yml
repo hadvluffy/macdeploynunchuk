@@ -163,13 +163,15 @@ jobs:
           # Step 2: Ký các thành phần bên trong ứng dụng
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
-            tee /dev/stderr | xargs -0 sudo codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME"
+            xargs -0 -L 1 echo | tee /dev/stderr | \
+            xargs -0 sudo codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME"
 
           # Step 3: Ký framework và Qt components
           echo "Signing frameworks and Qt components..."
-          find "$APP_PATH" -name "Qt*" -type f -print0 | tee /dev/stderr | \
+          find "$APP_PATH" -name "Qt*" -type f -print0 | \
+            xargs -0 -L 1 echo | tee /dev/stderr | \
             xargs -0 codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME"
-   
+            
           # Step 4: Ký ứng dụng và các tệp thực thi chính
           echo "Signing main executables and app bundle..."
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
@@ -181,7 +183,7 @@ jobs:
       
           # Step 5: Validate signature
           echo "Verifying codesigning integrity..."
-          codesign -dvvvvvv "$APP_PATH"
+          codesign -dvvvvv "$APP_PATH"
       
           # Step 6: Cleanup
           echo "Cleaning up temporary files..."
