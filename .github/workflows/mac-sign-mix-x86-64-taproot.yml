@@ -163,14 +163,18 @@ jobs:
           # Step 2: Ký các thành phần bên trong ứng dụng
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
-            xargs -0 -I {} echo "{}" | tee /dev/stderr | \
-            xargs -0 -I {} sudo codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "{}"
+            while IFS= read -r -d '' file; do
+              echo "$file" | tee /dev/stderr
+              sudo codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+            done
             
           # Step 3: Ký framework và Qt components
           echo "Signing frameworks and Qt components..."
           find "$APP_PATH" -name "Qt*" -type f -print0 | \
-            xargs -0 -I {} echo "{}" | tee /dev/stderr | \
-            xargs -0 -I {} codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "{}"
+            while IFS= read -r -d '' file; do
+              echo "$file" | tee /dev/stderr
+              codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+            done
             
           # Step 4: Ký ứng dụng và các tệp thực thi chính
           echo "Signing main executables and app bundle..."
