@@ -183,13 +183,16 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
+            sudo codesign --remove-signature "$filename"
             sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
           done
+          sudo codesign --remove-signature "$APP_PATH"
           sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
       
           # Step 5: Validate signature
-          echo "Verifying codesigning integrity..."
+          echo "Verifying codesigning integrity -dvvvvv ..."
           codesign -dvvvvv "$APP_PATH"
+          echo "Verifying codesigning integrity... -vvv --deep --strict "
           codesign -vvv --deep --strict "$APP_PATH"
 
           echo "Check otool..."
