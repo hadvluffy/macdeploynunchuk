@@ -159,7 +159,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           rm -f certificate.p12
-          codesign --deep --force --verbose --sign "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
+          codesign --deep --force --verbose --sign "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
           codesign --verify --verbose=4 "$APP_PATH"
 
       - name: Notarize app bundle
