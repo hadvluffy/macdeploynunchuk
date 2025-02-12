@@ -165,7 +165,8 @@ jobs:
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
-              sudo codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+              sudo codesign --remove-signature "$file"
+              sudo codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
             done
             
           # Step 3: Ký framework và Qt components
@@ -173,7 +174,8 @@ jobs:
           find "$APP_PATH" -name "Qt*" -type f -print0 | \
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
-              codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+              sudo codesign --remove-signature "$file"
+              sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
             done
             
           # Step 4: Ký ứng dụng và các tệp thực thi chính
@@ -181,13 +183,17 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
-            codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
+            sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
           done
-          codesign --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
+          sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
       
           # Step 5: Validate signature
           echo "Verifying codesigning integrity..."
           codesign -dvvvvv "$APP_PATH"
+          codesign -vvv --deep --strict "$APP_PATH"
+
+          echo "Check otool..."
+          otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
       
           # Step 6: Cleanup
           echo "Cleaning up temporary files..."
