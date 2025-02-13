@@ -182,6 +182,15 @@ jobs:
 
           #spctl -a -vvvv "$APP_PATH"
 
+          # Step 5: Validate signature
+          echo "Verifying codesigning integrity -dvvvvv ..."
+          codesign -dvvvvv "$APP_PATH"
+          
+          echo "Verifying codesigning integrity... -vvv --deep --strict "
+          codesign -vvv --deep --strict "$APP_PATH"
+
+          echo "Check otool..."
+          otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
 
       - name: "Notarize app bundle"
         working-directory: ${{runner.workspace}}/build
