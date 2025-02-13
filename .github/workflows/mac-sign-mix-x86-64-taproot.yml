@@ -190,8 +190,8 @@ jobs:
           codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
 
           # Tắt App Translocation
-          xattr -rc "$APP_PATH"
-          spctl --add "$APP_PATH"
+          #xattr -rc "$APP_PATH"
+          #spctl --add "$APP_PATH"
           
           # Step 5: Validate signature
           echo "Verifying codesigning integrity -dvvvvv ..."
