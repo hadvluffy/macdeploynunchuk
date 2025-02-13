@@ -166,8 +166,8 @@ jobs:
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
-              sudo codesign --remove-signature "$file"
-              sudo codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+              codesign --remove-signature "$file"
+              codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
             done
             
           # Step 3: Ký framework và Qt components
@@ -175,8 +175,8 @@ jobs:
           find "$APP_PATH" -name "Qt*" -type f -print0 | \
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
-              sudo codesign --remove-signature "$file"
-              sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
+              codesign --remove-signature "$file"
+              codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$file"
             done
             
           # Step 4: Ký ứng dụng và các tệp thực thi chính
@@ -184,11 +184,11 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
-            sudo codesign --remove-signature "$filename"
-            sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
+            codesign --remove-signature "$filename"
+            codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
           done
-          sudo codesign --remove-signature "$APP_PATH"
-          sudo codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
+          codesign --remove-signature "$APP_PATH"
+          codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH"
 
           # Tắt App Translocation
           xattr -rc "$APP_PATH"
