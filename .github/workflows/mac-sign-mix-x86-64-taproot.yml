@@ -184,7 +184,6 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
-            codesign --remove-signature "$filename"
             codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename"
           done
           codesign --remove-signature "$APP_PATH"
