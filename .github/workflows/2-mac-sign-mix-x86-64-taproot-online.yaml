@@ -180,6 +180,17 @@ jobs:
           # spctl -a -vvvv "$APP_PATH"
           # otool -L "$APP_PATH"
 
+          echo "Verifying codesigning integrity -dvvvvv ..."
+          codesign -dvvvvv "$APP_PATH"
+          echo "Verifying codesigning integrity... -vvv --deep --strict "
+          codesign -vvv --deep --strict "$APP_PATH"
+
+          echo "Verifying codesigning entitlements... d --entitlements "
+          codesign -d --entitlements :- "$APP_PATH"
+
+          echo "Check otool..."
+          otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
+
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
         env:
