@@ -167,7 +167,7 @@ jobs:
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
               codesign --remove-signature "$file"
-              codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file" -vvv
+              codesign --deep --force --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
             done
             
           # Step 3: Ký framework và Qt components
@@ -176,7 +176,7 @@ jobs:
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
               codesign --remove-signature "$file"
-              codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file" -vvvv
+              codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
             done
             
           # Step 4: Ký ứng dụng và các tệp thực thi chính
@@ -184,10 +184,10 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
-            codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/$filename" -vvvv
+            codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
           done
           codesign --remove-signature "$APP_PATH"
-          codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH" -vvvv
+          codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
 
           # Tắt App Translocation
           #xattr -rc "$APP_PATH"
