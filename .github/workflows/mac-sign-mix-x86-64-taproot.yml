@@ -167,7 +167,7 @@ jobs:
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
               codesign --remove-signature "$file"
-              codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file"
+              codesign --deep --force --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file" -vvv
             done
             
           # Step 3: Ký framework và Qt components
@@ -176,7 +176,7 @@ jobs:
             while IFS= read -r -d '' file; do
               echo "$file" | tee /dev/stderr
               codesign --remove-signature "$file"
-              codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file"
+              codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$file" -vvvv
             done
             
           # Step 4: Ký ứng dụng và các tệp thực thi chính
@@ -184,10 +184,10 @@ jobs:
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
             echo "Signing $filename"
-            codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/$filename"
+            codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/$filename" -vvvv
           done
           codesign --remove-signature "$APP_PATH"
-          codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH"
+          codesign --force --deep --verify --verbose --options=runtime --timestamp -s "$MACOS_CERTIFICATE_NAME" --entitlements "$ENTITLEMENTS" "$APP_PATH" -vvvv
 
           # Tắt App Translocation
           #xattr -rc "$APP_PATH"
@@ -197,7 +197,7 @@ jobs:
           echo "Verifying codesigning integrity -dvvvvv ..."
           codesign -dvvvvv "$APP_PATH"
           echo "Verifying codesigning integrity... -vvv --deep --strict "
-          codesign -vvv --deep --strict "$APP_PATH"
+          codesign -vvvv --deep --strict "$APP_PATH"
 
           echo "Verifying codesigning entitlements... d --entitlements "
           codesign -d --entitlements :- "$APP_PATH"
