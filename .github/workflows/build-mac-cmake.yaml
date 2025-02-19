@@ -1,4 +1,4 @@
-name: 2-mac-sign-mix-x86-64-taproot
+name: build-mac-cmake.yaml
 
 on:
   push:
