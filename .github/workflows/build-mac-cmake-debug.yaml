@@ -1,4 +1,4 @@
-name: build-mac-cmake-debug.yaml
+name: build-mac-cmake-debug
 
 on:
   push:
