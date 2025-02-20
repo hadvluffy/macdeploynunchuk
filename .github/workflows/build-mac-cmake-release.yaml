@@ -26,6 +26,7 @@ jobs:
           cd contrib/libnunchuk
           git remote add gitlab https://gitlab.com/nunchuck/libnunchuk.git
           git fetch --all
+          cd ../../
           git pull
           git submodule update --init --recursive
           
