@@ -15,68 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Set compiler
-        run: |
-          #set -e
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
-          echo "export CC=gcc-14" >> ~/.bashrc
-          echo "export CXX=g++-14" >> ~/.bashrc
-          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
-          echo "export AR=gcc-ar-14" >> ~/.bashrc
-          echo "export NM=gcc-nm-14" >> ~/.bashrc
-          source ~/.bashrc
-          
-      - name: Remove default openssl
-        run: |
-          rm -rf /usr/local/opt/openssl
-          rm -rf /usr/local/include/openssl
-    
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        run: |
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init -)"
-          eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          pip3 install poetry
-          poetry install
-          pip3 install .
-          pip3 install -U setuptools
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"          
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
-      
-      - name: Install dependencies
-        run: |
-          wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
-          tar -xvzf boost_1_81_0.tar.gz
-          cd boost_1_81_0
-          ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
-          ./b2 install
-
-          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-          export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install libolm qt@5
-          
-          # brew install automake libtool pkg-config berkeley-db@4 boost@1.86 qt@5 libevent sqlite libolm
-          # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
-          # brew update && brew reinstall qt@5 glib freetype
-
-      - name: Install qtkeychain
-        working-directory: ${{runner.workspace}}
-        run: |
-          git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
-          cd qtkeychain
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
-          cmake --build .
-          sudo cmake --install . --prefix "/usr/local"
-
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -85,10 +23,7 @@ jobs:
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
           cd nunchuk-qt
-          cd contrib
-          rm -rf libnunchuk 
-          git submodule add --force https://gitlab.com/nunchuck/libnunchuk.git
-          cd ../
+          git pull
           git submodule update --init --recursive
           
       - name: Build openssl
