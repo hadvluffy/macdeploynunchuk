@@ -23,10 +23,10 @@ jobs:
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
           cd nunchuk-qt
-          git submodule update --init --recursive --depth 1 || true
-          cd contrib/libnunchuk
-          git log
-          cd ../..
+          cd nunchuck-qt/contrib
+          rm -rf libnunchuk 
+          git submodule add --force https://gitlab.com/nunchuck/libnunchuk.git
+          git submodule update --init --recursive
           
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
