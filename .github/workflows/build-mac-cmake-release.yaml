@@ -25,7 +25,7 @@ jobs:
           cd nunchuk-qt
           git submodule init
           cd contrib/libnunchuk
-          git remote add gitlab https://gitlab.com/nunchuck/libnunchuk.git
+          git remote add gitlab https://gitlab.com/nunchuck/libnunchuk.git || true
           git fetch gitlab
           git checkout groupwallet
           cd ../..
