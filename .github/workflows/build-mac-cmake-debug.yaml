@@ -1,4 +1,5 @@
-name: build-mac-cmake-debug
+
+name: build-mac-cmake-release
 
 on:
   push:
@@ -83,12 +84,8 @@ jobs:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
+          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
           cd nunchuk-qt
-          cd contrib
-          rm -rf libnunchuk 
-          git submodule add --force https://gitlab.com/nunchuck/libnunchuk.git
-          cd ..
           git submodule update --init --recursive
           
       - name: Build openssl
@@ -114,10 +111,22 @@ jobs:
           export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          
+          # No optimize, add debug info
+          export CXXFLAGS="-O0 -g3 -fno-omit-frame-pointer"
+          
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
-          cmake ${{runner.workspace}}/nunchuk-qt  -DRANDLIB=$(which gcc-randlib-14) -DAR=$(which gcc-ar-14) -DNM=$(which gcc-nm-14) -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake -DUR__DISABLE_TESTS=ON -DBOOST_ROOT=/usr/local/opt/boost@1.81
-          cmake --build . --config Debug -j8
+          cmake ${{runner.workspace}}/nunchuk-qt \
+                -DRANDLIB=$(which gcc-randlib-14) \
+                -DAR=$(which gcc-ar-14) \
+                -DNM=$(which gcc-nm-14) \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
+                -DUR__DISABLE_TESTS=ON \
+                -DBOOST_ROOT=/usr/local/opt/boost@1.81 \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS"
+          cmake --build . --config Release -j8
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
