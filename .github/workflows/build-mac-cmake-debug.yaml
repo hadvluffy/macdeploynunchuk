@@ -1,5 +1,5 @@
 
-name: build-mac-cmake-release
+name: build-mac-cmake-release-info
 
 on:
   push:
