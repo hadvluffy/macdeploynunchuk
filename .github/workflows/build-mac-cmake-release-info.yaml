@@ -113,7 +113,8 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
-          export CXXFLAGS="-O0 -g3 -fno-omit-frame-pointer"
+          export CXXFLAGS="-O0 -g2 -fno-omit-frame-pointer"
+          export CFLAGS="-O0 -g2 -fno-omit-frame-pointer"
           
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
@@ -125,7 +126,10 @@ jobs:
                 -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
                 -DUR__DISABLE_TESTS=ON \
                 -DBOOST_ROOT=/usr/local/opt/boost@1.81 \
-                -DCMAKE_CXX_FLAGS="$CXXFLAGS"
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
           cmake --build . --config Release -j8
           
       - name: Deploy Dmg
