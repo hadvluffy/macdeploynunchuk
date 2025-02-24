@@ -112,8 +112,8 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
-          export CXXFLAGS="-O0 -g2 -fno-omit-frame-pointer"
-          export CFLAGS="-O0 -g2 -fno-omit-frame-pointer"
+          export CXXFLAGS="-O0"
+          export CFLAGS="-O0"
           
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
