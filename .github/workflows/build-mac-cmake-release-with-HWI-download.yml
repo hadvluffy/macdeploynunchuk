@@ -1,0 +1,289 @@
+
+name: build-mac-cmake-release-with-HWI-download
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Set compiler
+        run: |
+          #set -e
+          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
+          echo "export CC=gcc-14" >> ~/.bashrc
+          echo "export CXX=g++-14" >> ~/.bashrc
+          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
+          echo "export AR=gcc-ar-14" >> ~/.bashrc
+          echo "export NM=gcc-nm-14" >> ~/.bashrc
+          source ~/.bashrc
+          
+      - name: Remove default openssl
+        run: |
+          rm -rf /usr/local/opt/openssl
+          rm -rf /usr/local/include/openssl
+    
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}
+        shell: bash
+        run: |
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          pip3 install poetry
+          poetry install
+          pip3 install .
+          pip3 install -U setuptools
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"          
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+      
+      - name: Install dependencies
+        run: |
+          wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
+          tar -xvzf boost_1_81_0.tar.gz
+          cd boost_1_81_0
+          ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
+          ./b2 install
+
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install libolm qt@5
+          
+          # brew install automake libtool pkg-config berkeley-db@4 boost@1.86 qt@5 libevent sqlite libolm
+          # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
+          # brew update && brew reinstall qt@5 glib freetype
+
+      - name: Install qtkeychain
+        working-directory: ${{runner.workspace}}
+        run: |
+          git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
+          cd qtkeychain
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
+          cmake --build . -j8
+          sudo cmake --install . --prefix "/usr/local"
+
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
+          cd nunchuk-qt
+          git submodule update --init --recursive
+          
+      - name: Build openssl
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
+        working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+        run: |
+          set -e
+          source ~/.bashrc
+          ./config --prefix="$PWD/lib"
+          make -j8
+          make install_dev
+
+      - name: Build nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+        shell: bash
+        run: |
+          set -e
+          source ~/.bashrc
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          
+          # No optimize, add debug info
+          export CXXFLAGS="-O0"
+          export CFLAGS="-O0"
+          
+          cmake -E make_directory ${{runner.workspace}}/build
+          cd build
+          cmake ${{runner.workspace}}/nunchuk-qt \
+                -DRANDLIB=$(which gcc-randlib-14) \
+                -DAR=$(which gcc-ar-14) \
+                -DNM=$(which gcc-nm-14) \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
+                -DUR__DISABLE_TESTS=ON \
+                -DBOOST_ROOT=/usr/local/opt/boost@1.81 \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
+          cmake --build . --config Release -j8
+          
+      - name: Deploy Dmg
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          set -e
+          source ~/.bashrc
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "*mac-x86_64.tar.gz" -exec mv {} ./ \;
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz" -exec tar -xf {} \;
+          find ${{runner.workspace}} -name "hwi"
+          find ${{runner.workspace}} -name "nunchuk-qt.app"
+          
+          mv hwi Nunchuk.app/Contents/MacOS/hwi
+          find ${{runner.workspace}} -name "Nunchuk.app"
+          macdeployqt ${{runner.workspace}}/build/Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
+
+      - name: Codesign app bundle
+        working-directory: ${{runner.workspace}}/build
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          APP: "Nunchuk"
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+          ENTITLEMENTS: ${{runner.workspace}}/nunchuk-qt/entitlements.plist
+        run: |
+          set -euo pipefail # Dừng script nếu lỗi, bảo vệ biến chưa khai báo
+      
+          echo "Setting up keychain and certificate..."
+      
+          # Step 1: Giải mã chứng chỉ và tạo keychain
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+      
+          echo "Checking Developer ID"
+          security find-identity -v -p codesigning
+          
+          echo "$MACOS_CERTIFICATE_NAME"
+          
+          # Step 2: Ký các thành phần bên trong ứng dụng
+          echo "Signing internal components..."
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
+            while IFS= read -r -d '' file; do
+              echo "$file" | tee /dev/stderr
+              codesign --remove-signature "$file"
+              codesign --deep --force --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
+            done
+            
+          # Step 3: Ký framework và Qt components
+          echo "Signing frameworks and Qt components..."
+          find "$APP_PATH" -name "Qt*" -type f -print0 | \
+            while IFS= read -r -d '' file; do
+              echo "$file" | tee /dev/stderr
+              codesign --remove-signature "$file"
+              codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
+            done
+            
+          # Step 4: Ký ứng dụng và các tệp thực thi chính
+          echo "Signing main executables and app bundle..."
+          MAIN_EXECUTABLES=("hwi" "Nunchuk")
+          for filename in "${MAIN_EXECUTABLES[@]}"; do
+            echo "Signing $filename"
+            codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
+          done
+          codesign --remove-signature "$APP_PATH"
+          codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
+
+          # Tắt App Translocation
+          #xattr -rc "$APP_PATH"
+          #spctl --add "$APP_PATH"
+          
+          # Step 5: Validate signature
+          echo "Verifying codesigning integrity -dvvvvv ..."
+          codesign -dvvvvv "$APP_PATH"
+          echo "Verifying codesigning integrity... -vvvv --deep --strict "
+          codesign -vvvv --deep --strict "$APP_PATH"
+
+          echo "Verifying codesigning entitlements... d --entitlements "
+          codesign -dvvvv --entitlements :- "$APP_PATH"
+
+          echo "Check otool..."
+          otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
+      
+          # Step 6: Cleanup
+          echo "Cleaning up temporary files..."
+          rm -f certificate.p12
+      
+      - name: Notarize app bundle
+        working-directory: ${{runner.workspace}}/build
+        env:
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          set -euo pipefail # Dừng script nếu lỗi
+      
+          # Step 1: Tạo hồ sơ notarization
+          echo "Creating notarization profile..."
+          xcrun notarytool store-credentials "notarytool-profile" \
+            --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+            --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+            --password "$PROD_MACOS_NOTARIZATION_PWD"
+      
+          # Step 2: Tạo file ZIP từ app bundle
+          echo "Packaging the app bundle..."
+          zip_file="${{runner.workspace}}/build/notarization.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$zip_file"
+      
+          # Step 3: Gửi app bundle để notarization
+          echo "Submitting app bundle for notarization..."
+          xcrun notarytool submit "$zip_file" \
+            --keychain-profile "notarytool-profile" \
+            --wait --verbose
+      
+          # Step 4: Gắn notarization ticket vào app
+          echo "Stapling notarization ticket to the app bundle..."
+          xcrun stapler staple "$APP_PATH"
+      
+          # Step 5: Xác minh quá trình stapling
+          echo "Validating the stapling..."
+          xcrun stapler validate "$APP_PATH"
+      
+          # Step 6: Kiểm tra Gatekeeper
+          echo "Performing Gatekeeper verification..."
+          spctl -a -vvvv "$APP_PATH"
+          spctl --assess --type exec --verbose=4 "$APP_PATH"
+      
+          # Step 7: Đóng gói app notarized vào ZIP cuối
+          echo "Repackaging the notarized app bundle..."
+          final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
+          mkdir -p "$final_package_dir"
+          cp -R "$APP_PATH" "$final_package_dir/"
+          final_zip="${{runner.workspace}}/build/nunchuk-mac-qt.zip"
+          ditto -c -k --keepParent "$final_package_dir" "$final_zip"
+      
+          echo "Notarization and packaging complete!"
+     
+      
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+
+      - name: Upload Artifact
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: nunchuk-mac-${{ steps.get_version.outputs.VERSION }}
+          path: ${{runner.workspace}}/build/nunchuk-mac-qt.zip
