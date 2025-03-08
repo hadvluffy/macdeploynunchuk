@@ -205,11 +205,11 @@ jobs:
               codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
             else
               # Nunchuk: keep hardened runtime
-              codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
+              codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
             fi
           done
           codesign --remove-signature "$APP_PATH"
-          codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
+          codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
 
           # Tắt App Translocation
           #xattr -rc "$APP_PATH"
