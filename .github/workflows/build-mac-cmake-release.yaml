@@ -202,11 +202,11 @@ jobs:
             echo "Signing > $filename"
             if [ "$filename" = "hwi" ]; then
               # hwi: Remove --options=runtime
-              codesign --remove-signature "$filename"
+              codesign --remove-signature "$APP_PATH/Contents/MacOS/$filename"
               codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
             else
               # Nunchuk: keep hardened runtime
-              codesign --remove-signature "$filename"
+              codesign --remove-signature "$APP_PATH/Contents/MacOS/$filename"
               codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/$filename" -vvv
             fi
           done
