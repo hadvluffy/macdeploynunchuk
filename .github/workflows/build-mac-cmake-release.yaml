@@ -46,7 +46,7 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onefile --static --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           echo "find hwi"
           find ${{runner.workspace}} -name "hwi"
