@@ -48,6 +48,7 @@ jobs:
           pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           echo "hwi build in path >>"
           find ${{runner.workspace}} -name "hwi"
+          otool -L dist/hwi
       
       - name: Install dependencies
         run: |
