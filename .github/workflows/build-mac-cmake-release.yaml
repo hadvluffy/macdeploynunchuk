@@ -42,13 +42,12 @@ jobs:
           eval "$(pyenv init --path)"
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
           cd HWI-3.1.0
-          pip3 install poetry
+          pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pip3 install -U setuptools
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"          
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+          pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          echo "hwi build in path >>"
+          find ${{runner.workspace}} -name "hwi"
       
       - name: Install dependencies
         run: |
@@ -140,8 +139,7 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
-          find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "*mac-x86_64.tar.gz" -exec mv {} ./ \;
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz" -exec tar -xf {} \;
+          find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "hwi" -exec mv {} ./ \;
           find ${{runner.workspace}} -name "hwi"
           find ${{runner.workspace}} -name "nunchuk-qt.app"
           
