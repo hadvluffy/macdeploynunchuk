@@ -205,7 +205,7 @@ jobs:
           #  codesign -dvv "$APP_PATH/Contents/MacOS/$filename"
           #done
           codesign --remove-signature "$APP_PATH"
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
+          codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
 
           # Tắt App Translocation
           #xattr -rc "$APP_PATH"
