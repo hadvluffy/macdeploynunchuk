@@ -48,5 +48,7 @@ jobs:
           pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           #echo "Kiem tra"
+          echo "find hwi"
+          find ${{runner.workspace}} -name "hwi"
           ls dist
       
