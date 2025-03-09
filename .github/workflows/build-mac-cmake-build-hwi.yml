@@ -36,7 +36,6 @@ jobs:
         shell: bash
         run: |
           brew install libusb pyenv pyenv-virtualenv
-          brew install python-static
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
