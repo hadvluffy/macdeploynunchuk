@@ -36,6 +36,7 @@ jobs:
         shell: bash
         run: |
           brew install libusb pyenv pyenv-virtualenv
+          brew install python-static
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
@@ -45,9 +46,12 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-          echo "hwi build in path >>"
+          pyinstaller --onefile --static --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+
+          echo "find hwi"
           find ${{runner.workspace}} -name "hwi"
+          otool -L dist/hwi
+          ./dist/hwi --version
           otool -L dist/hwi
       
       - name: Install dependencies
@@ -204,12 +208,13 @@ jobs:
           #  codesign -dvv "$APP_PATH/Contents/MacOS/$filename"
           #done
           codesign --remove-signature "$APP_PATH"
-          codesign --force --deep --verify --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
-          codesign -v "$APP_PATH/Contents/MacOS/hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
           
-          # Tắt App Translocation
-          #xattr -rc "$APP_PATH"
-          #spctl --add "$APP_PATH"
+          echo "Verifying codesigning hwi"
+          codesign -vvvv --deep --strict "$APP_PATH/Contents/MacOS/hwi"
+          
+          # Disable SIP check
+          xattr -rd com.apple.quarantine "$APP_PATH/Contents/MacOS/hwi"
           
           # Step 5: Validate signature
           echo "Verifying codesigning integrity -dvvvvv ..."
@@ -267,6 +272,8 @@ jobs:
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
+          spctl --assess --verbose=4 "$APP_PATH/Contents/MacOS/hwi"
+
       
           # Step 7: Đóng gói app notarized vào ZIP cuối
           echo "Repackaging the notarized app bundle..."
