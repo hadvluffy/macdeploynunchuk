@@ -1,0 +1,52 @@
+name: build-mac-cmake-build-hwi
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Set compiler
+        run: |
+          #set -e
+          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
+          echo "export CC=gcc-14" >> ~/.bashrc
+          echo "export CXX=g++-14" >> ~/.bashrc
+          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
+          echo "export AR=gcc-ar-14" >> ~/.bashrc
+          echo "export NM=gcc-nm-14" >> ~/.bashrc
+          source ~/.bashrc
+          
+      - name: Remove default openssl
+        run: |
+          rm -rf /usr/local/opt/openssl
+          rm -rf /usr/local/include/openssl
+    
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}
+        shell: bash
+        run: |
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          pip3 install poetry pyinstaller
+          poetry install
+          pip3 install .
+          pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+
+          #echo "Kiem tra"
+          ls dist
+      
