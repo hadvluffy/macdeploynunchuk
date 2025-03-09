@@ -52,4 +52,6 @@ jobs:
           find ${{runner.workspace}} -name "hwi"
           ls dist
           otool -L dist/hwi
+          ./dist/hwi --version
+
       
