@@ -62,10 +62,8 @@ jobs:
           pyinstaller --onedir --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           
           #echo "Kiem tra"
-          echo "find hwi"
-          find ${{runner.workspace}} -name "hwi"
-          ls dist
-          otool -L dist/hwi
-          ./dist/hwi --version
+          echo "find hwi and otool"
+          find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
 
-      
+          echo "ls dist"
+          ls dist
