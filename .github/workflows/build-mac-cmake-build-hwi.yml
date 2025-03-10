@@ -36,9 +36,8 @@ jobs:
         shell: bash
         run: |
           brew install libusb pyenv pyenv-virtualenv
-          # Cài đặt Python dưới dạng framework, ví dụ dùng phiên bản 3.7.6 hoặc (nếu hỗ trợ) 3.9.x với enable-framework
-          env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.7.6
-          pyenv global 3.7.6
+          pyenv install 3.9.7
+          pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
@@ -46,8 +45,7 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          # Build với PyInstaller; có thể thêm các tùy chọn cần thiết, ví dụ --onefile --clean --windowed
-          pyinstaller hwi.py --onefile --clean --windowed
+          pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           #echo "Kiem tra"
           echo "find hwi"
