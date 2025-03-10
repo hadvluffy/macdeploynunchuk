@@ -53,5 +53,6 @@ jobs:
           ls dist
           otool -L dist/hwi
           ./dist/hwi --version
+           codesign --force --deep --verify --options=runtime --verbose --timestamp 
 
       
