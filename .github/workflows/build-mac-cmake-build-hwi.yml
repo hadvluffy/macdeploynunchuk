@@ -49,7 +49,6 @@ jobs:
           #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           brew install libusb pyenv pyenv-virtualenv
-          env PYTHON_CONFIGURE_OPTS="--enable-framework" 
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
