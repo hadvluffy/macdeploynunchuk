@@ -35,31 +35,19 @@ jobs:
         working-directory: ${{runner.workspace}}
         shell: bash
         run: |
-          # Cài đặt các gói cần thiết qua Homebrew
           brew install libusb pyenv pyenv-virtualenv
-          
-          # Cài đặt Python 3.9.7 bằng pyenv và đặt làm global
-          pyenv install 3.9.7
-          pyenv global 3.9.7
+          # Cài đặt Python dưới dạng framework, ví dụ dùng phiên bản 3.7.6 hoặc (nếu hỗ trợ) 3.9.x với enable-framework
+          env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.7.6
+          pyenv global 3.7.6
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          
-          # Tải và giải nén HWI phiên bản 3.1.0
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
           cd HWI-3.1.0
-          
-          # Cài đặt các gói Python cần thiết: poetry và Nuitka
-          pip3 install poetry nuitka
-          
-          # Cài đặt các dependency của HWI qua poetry (có thể dùng --no-root nếu cần)
+          pip3 install poetry pyinstaller
           poetry install
-          
-          # Cài đặt HWI (nếu cần cài đặt thêm package từ setup.py)
           pip3 install .
-          
-          # Build HWI bằng Nuitka với chế độ standalone và onefile
-          nuitka --standalone --onefile --follow-imports hwi.py
-
+          # Build với PyInstaller; có thể thêm các tùy chọn cần thiết, ví dụ --onefile --clean --windowed
+          pyinstaller hwi.py --onefile --clean --windowed
 
           #echo "Kiem tra"
           echo "find hwi"
