@@ -272,9 +272,7 @@ jobs:
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
-          spctl --assess --verbose=4 "$APP_PATH/Contents/MacOS/hwi"
 
-      
           # Step 7: Đóng gói app notarized vào ZIP cuối
           echo "Repackaging the notarized app bundle..."
           final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
@@ -284,7 +282,6 @@ jobs:
           ditto -c -k --keepParent "$final_package_dir" "$final_zip"
       
           echo "Notarization and packaging complete!"
-     
       
       - name: Get the version
         id: get_version
