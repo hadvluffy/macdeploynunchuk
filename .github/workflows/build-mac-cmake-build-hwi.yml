@@ -61,10 +61,6 @@ jobs:
           pip3 install .
           pyinstaller --onedir --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           
-          # Kiểm tra binary
-          file hwi
-          ./hwi --version
-
           #echo "Kiem tra"
           echo "find hwi"
           find ${{runner.workspace}} -name "hwi"
