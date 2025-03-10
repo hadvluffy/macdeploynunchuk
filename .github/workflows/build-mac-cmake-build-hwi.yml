@@ -35,18 +35,43 @@ jobs:
         working-directory: ${{runner.workspace}}
         shell: bash
         run: |
+          #brew install libusb pyenv pyenv-virtualenv
+          #env PYTHON_CONFIGURE_OPTS="--enable-framework" 
+          #pyenv install 3.9.7
+          #pyenv global 3.9.7
+          #eval "$(pyenv init -)"
+          #eval "$(pyenv init --path)"
+          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          #cd HWI-3.1.0
+          #pip3 install poetry pyinstaller
+          #poetry install
+          #pip3 install .
+          #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+
+          # Cài đặt các công cụ cần thiết
           brew install libusb pyenv pyenv-virtualenv
-          env PYTHON_CONFIGURE_OPTS="--enable-framework" 
-          pyenv install 3.9.7
+          
+          # Cài đặt Python dạng framework (phiên bản 3.9.7)
+          env PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install -s 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
+          
+          # Tải và giải nén mã nguồn HWI phiên bản 3.1.0
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
           cd HWI-3.1.0
-          pip3 install poetry pyinstaller
+          
+          # Cài đặt Poetry và Nuitka, cùng các dependency
+          pip3 install poetry nuitka
           poetry install
           pip3 install .
-          pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          
+          # Build HWI bằng Nuitka (standalone, onefile)
+          nuitka --standalone --onefile --follow-imports hwi.py
+          
+          # Kiểm tra binary
+          file hwi
+          ./hwi --version
 
           #echo "Kiem tra"
           echo "find hwi"
