@@ -36,6 +36,7 @@ jobs:
         shell: bash
         run: |
           brew install libusb pyenv pyenv-virtualenv
+          env PYTHON_CONFIGURE_OPTS="--enable-framework" 
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
@@ -45,7 +46,7 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onefile --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           echo "find hwi"
           find ${{runner.workspace}} -name "hwi"
