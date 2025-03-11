@@ -58,8 +58,9 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onefile hwi.py
-   
+          pip install pyinstaller-hooks-contrib
+          pyinstaller --onefile --hidden-import pyinstaller_hooks_contrib.hooks --name hwi hwi.py
+
           #echo "Kiem tra"
           echo "find hwi and otool"
           find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
@@ -67,5 +68,3 @@ jobs:
           echo "ls dist"
           ls dist
 
-          pip install staticx 
-          staticx dist/hwi dist/hwistatic
