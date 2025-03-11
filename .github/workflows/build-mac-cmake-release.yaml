@@ -203,7 +203,7 @@ jobs:
             
           # Signing libraries in _internal/
           echo "Signing libraries in _internal"
-          find "$APP_PATH/Contents/MacOS/hwi/_internal" -type f -exec sh -c '
+          find "$APP_PATH/Contents/MacOS/_internal" -type f -exec sh -c '
             for file do
               echo "Signing: $file"
               codesign --remove-signature "$file" || true
