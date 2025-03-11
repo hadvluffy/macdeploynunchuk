@@ -146,14 +146,14 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
 
           # check Nunchuk.app
-          find ${{runner.workspace}} -name "Nunchuk.app"ç
+          find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt ${{runner.workspace}}/build/Nunchuk.app -qmldir=${{runner.workspace}}/nunchuk-qt
           
            # Copy hwi built above 
-          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/
+          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* ${{runner.workspace}}/build/Nunchuk.app/Contents/MacOS/
           echo "check copy result"
-          ls -l ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/
-          ls -l ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/_internal
+          ls -l ${{runner.workspace}}/build/Nunchuk.app/Contents/MacOS/
+          ls -l ${{runner.workspace}}/build/Nunchuk.app/Contents/MacOS/_internal
 
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
