@@ -64,7 +64,7 @@ jobs:
           #echo "Kiem tra"
           echo "find hwi and otool"
           find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
-
           echo "ls dist"
-          ls dist
+          ls -l dist
+          file dist/hwi
 
