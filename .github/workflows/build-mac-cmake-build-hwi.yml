@@ -66,4 +66,14 @@ jobs:
           find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
           echo "ls dist"
           ls -l dist
+      - name: Zip output
+        run: |
+          cd ${{runner.workspace}}/HWI-3.1.0/dist
+          zip -r hwi-macos.zip hwi
+          mv hwi-macos.zip ${{runner.workspace}}
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hwi-macos
+          path: ${{runner.workspace}}/hwi-macos.zip
