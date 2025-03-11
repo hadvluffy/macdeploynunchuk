@@ -59,7 +59,7 @@ jobs:
           poetry install
           pip3 install .
           pip install pyinstaller-hooks-contrib
-          pyinstaller --onefile --noconsole pyinstaller_hooks_contrib.hooks --name hwi hwi.py
+          pyinstaller --onefile --noconsole -v pyinstaller_hooks_contrib.hooks hwi.py
           
           #echo "Kiem tra"
           echo "find hwi and otool"
