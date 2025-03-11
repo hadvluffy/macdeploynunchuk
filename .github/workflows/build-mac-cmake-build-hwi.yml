@@ -58,9 +58,7 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onefile --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-          pip install staticx 
-          staticx dist/hwi dist/hwistatic
+          pyinstaller --onefile hwi.py
    
           #echo "Kiem tra"
           echo "find hwi and otool"
@@ -68,3 +66,6 @@ jobs:
 
           echo "ls dist"
           ls dist
+
+          pip install staticx 
+          staticx dist/hwi dist/hwistatic
