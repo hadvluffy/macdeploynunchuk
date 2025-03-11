@@ -58,8 +58,10 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onedir --windowed --hidden-import=hidapi --hidden-import=libusb1 --static hwi.py
-          
+          pyinstaller --onedir --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          pip install staticx 
+          staticx dist/hwi dist/hwistatic
+   
           #echo "Kiem tra"
           echo "find hwi and otool"
           find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
