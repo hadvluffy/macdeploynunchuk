@@ -146,7 +146,7 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
 
           # Copy hwi built above 
-          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/
+          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/
           echo "check copy result"
           ls -l ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/
           ls -l ${{runner.workspace}}/Nunchuk.app/Contents/MacOS/_internal
