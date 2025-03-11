@@ -58,7 +58,7 @@ jobs:
           pip3 install poetry pyinstaller
           poetry install
           pip3 install .
-          pyinstaller --onedir --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          pyinstaller --onefile --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           pip install staticx 
           staticx dist/hwi dist/hwistatic
    
