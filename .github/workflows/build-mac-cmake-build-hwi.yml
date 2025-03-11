@@ -59,7 +59,7 @@ jobs:
           poetry install
           pip3 install .
           #pip install pyinstaller-hooks-contrib
-          pyinstaller --onedir --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           
           #echo "Kiem tra"
           echo "find hwi and otool"
