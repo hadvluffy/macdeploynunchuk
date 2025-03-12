@@ -48,18 +48,7 @@ jobs:
           #pip3 install .
           #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
-          curl -L -o hwi-3.1.0.tar.gz https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz
-          tar -xzf hwi-3.1.0.tar.gz
-          rm hwi-3.1.0.tar.gz
-          HWI_PATH=$(find ${{runner.workspace}}/hwi-3.1.0 -type f -name "hwi" | head -n 1)
-      
-          if [[ -z "$HWI_PATH" ]]; then
-            echo "HWI binary not found!"
-            exit 1
-          fi
-          echo "$HWI_PATH"
-          ls $HWI_PATH
-
+          # 22222222
           #brew install libusb pyenv pyenv-virtualenv
           #pyenv install 3.9.7
           #pyenv global 3.9.7
@@ -78,6 +67,59 @@ jobs:
           #find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
           #echo "ls dist"
           #ls -l dist
+
+          # 333333333
+          #!/bin/bash
+          set -e  # Dừng script nếu có lỗi
+          
+          # Định nghĩa đường dẫn làm việc
+          WORK_DIR="${{runner.workspace}}"
+          HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz"
+          HWI_TAR="hwi-3.1.0.tar.gz"
+          HWI_EXTRACT_DIR="$WORK_DIR/hwi-extracted"
+          APP_PATH="$WORK_DIR/Nunchuk.app"
+          
+          # Bước 1: Tải về file tar.gz
+          echo "📥 Đang tải HWI..."
+          curl -L -o "$WORK_DIR/$HWI_TAR" "$HWI_URL"
+          
+          # Bước 2: Tạo thư mục và giải nén vào đó
+          echo "📦 Giải nén HWI..."
+          mkdir -p "$HWI_EXTRACT_DIR"
+          tar -xzf "$WORK_DIR/$HWI_TAR" -C "$HWI_EXTRACT_DIR" --strip-components=1
+          
+          # Xóa file tar.gz để tiết kiệm dung lượng
+          rm "$WORK_DIR/$HWI_TAR"
+          
+          # Kiểm tra thư mục sau khi giải nén
+          echo "📂 Kiểm tra thư mục đã giải nén:"
+          ls -lh "$HWI_EXTRACT_DIR"
+          
+          # Bước 3: Tìm file thực thi "hwi"
+          echo "🔎 Tìm file HWI..."
+          HWI_PATH=$(find "$HWI_EXTRACT_DIR" -type f -name "hwi" | head -n 1)
+          
+          if [[ -z "$HWI_PATH" ]]; then
+            echo "❌ Lỗi: Không tìm thấy file HWI!"
+            exit 1
+          fi
+          
+          echo "✅ HWI đã tìm thấy: $HWI_PATH"
+          ls -lh "$HWI_PATH"
+          
+          # Bước 4: Sao chép file HWI vào ứng dụng
+          DEST_PATH="$APP_PATH/Contents/MacOS/Nunchuk"
+          mkdir -p "$DEST_PATH"
+          
+          echo "🚀 Sao chép HWI vào $DEST_PATH..."
+          cp "$HWI_PATH" "$DEST_PATH"
+          
+          # Kiểm tra lại file sau khi sao chép
+          echo "📂 Kiểm tra thư mục đích:"
+          ls -lh "$DEST_PATH"
+          
+          echo "🎉 Hoàn thành!"
+
           
       - name: Zip toàn bộ output dist
         run: |
