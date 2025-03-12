@@ -89,10 +89,10 @@ jobs:
       - name: Build HWI with Nuitka
         working-directory: HWI-3.1.0
         run: 
-          export NUITKA_DISABLE_CCACHE=1 & yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
+          export NUITKA_DISABLE_CCACHE=1 & yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
 
       - name: Check built binary and list dist folder
-        working-directory: HWI-3.1.0
+        working-directory: build_output
         run: |
           ls -l .
           #find . -name "hwi" -exec otool -L {} \;
