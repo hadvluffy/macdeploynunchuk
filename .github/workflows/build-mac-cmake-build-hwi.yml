@@ -63,7 +63,7 @@ jobs:
           cd HWI-3.1.0
           pip install --upgrade nuitka
           poetry install
-          export NUITKA_DISABLE_CCACHE=1 && nuitka --standalone --onefile --static-libpython=yes hwi.py
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
 
       - name: Check built binary dependencies with otool
         working-directory: HWI-3.1.0
