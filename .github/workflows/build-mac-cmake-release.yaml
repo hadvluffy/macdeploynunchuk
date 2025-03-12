@@ -185,11 +185,6 @@ jobs:
              codesign --remove-signature "$file"
              codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
            done
-          
-          # Signing hwi
-          echo "Signing hwi"
-          codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
 
           # Sign Nunchuk
           echo "Signing Nunchuk"
@@ -200,6 +195,12 @@ jobs:
           echo "Signing main executables and app bundle..."
           codesign --remove-signature "$APP_PATH"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
+           
+          # Signing hwi
+          echo "Signing hwi"
+          codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
+
           echo "Verifying codesigning $APP_PATH"
           codesign -vvvv --deep --strict "$APP_PATH"
           
