@@ -48,24 +48,36 @@ jobs:
           #pip3 install .
           #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init -)"
-          eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          pip3 install poetry pyinstaller
-          poetry install
-          pip3 install .
-          #pip install pyinstaller-hooks-contrib
-          pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          curl -L -o hwi.tar.gz https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz
+          tar -xzf hwi.tar.gz
+          rm hwi.tar.gz
+          HWI_PATH=$(find ${{runner.workspace}}/hwi-3.1.0-mac-x86_64 -type f -name "hwi" | head -n 1)
+      
+          if [[ -z "$HWI_PATH" ]]; then
+            echo "HWI binary not found!"
+            exit 1
+          fi
+          echo "$HWI_PATH"
+          ls $HWI_PATH
+
+          #brew install libusb pyenv pyenv-virtualenv
+          #pyenv install 3.9.7
+          #pyenv global 3.9.7
+          #eval "$(pyenv init -)"
+          #eval "$(pyenv init --path)"
+          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          #cd HWI-3.1.0
+          #pip3 install poetry pyinstaller
+          #poetry install
+          #pip3 install .
+          ##pip install pyinstaller-hooks-contrib
+          #pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           
-          #echo "Kiem tra"
-          echo "find hwi and otool"
-          find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
-          echo "ls dist"
-          ls -l dist
+          ##echo "Kiem tra"
+          #echo "find hwi and otool"
+          #find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
+          #echo "ls dist"
+          #ls -l dist
           
       - name: Zip toàn bộ output dist
         run: |
