@@ -30,30 +30,7 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
-    
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        run: |
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init -)"
-          eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          pip3 install poetry pyinstaller
-          poetry install
-          pip3 install .
-          #pip install pyinstaller-hooks-contrib
-          pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-          
-          #echo "Kiem tra"
-          echo "find hwi and otool"
-          find ${{runner.workspace}} -name "hwi";
-          echo "ls dist"
-          ls -l dist
-      
+
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -66,10 +43,6 @@ jobs:
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install libolm qt@5
           
-          # brew install automake libtool pkg-config berkeley-db@4 boost@1.86 qt@5 libevent sqlite libolm
-          # workaround for Homebrew RPATH issue https://github.com/Homebrew/homebrew-core/issues/140930
-          # brew update && brew reinstall qt@5 glib freetype
-
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
@@ -78,7 +51,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
-          cmake --build . -j8
+          cmake --build . -j$(nproc)
           sudo cmake --install . --prefix "/usr/local"
 
       - name: Checkout nunchuk-qt
@@ -98,7 +71,7 @@ jobs:
           set -e
           source ~/.bashrc
           ./config --prefix="$PWD/lib"
-          make -j8
+          make -j$(nproc)
           make install_dev
 
       - name: Build nunchuk-qt
@@ -133,7 +106,7 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
-          cmake --build . --config Release -j8
+          cmake --build . --config Release -j$(nproc)
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
@@ -151,11 +124,21 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
           
-           # Copy hwi built above 
-          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* $APP_PATH/Contents/MacOS/
-          echo "check copy result"
-          ls -l $APP_PATH/Contents/MacOS/
-          ls -l $APP_PATH/Contents/MacOS/_internal
+      - name: Download, extract, and move HWI
+        working-directory: ${{runner.workspace}}
+        shell: bash
+        run: |
+          curl -L -o hwi.tar.gz https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz
+          tar -xzf hwi.tar.gz
+          rm hwi.tar.gz
+          HWI_PATH=$(find ${{runner.workspace}}/hwi-3.1.0-mac-x86_64 -type f -name "hwi" | head -n 1)
+      
+          if [[ -z "$HWI_PATH" ]]; then
+            echo "HWI binary not found!"
+            exit 1
+          fi
+          cp "$HWI_PATH" $APP_PATH/Contents/MacOS/Nunchuk/
+          chmod +x $APP_PATH/Contents/MacOS/Nunchuk/hwi
 
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
