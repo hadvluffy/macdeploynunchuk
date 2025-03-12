@@ -54,24 +54,45 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-          brew install libusb pyenv pyenv-virtualenv
+      - name: Install Homebrew dependencies
+        run: brew install libusb pyenv pyenv-virtualenv
+
+      - name: Install Python 3.9.7 via pyenv
+        run: |
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
+          python --version
+
+      - name: Upgrade pip to latest version
+        run: python -m pip install --upgrade pip
+
+      - name: Download HWI source code
+        run: wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
+
+      - name: Enter HWI directory
+        run: ls -l
+        working-directory: HWI-3.1.0
+
+      - name: Install Poetry and upgrade Nuitka
+        run: |
+          pip install poetry
           pip install --upgrade nuitka
-          poetry install
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
-
-      - name: Check built binary dependencies with otool
         working-directory: HWI-3.1.0
-        run: find . -name "hwi" -exec otool -L {} \;
 
-      - name: List dist folder contents
+      - name: Install project dependencies with Poetry
+        run: poetry install
         working-directory: HWI-3.1.0
-        run: ls -l dist
+
+      - name: Build HWI with Nuitka
+        run: export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
+        working-directory: HWI-3.1.0
+
+      - name: Check built binary and list dist folder
+        run: |
+          find . -name "hwi" -exec otool -L {} \;
+          ls -l dist
           
       - name: Zip toàn bộ output dist
         run: |
