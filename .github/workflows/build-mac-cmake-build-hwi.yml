@@ -77,6 +77,8 @@ jobs:
           ls -l .
           ls -l  hwi-macos
 
+          echo "Number of core $(nproc)"
+
 
           
       - name: Zip toàn bộ output dist
