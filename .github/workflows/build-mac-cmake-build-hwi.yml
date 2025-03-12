@@ -85,9 +85,8 @@ jobs:
           echo "ls -l ."
           ls -l .
           
-          # Build HWI với Nuitka
-          export NUITKA_DISABLE_CCACHE=1
-          yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
+          echo "Build HWI with Nuitka"
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
 
           echo "ls -l ."
           ls -l .
