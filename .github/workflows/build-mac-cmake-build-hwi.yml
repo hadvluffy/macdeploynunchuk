@@ -90,7 +90,11 @@ jobs:
         working-directory: HWI-3.1.0
         run: 
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
-          
+      
+      - name: Check build directory
+        working-directory: HWI-3.1.0
+        run: ls -l build_output
+
       - name: Zip toàn bộ output dist
         run: |
           cd ${{runner.workspace}}/HWI-3.1.0
