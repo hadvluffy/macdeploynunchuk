@@ -74,8 +74,8 @@ jobs:
           
           # Tải về và kiểm tra nội dung
           wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz
-          tar -xzfv hwi-3.1.0-mac-x86_64.tar.gz
           ls -l .
+          tar -xzfv hwi-3.1.0-mac-x86_64.tar.gz
           ls -l  hwi-3.1.0-mac-x86_64
 
 
