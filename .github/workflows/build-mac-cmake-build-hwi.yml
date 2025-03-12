@@ -90,14 +90,14 @@ jobs:
         run: 
           export NUITKA_DISABLE_CCACHE=1 
           yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
-          ls -l
+          ls -l .
 
       - name: Check built binary and list dist folder
         working-directory: HWI-3.1.0
         run: |
-          ls -l
-          find . -name "hwi" -exec otool -L {} \;
-          ls -l dist
+          ls -l .
+          #find . -name "hwi" -exec otool -L {} \;
+          #ls -l dist
           
       - name: Zip toàn bộ output dist
         run: |
