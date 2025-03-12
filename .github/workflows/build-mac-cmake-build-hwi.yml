@@ -54,38 +54,41 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-      - name: Setup HWI Environment & Build
+      - name: Install Homebrew dependencies
+        run: brew install libusb pyenv pyenv-virtualenv
+
+      - name: Install Python 3.9.7 via pyenv
         run: |
-          # Cài đặt Homebrew dependencies
-          brew install libusb pyenv pyenv-virtualenv
-          
-          # Cài đặt Python 3.9.7 qua pyenv
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           python --version
-          
-          # Nâng cấp pip
-          python -m pip install --upgrade pip
-          
-          # Tải và giải nén HWI source code
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip
-          unzip -q hwi.zip
-          cd HWI-3.1.0
-          
-          # Cài đặt Poetry và nâng cấp Nuitka
+
+      - name: Upgrade pip to latest version
+        run: python -m pip install --upgrade pip
+
+      - name: Download HWI source code
+        run: wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
+
+      - name: Enter HWI directory
+        working-directory: HWI-3.1.0
+        run: 
+          ls -l .
+
+      - name: Install Poetry and upgrade Nuitka
+        working-directory: HWI-3.1.0
+        run: |
           pip install poetry
           pip install --upgrade nuitka
-          
-          # Cài đặt dependencies với Poetry
-          poetry install
-          
-          # Liệt kê file trong thư mục
-          echo "ls -l ."
-          ls -l .
-          
-          echo "Build HWI with Nuitka"
+
+      - name: Install project dependencies with Poetry
+        run: poetry install
+        working-directory: HWI-3.1.0
+
+      - name: Build HWI with Nuitka
+        working-directory: HWI-3.1.0
+        run: 
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
           
       - name: Zip toàn bộ output dist
