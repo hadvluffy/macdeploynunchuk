@@ -75,50 +75,36 @@ jobs:
           # Định nghĩa đường dẫn làm việc
           WORK_DIR="${{runner.workspace}}"
           HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz"
-          HWI_TAR="hwi-3.1.0.tar.gz"
-          HWI_EXTRACT_DIR="$WORK_DIR/hwi-extracted"
           APP_PATH="$WORK_DIR/Nunchuk.app"
           
-          # Bước 1: Tải về file tar.gz
-          echo "📥 Đang tải HWI..."
-          curl -L -o "$WORK_DIR/$HWI_TAR" "$HWI_URL"
+          # Bước 1: Tải và giải nén trực tiếp
+          echo "📥 Đang tải và giải nén HWI..."
+          mkdir -p "$WORK_DIR"
+          cd "$WORK_DIR"
+          wget -c -q "$HWI_URL" -O - | tar -xz
           
-          # Bước 2: Tạo thư mục và giải nén vào đó
-          echo "📦 Giải nén HWI..."
-          mkdir -p "$HWI_EXTRACT_DIR"
-          tar -xzf "$WORK_DIR/$HWI_TAR" -C "$HWI_EXTRACT_DIR" --strip-components=1
+          # Bước 2: Tìm đúng thư mục HWI sau khi giải nén
+          HWI_DIR=$(find "$WORK_DIR" -maxdepth 1 -type d -name "hwi*" | head -n 1)
+          if [[ -z "$HWI_DIR" ]]; then
+            echo "❌ Lỗi: Không tìm thấy thư mục HWI!"
+            exit 1
+          fi
           
-          # Xóa file tar.gz để tiết kiệm dung lượng
-          rm "$WORK_DIR/$HWI_TAR"
+          cd "$HWI_DIR"
+          echo "✅ Đã vào thư mục: $(pwd)"
           
-          # Kiểm tra thư mục sau khi giải nén
-          echo "📂 Kiểm tra thư mục đã giải nén:"
-          ls -lh "$HWI_EXTRACT_DIR"
-          
-          # Bước 3: Tìm file thực thi "hwi"
-          echo "🔎 Tìm file HWI..."
-          HWI_PATH=$(find "$HWI_EXTRACT_DIR" -type f -name "hwi" | head -n 1)
-          
+          # Bước 3: Tìm file HWI
+          HWI_PATH=$(find . -type f -name "hwi" | head -n 1)
           if [[ -z "$HWI_PATH" ]]; then
-            echo "❌ Lỗi: Không tìm thấy file HWI!"
+            echo "❌ Lỗi: Không tìm thấy file thực thi HWI!"
             exit 1
           fi
           
           echo "✅ HWI đã tìm thấy: $HWI_PATH"
           ls -lh "$HWI_PATH"
           
-          # Bước 4: Sao chép file HWI vào ứng dụng
-          DEST_PATH="$APP_PATH/Contents/MacOS/Nunchuk"
-          mkdir -p "$DEST_PATH"
-          
-          echo "🚀 Sao chép HWI vào $DEST_PATH..."
-          cp "$HWI_PATH" "$DEST_PATH"
-          
-          # Kiểm tra lại file sau khi sao chép
-          echo "📂 Kiểm tra thư mục đích:"
-          ls -lh "$DEST_PATH"
-          
           echo "🎉 Hoàn thành!"
+
 
           
       - name: Zip toàn bộ output dist
