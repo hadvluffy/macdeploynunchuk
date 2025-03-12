@@ -35,20 +35,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         shell: bash
         run: |
-          #brew install libusb pyenv pyenv-virtualenv
-          #env PYTHON_CONFIGURE_OPTS="--enable-framework" 
-          #pyenv install 3.9.7
-          #pyenv global 3.9.7
-          #eval "$(pyenv init -)"
-          #eval "$(pyenv init --path)"
-          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          #cd HWI-3.1.0
-          #pip3 install poetry pyinstaller
-          #poetry install
-          #pip3 install .
-          #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-
-          # 22222222
+          # 111111
           #brew install libusb pyenv pyenv-virtualenv
           #pyenv install 3.9.7
           #pyenv global 3.9.7
@@ -59,7 +46,6 @@ jobs:
           #pip3 install poetry pyinstaller
           #poetry install
           #pip3 install .
-          ##pip install pyinstaller-hooks-contrib
           #pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
           
           ##echo "Kiem tra"
@@ -68,18 +54,38 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-          # 333333333
-          #!/bin/bash
-          set -e  # Dừng script nếu có lỗi
-          
-          # Tải về và kiểm tra nội dung
-          mkdir -p hwi-macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi-macos
-          ls -l .
-          ls -l  hwi-macos
-          CORES=$(sysctl -n hw.ncpu)
-          echo "🔧 Sử dụng $CORES core để build"
+      - name: Install Homebrew dependencies
+        run: brew install libusb pyenv pyenv-virtualenv
 
+      - name: Install Python 3.9.7 via pyenv
+        run: |
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          python3 --version
 
+      - name: Download HWI source code
+        run: |
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip
+          unzip -q hwi.zip
+
+      - name: Setup and build HWI with Nuitka
+        working-directory: HWI-3.1.0
+        run: |
+          pip3 install poetry nuitka
+          poetry install
+          pip3 install .
+          # Build binary onefile với option cố gắng liên kết tĩnh libpython
+          nuitka --standalone --onefile --static-libpython=yes hwi.py
+
+      - name: Check built binary dependencies with otool
+        working-directory: HWI-3.1.0
+        run: find . -name "hwi" -exec otool -L {} \;
+
+      - name: List dist folder contents
+        working-directory: HWI-3.1.0
+        run: ls -l dist
           
       - name: Zip toàn bộ output dist
         run: |
