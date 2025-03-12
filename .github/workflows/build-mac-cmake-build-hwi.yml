@@ -49,8 +49,8 @@ jobs:
           #pyinstaller --onefile --clean --windowed --hidden-import=hidapi --hidden-import=libusb1 hwi.py
 
           curl -L -o hwi.tar.gz https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz
-          tar -xzf hwi.tar.gz
-          rm hwi.tar.gz
+          tar -xzf hwi-3.1.0-mac-x86_64.tar.gz
+          rm hwi-3.1.0-mac-x86_64.tar.gz
           HWI_PATH=$(find ${{runner.workspace}}/hwi-3.1.0-mac-x86_64 -type f -name "hwi" | head -n 1)
       
           if [[ -z "$HWI_PATH" ]]; then
