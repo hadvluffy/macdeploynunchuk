@@ -55,28 +55,16 @@ jobs:
           #ls -l dist
 
       - name: Install Homebrew dependencies
-        run: brew install libusb pyenv pyenv-virtualenv
-
-      - name: Install Python 3.9.7 via pyenv
-        run: |
+        run: 
+          brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          python3 --version
-
-      - name: Download HWI source code
-        run: |
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip
           unzip -q hwi.zip
-
-      - name: Setup and build HWI with Nuitka
-        working-directory: HWI-3.1.0
-        run: |
           pip3 install poetry nuitka
           poetry install
-          pip3 install .
-          # Build binary onefile với option cố gắng liên kết tĩnh libpython
           nuitka --standalone --onefile --static-libpython=yes hwi.py
 
       - name: Check built binary dependencies with otool
