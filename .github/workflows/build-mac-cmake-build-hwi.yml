@@ -54,7 +54,7 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-      # Cài đặt dependency qua Brew
+          # Cài đặt dependency qua Brew
           brew install libusb pyenv pyenv-virtualenv
           
           # Cài đặt Python 3.9.7 qua pyenv
