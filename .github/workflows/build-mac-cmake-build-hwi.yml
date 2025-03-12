@@ -61,10 +61,9 @@ jobs:
           eval "$(pyenv init --path)"
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
           cd HWI-3.1.0
-          pip3 install poetry nuitka
+          pip install --upgrade nuitka
           poetry install
-          export NUITKA_DISABLE_CCACHE=1
-          NUITKA_DISABLE_CCACHE=1 nuitka --standalone --onefile --static-libpython=yes hwi.py
+          export NUITKA_DISABLE_CCACHE=1 && nuitka --standalone --onefile --static-libpython=yes hwi.py
 
       - name: Check built binary dependencies with otool
         working-directory: HWI-3.1.0
