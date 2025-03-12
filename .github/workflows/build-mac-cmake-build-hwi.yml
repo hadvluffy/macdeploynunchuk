@@ -54,49 +54,43 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-      - name: Install Homebrew dependencies
-        run: brew install libusb pyenv pyenv-virtualenv
-
-      - name: Install Python 3.9.7 via pyenv
+      - name: Setup HWI Environment & Build
         run: |
+          # Cài đặt Homebrew dependencies
+          brew install libusb pyenv pyenv-virtualenv
+          
+          # Cài đặt Python 3.9.7 qua pyenv
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           python --version
-
-      - name: Upgrade pip to latest version
-        run: python -m pip install --upgrade pip
-
-      - name: Download HWI source code
-        run: wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-
-      - name: Enter HWI directory
-        working-directory: HWI-3.1.0
-        run: 
-          ls -l .
-
-      - name: Install Poetry and upgrade Nuitka
-        working-directory: HWI-3.1.0
-        run: |
+          
+          # Nâng cấp pip
+          python -m pip install --upgrade pip
+          
+          # Tải và giải nén HWI source code
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip
+          unzip -q hwi.zip
+          cd HWI-3.1.0
+          
+          # Cài đặt Poetry và nâng cấp Nuitka
           pip install poetry
           pip install --upgrade nuitka
-
-      - name: Install project dependencies with Poetry
-        run: poetry install
-        working-directory: HWI-3.1.0
-
-      - name: Build HWI with Nuitka
-        working-directory: HWI-3.1.0
-        run: 
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
-
-      - name: Check built binary and list dist folder
-        working-directory: build_output
-        run: |
+          
+          # Cài đặt dependencies với Poetry
+          poetry install
+          
+          # Liệt kê file trong thư mục
+          echo "ls -l ."
           ls -l .
-          #find . -name "hwi" -exec otool -L {} \;
-          #ls -l dist
+          
+          # Build HWI với Nuitka
+          export NUITKA_DISABLE_CCACHE=1
+          yes | nuitka --standalone --onefile --static-libpython=yes --output-dir=build_output hwi.py
+
+          echo "ls -l ."
+          ls -l .
           
       - name: Zip toàn bộ output dist
         run: |
