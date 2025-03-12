@@ -78,39 +78,11 @@ jobs:
           APP_PATH="$WORK_DIR/Nunchuk.app"
           
           # Bước 1: Tải và kiểm tra tên thư mục trước khi giải nén
-          echo "📥 Đang tải HWI..."
-          mkdir -p "$WORK_DIR"
-          cd "$WORK_DIR"
           
           # Tải về và kiểm tra nội dung
           wget -c -q "$HWI_URL" -O - | tee hwi.tar.gz | tar -tzf - | head -n 1
           
-          # Lấy tên thư mục gốc từ file nén
-          HWI_DIR=$(tar -tzf hwi.tar.gz | head -n 1 | cut -d'/' -f1)
-          echo "📂 Tên thư mục giải nén dự kiến: $HWI_DIR"
-          
-          # Giải nén ra thư mục đúng
-          tar -xzf hwi.tar.gz
-          rm hwi.tar.gz  # Xóa file nén
-          
-          # Kiểm tra thư mục có tồn tại không
-          if [[ ! -d "$WORK_DIR/$HWI_DIR" ]]; then
-            echo "❌ Lỗi: Không tìm thấy thư mục HWI!"
-            exit 1
-          fi
-          
-          cd "$WORK_DIR/$HWI_DIR"
-          echo "✅ Đã vào thư mục: $(pwd)"
-          
-          # Bước 3: Tìm file thực thi HWI
-          HWI_PATH=$(find . -type f -name "hwi" | head -n 1)
-          if [[ -z "$HWI_PATH" ]]; then
-            echo "❌ Lỗi: Không tìm thấy file thực thi HWI!"
-            exit 1
-          fi
-          
-          echo "✅ HWI đã tìm thấy: $HWI_PATH"
-          ls -lh "$HWI_PATH"
+          ls -l 
 
 
           
