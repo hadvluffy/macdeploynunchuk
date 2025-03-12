@@ -89,7 +89,7 @@ jobs:
       - name: Build HWI with Nuitka
         working-directory: HWI-3.1.0
         run: 
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --static-libpython=yes --output-dir=build_output hwi.py
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --output-dir=build_output hwi.py
       
       - name: Check build directory
         working-directory: HWI-3.1.0
