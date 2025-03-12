@@ -46,12 +46,13 @@ jobs:
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
+          CORES=$(sysctl -n hw.ncpu)
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build
           cd build
           cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
-          cmake --build . -j$(nproc)
+          cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
 
       - name: Checkout nunchuk-qt
@@ -106,7 +107,9 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
-          cmake --build . --config Release -j$(nproc)
+                
+          CORES=$(sysctl -n hw.ncpu)
+          cmake --build . --config Release -j$CORES
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
