@@ -54,21 +54,6 @@ jobs:
           #echo "ls dist"
           #ls -l dist
 
-          name: Build HWI with Nuitka
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-
       - name: Install Homebrew dependencies
         run: brew install libusb pyenv pyenv-virtualenv
 
