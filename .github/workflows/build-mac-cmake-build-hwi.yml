@@ -91,7 +91,6 @@ jobs:
         run: 
           export NUITKA_DISABLE_CCACHE=1 
           yes | nuitka --standalone --onefile --static-libpython=yes hwi.py
-          ls -l .
 
       - name: Check built binary and list dist folder
         working-directory: HWI-3.1.0
