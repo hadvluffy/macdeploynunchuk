@@ -73,7 +73,8 @@ jobs:
 
       - name: Enter HWI directory
         working-directory: HWI-3.1.0
-        run: ls -l
+        run: 
+          ls -l .
 
       - name: Install Poetry and upgrade Nuitka
         working-directory: HWI-3.1.0
