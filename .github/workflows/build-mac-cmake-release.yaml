@@ -54,7 +54,7 @@ jobs:
           poetry install
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --output-dir=build_output hwi.py
 
-      - name: Check build directory
+      - name: Check hwi build result
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: ls -l build_output
 
