@@ -31,6 +31,32 @@ jobs:
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
 
+      - name: Setup hwi environment
+        run: |
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          python --version
+          python -m pip install --upgrade pip
+          
+      - name: Setup hwi environment
+        working-directory: ${{runner.workspace}}
+        run: |
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
+
+      - name: Install Poetry and upgrade Nuitka
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        run: |
+          pip install poetry
+          pip install --upgrade nuitka
+          poetry install
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --output-dir=build_output hwi.py
+
+      - name: Check build directory
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        run: ls -l build_output
+
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -128,18 +154,25 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
           
-      - name: Download, extract, and move HWI
+      #- name: Download, extract, and move HWI
+      #  working-directory: ${{runner.workspace}}
+      #  env:
+      #    APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+      #  run: |
+      #    mkdir -p hwi-macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi-macos
+      #    ls -l .
+      #    ls -l  hwi-macos
+      #    chmod +x hwi-macos/hwi
+      #    cp hwi-macos/hwi "$APP_PATH/Contents/MacOS/"
+      #    ls -l "$APP_PATH/Contents/MacOS/"
+      #    chmod +x $APP_PATH/Contents/MacOS/hwi
+
+      - name: Copy and rename hwi binary
         working-directory: ${{runner.workspace}}
-        env:
-          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          mkdir -p hwi-macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi-macos
-          ls -l .
-          ls -l  hwi-macos
-          chmod +x hwi-macos/hwi
-          cp hwi-macos/hwi "$APP_PATH/Contents/MacOS/"
-          ls -l "$APP_PATH/Contents/MacOS/"
-          chmod +x $APP_PATH/Contents/MacOS/hwi
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+          cp HWI-3.1.0/build_output/hwi.bin "$APP_PATH/Contents/MacOS/hwi"
+          chmod +x "$APP_PATH/Contents/MacOS/hwi"
 
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
