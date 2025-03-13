@@ -89,5 +89,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-macos
-          path: ${{runner.workspace}}/HWI-3.1.0/dist-macos.zip
+          path: ${{runner.workspace}}/dist-macos.zip
 
