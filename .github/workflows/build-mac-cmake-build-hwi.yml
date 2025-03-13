@@ -31,29 +31,6 @@ jobs:
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
     
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        run: |
-          # 111111
-          #brew install libusb pyenv pyenv-virtualenv
-          #pyenv install 3.9.7
-          #pyenv global 3.9.7
-          #eval "$(pyenv init -)"
-          #eval "$(pyenv init --path)"
-          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          #cd HWI-3.1.0
-          #pip3 install poetry pyinstaller
-          #poetry install
-          #pip3 install .
-          #pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-          
-          ##echo "Kiem tra"
-          #echo "find hwi and otool"
-          #find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
-          #echo "ls dist"
-          #ls -l dist
-
       - name: Setup hwi environment
         working-directory: ${{runner.workspace}}
         run: |
@@ -99,11 +76,6 @@ jobs:
                                                           --include-module=cbor2 \
                                                           --output-dir=build_output \
                                                           hwi.py
-
-
-      #- name: Check build directory
-      #  working-directory: HWI-3.1.0
-      #  run: ls -l build_output
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
