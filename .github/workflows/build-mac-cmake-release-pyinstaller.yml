@@ -123,28 +123,17 @@ jobs:
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
-          eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          eval "$(pyenv init -)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O HWI-3.1.0.zip
+          unzip HWI-3.1.0.zip
           cd HWI-3.1.0
-          python -m pip install --upgrade pip
-          python -m pip install poetry pyinstaller
+          python -m pip install --upgrade pip setuptools poetry
           poetry install
           python -m pip install .
-          pyinstaller --onefile \
-                      --clean \
-                      --noconsole \
-                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
-                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
-                      --hidden-import=hidapi \
-                      --hidden-import=libusb1 \
-                      hwi.py
-          
-          #echo "Kiem tra"
-          echo "find hwi and otool"
-          find ${{runner.workspace}} -name "hwi";
-          echo "ls dist"
-          ls -l dist
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"
+          find . -name "*mac-x86_64.tar.gz"
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
@@ -223,9 +212,9 @@ jobs:
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
            
           # Signing hwi
-          #echo "Signing hwi"
-          #codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
-          #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
+          echo "Signing hwi"
+          codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
 
           echo "Verifying codesigning $APP_PATH"
           codesign -vvvv --deep --strict "$APP_PATH"
