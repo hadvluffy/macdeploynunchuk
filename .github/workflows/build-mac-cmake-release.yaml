@@ -152,7 +152,6 @@ jobs:
       
           echo "Setting up keychain and certificate..."
       
-          # Step 1: Giải mã chứng chỉ và tạo keychain
           echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
           security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           security default-keychain -s build.keychain
@@ -165,7 +164,6 @@ jobs:
           
           echo "$MACOS_CERTIFICATE_NAME"
           
-          # Step 2: Ký các thành phần bên trong ứng dụng
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
             while IFS= read -r -d '' file; do
@@ -174,7 +172,6 @@ jobs:
               codesign --deep --force --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
             done
             
-          # Step 3: Ký framework và Qt components
           echo "Signing frameworks and Qt components..."
           find "$APP_PATH" -name "Qt*" -type f -print0 | \
             while IFS= read -r -d '' file; do
@@ -183,7 +180,6 @@ jobs:
               codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
             done
             
-          # Step 4: Ký ứng dụng và các tệp thực thi chính
           echo "Signing main executables and app bundle..."
           MAIN_EXECUTABLES=("hwi" "Nunchuk")
           for filename in "${MAIN_EXECUTABLES[@]}"; do
@@ -201,11 +197,6 @@ jobs:
           codesign --remove-signature "$APP_PATH"
           codesign --force --deep --verify --verbose --options=runtime --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
 
-          # Tắt App Translocation
-          #xattr -rc "$APP_PATH"
-          #spctl --add "$APP_PATH"
-          
-          # Step 5: Validate signature
           echo "Verifying codesigning integrity -dvvvvv ..."
           codesign -dvvvvv "$APP_PATH"
           echo "Verifying codesigning integrity... -vvvv --deep --strict "
@@ -217,7 +208,6 @@ jobs:
           echo "Check otool..."
           otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
       
-          # Step 6: Cleanup
           echo "Cleaning up temporary files..."
           rm -f certificate.p12
       
@@ -229,40 +219,41 @@ jobs:
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          set -euo pipefail # Dừng script nếu lỗi
+          set -euo pipefail
       
-          # Step 1: Tạo hồ sơ notarization
           echo "Creating notarization profile..."
-          xcrun notarytool store-credentials "notarytool-profile" \
-            --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
-            --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
-            --password "$PROD_MACOS_NOTARIZATION_PWD"
-      
-          # Step 2: Tạo file ZIP từ app bundle
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+                                                                  --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+                                                                  --password "$PROD_MACOS_NOTARIZATION_PWD"
+
+          echo "Remove com.apple.quarantine"
+          xattr -rd com.apple.quarantine "$APP_PATH"
+          xattr -rd com.apple.quarantine "$APP_PATH/Contents/MacOS/hwi"
+          xattr -rd com.apple.quarantine "$APP_PATH/Contents/MacOS/Nunchuk"
+
           echo "Packaging the app bundle..."
           zip_file="${{runner.workspace}}/build/notarization.zip"
           ditto -c -k --keepParent "$APP_PATH" "$zip_file"
       
-          # Step 3: Gửi app bundle để notarization
           echo "Submitting app bundle for notarization..."
-          xcrun notarytool submit "$zip_file" \
-            --keychain-profile "notarytool-profile" \
-            --wait --verbose
+          xcrun notarytool submit "$zip_file" --keychain-profile "notarytool-profile" --wait --verbose
       
-          # Step 4: Gắn notarization ticket vào app
           echo "Stapling notarization ticket to the app bundle..."
           xcrun stapler staple "$APP_PATH"
       
-          # Step 5: Xác minh quá trình stapling
           echo "Validating the stapling..."
           xcrun stapler validate "$APP_PATH"
       
-          # Step 6: Kiểm tra Gatekeeper
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
+
+          echo "Processing staple"
+          xcrun stapler staple "$APP_PATH"
+
+          echo "Check staple"
+          spctl -a -v "$APP_PATH"
       
-          # Step 7: Đóng gói app notarized vào ZIP cuối
           echo "Repackaging the notarized app bundle..."
           final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
           mkdir -p "$final_package_dir"
