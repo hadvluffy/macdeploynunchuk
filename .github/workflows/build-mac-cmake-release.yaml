@@ -163,8 +163,9 @@ jobs:
 
       - name: Copy and rename hwi binary
         working-directory: ${{runner.workspace}}
-        run: |
+        env:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
           cp HWI-3.1.0/build_output/hwi.bin "$APP_PATH/Contents/MacOS/hwi"
           chmod +x "$APP_PATH/Contents/MacOS/hwi"
 
