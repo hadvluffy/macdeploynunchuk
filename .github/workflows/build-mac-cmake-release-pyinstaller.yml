@@ -14,7 +14,52 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
+          cd nunchuk-qt
+          git submodule update --init --recursive
+
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}/
+        run: |
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+      
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+        run: |
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init --path)"
+          eval "$(pyenv virtualenv-init -)"
+          pip3 install poetry pyinstaller
+          poetry install
+          pip3 install .
+          pyinstaller --onefile \
+                      --clean \
+                      --noconsole \
+                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
+                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
+                      --hidden-import=hidapi \
+                      --hidden-import=libusb1 \
+                      hwi.py
+          
+          #echo "Kiem tra"
+          echo "find hwi and otool"
+          find ${{runner.workspace}} -name "hwi";
+          echo "ls dist"
+          ls -l dist
+          
       - name: Set compiler
         run: |
           #set -e
@@ -53,50 +98,6 @@ jobs:
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
-      - name: Checkout nunchuk-qt
-        working-directory: ${{runner.workspace}}
-        env:
-          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
-        run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
-          cd nunchuk-qt
-          git submodule update --init --recursive
-          
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
-        run: |
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init --path)"
-          eval "$(pyenv virtualenv-init -)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          pip3 install poetry pyinstaller
-          poetry install
-          pip3 install .
-          pyinstaller --onefile \
-                      --clean \
-                      --noconsole \
-                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
-                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
-                      --hidden-import=hidapi \
-                      --hidden-import=libusb1 \
-                      hwi.py
-          
-          #echo "Kiem tra"
-          echo "find hwi and otool"
-          find ${{runner.workspace}} -name "hwi";
-          echo "ls dist"
-          ls -l dist
           
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
