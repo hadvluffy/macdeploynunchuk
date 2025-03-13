@@ -63,6 +63,41 @@ jobs:
           cd nunchuk-qt
           git submodule update --init --recursive
           
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+        run: |
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init --path)"
+          eval "$(pyenv virtualenv-init -)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          pip3 install poetry pyinstaller
+          poetry install
+          pip3 install .
+          pyinstaller --onefile \
+                      --clean \
+                      --noconsole \
+                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
+                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
+                      --hidden-import=hidapi \
+                      --hidden-import=libusb1 \
+                      hwi.py
+          
+          #echo "Kiem tra"
+          echo "find hwi and otool"
+          find ${{runner.workspace}} -name "hwi";
+          echo "ls dist"
+          ls -l dist
+          
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
@@ -109,31 +144,6 @@ jobs:
                 
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
-          
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
-        run: |
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init --path)"
-          eval "$(pyenv init -)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O HWI-3.1.0.zip
-          unzip HWI-3.1.0.zip
-          cd HWI-3.1.0
-          python -m pip install --upgrade pip setuptools poetry
-          poetry install
-          python -m pip install .
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"
-          find . -name "*mac-x86_64.tar.gz"
           
       - name: Deploy Dmg
         working-directory: ${{runner.workspace}}/build
