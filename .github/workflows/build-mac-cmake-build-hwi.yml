@@ -31,14 +31,12 @@ jobs:
           cd HWI-3.1.0
           brew install libusb pyenv pyenv-virtualenv
           # Cài đặt Python 3.9.7 nếu chưa có, sau đó đặt làm phiên bản toàn cục
-          pyenv install 3.9.7 || echo "Python 3.9.7 đã được cài"
+          pyenv install 3.9.7
           pyenv global 3.9.7
-          # Khởi tạo pyenv để cập nhật PATH
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           echo "Python version:" 
           python --version
-          # Nâng cấp pip và cài đặt các package cần thiết cho build
           python -m pip install --upgrade pip
           pip install nuitka typing-extensions mnemonic libusb1 cbor2 hidapi
 
