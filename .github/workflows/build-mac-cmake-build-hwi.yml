@@ -15,7 +15,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Set compiler
+      - name: Setup hwi environment
+        working-directory: ${{runner.workspace}}
         run: |
           #set -e
           sudo xcode-select --switch /Applications/Xcode_14.3.1.app
@@ -25,20 +26,8 @@ jobs:
           echo "export AR=gcc-ar-14" >> ~/.bashrc
           echo "export NM=gcc-nm-14" >> ~/.bashrc
           source ~/.bashrc
-          
-      - name: Remove default openssl
-        run: |
-          rm -rf /usr/local/opt/openssl
-          rm -rf /usr/local/include/openssl
-    
-      - name: Setup hwi environment
-        working-directory: ${{runner.workspace}}
-        run: |
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-
-      - name: Setup Environment with Pyenv
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        run: |
+          cd HWI-3.1.0
           brew install libusb pyenv pyenv-virtualenv
           # Cài đặt Python 3.9.7 nếu chưa có, sau đó đặt làm phiên bản toàn cục
           pyenv install 3.9.7 || echo "Python 3.9.7 đã được cài"
