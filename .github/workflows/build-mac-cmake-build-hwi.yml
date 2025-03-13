@@ -97,7 +97,7 @@ jobs:
                                                   --include-package=hwilib.devices.bitbox02 \
                                                   --include-package=hwilib.devices.jade \
                                                   --include-module=mnemonic \
-                                                  --include-module=hidapi \
+                                                  --include-module=hid \
                                                   --include-module=libusb1 \
                                                   --include-module=cbor2 \
                                                   --output-dir=build_output \
