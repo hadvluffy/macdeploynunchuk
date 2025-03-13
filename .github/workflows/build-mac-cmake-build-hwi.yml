@@ -35,61 +35,12 @@ jobs:
         working-directory: ${{runner.workspace}}
         shell: bash
         run: |
-          # 111111
-          #brew install libusb pyenv pyenv-virtualenv
-          #pyenv install 3.9.7
-          #pyenv global 3.9.7
-          #eval "$(pyenv init -)"
-          #eval "$(pyenv init --path)"
-          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          #cd HWI-3.1.0
-          #pip3 install poetry pyinstaller
-          #poetry install
-          #pip3 install .
-          #pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
-          
-          ##echo "Kiem tra"
-          #echo "find hwi and otool"
-          #find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
-          #echo "ls dist"
-          #ls -l dist
-      - name: Setup hwi environment
-        working-directory: ${{runner.workspace}}
-        run: |
           brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init -)"
-          eval "$(pyenv init --path)"
-          python --version
-          python -m pip install --upgrade pip
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-      - name: Install Poetry and upgrade Nuitka
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        run: |
-          pip install poetry
-          pip install --upgrade nuitka
-          pip install typing-extensions
-          pip install nuitka typing-extensions mnemonic libusb1 cbor2 hidapi
-          poetry install
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
-                                                  --include-package=typing_extensions \
-                                                  --include-package=hwilib \
-                                                  --include-package=hwilib.devices \
-                                                  --include-package=hwilib.devices.trezor \
-                                                  --include-package=hwilib.devices.ledger \
-                                                  --include-package=hwilib.devices.keepkey \
-                                                  --include-package=hwilib.devices.digitalbitbox \
-                                                  --include-package=hwilib.devices.coldcard \
-                                                  --include-package=hwilib.devices.bitbox02 \
-                                                  --include-package=hwilib.devices.jade \
-                                                  --follow-imports \
-                                                  --output-dir=build_output \
-                                                  hwi.py
-          ls -l build_output
-      #- name: Check build directory
-      #  working-directory: HWI-3.1.0
-      #  run: ls -l build_output
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"          
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
