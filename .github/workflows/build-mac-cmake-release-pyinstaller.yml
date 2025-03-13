@@ -30,43 +30,42 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
-      - name: Setup hwi environment
+
+      - name: Build HWI
         working-directory: ${{runner.workspace}}
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
         run: |
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          python --version
-          python -m pip install --upgrade pip
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-      - name: Install Poetry and upgrade Nuitka
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        run: |
-          pip install poetry
-          pip install --upgrade nuitka
-          pip install typing-extensions
-          pip install nuitka typing-extensions mnemonic libusb1 cbor2 hid
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          pip3 install poetry pyinstaller
           poetry install
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
-                                                  --include-package=typing_extensions \
-                                                  --include-package=hwilib \
-                                                  --include-package=hwilib.devices \
-                                                  --include-package=hwilib.devices.trezor \
-                                                  --include-package=hwilib.devices.ledger \
-                                                  --include-package=hwilib.devices.keepkey \
-                                                  --include-package=hwilib.devices.digitalbitbox \
-                                                  --include-package=hwilib.devices.coldcard \
-                                                  --include-package=hwilib.devices.bitbox02 \
-                                                  --include-package=hwilib.devices.jade \
-                                                  --include-module=mnemonic \
-                                                  --include-module=libusb1 \
-                                                  --include-module=cbor2 \
-                                                  --include-module=hid \
-                                                  --output-dir=build_output \
-                                                  hwi.py
-          ls -l build_output
+          pip3 install .
+          pyinstaller --onefile \
+                      --clean \
+                      --noconsole \
+                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
+                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
+                      --hidden-import=hidapi \
+                      --hidden-import=libusb1 \
+                      hwi.py
+          
+          #echo "Kiem tra"
+          echo "find hwi and otool"
+          find ${{runner.workspace}} -name "hwi";
+          echo "ls dist"
+          ls -l dist
+      
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -109,6 +108,7 @@ jobs:
           CORES=$(sysctl -n hw.ncpu)
           make -j$CORES
           make install_dev
+          
       - name: Build nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -160,26 +160,12 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
           
-      #- name: Download, extract, and move HWI
-      #  working-directory: ${{runner.workspace}}
-      #  env:
-      #    APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
-      #  run: |
-      #    mkdir -p hwi-macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi-macos
-      #    ls -l .
-      #    ls -l  hwi-macos
-      #    chmod +x hwi-macos/hwi
-      #    cp hwi-macos/hwi "$APP_PATH/Contents/MacOS/"
-      #    ls -l "$APP_PATH/Contents/MacOS/"
-      #    chmod +x $APP_PATH/Contents/MacOS/hwi
-
-      - name: Copy and rename hwi binary
-        working-directory: ${{runner.workspace}}
-        env:
-          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
-        run: |
-          cp HWI-3.1.0/build_output/hwi.bin "$APP_PATH/Contents/MacOS/hwi"
-          chmod +x "$APP_PATH/Contents/MacOS/hwi"
+          # Copy hwi built above 
+          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* $APP_PATH/Contents/MacOS/
+          echo "check copy result"
+          ls -l $APP_PATH/Contents/MacOS/
+          ls -l $APP_PATH/Contents/MacOS/_internal
+          
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
         env:
@@ -236,9 +222,9 @@ jobs:
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
            
           # Signing hwi
-          echo "Signing hwi"
-          codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
+          #echo "Signing hwi"
+          #codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
+          #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
 
           echo "Verifying codesigning $APP_PATH"
           codesign -vvvv --deep --strict "$APP_PATH"
