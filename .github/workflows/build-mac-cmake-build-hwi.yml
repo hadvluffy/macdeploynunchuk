@@ -72,6 +72,7 @@ jobs:
           pip install poetry
           pip install --upgrade nuitka
           pip install typing-extensions
+          pip install mnemonic hidapi libusb1 cbor2
           poetry install
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
                                                   --include-package=typing_extensions \
@@ -84,6 +85,10 @@ jobs:
                                                   --include-package=hwilib.devices.coldcard \
                                                   --include-package=hwilib.devices.bitbox02 \
                                                   --include-package=hwilib.devices.jade \
+                                                  --include-package=mnemonic \
+                                                  --include-package=hidapi \
+                                                  --include-package=libusb1 \
+                                                  --include-package=cbor2 \
                                                   --output-dir=build_output \
                                                   hwi.py
           ls -l build_output
