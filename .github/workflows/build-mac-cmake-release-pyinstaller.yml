@@ -26,7 +26,7 @@ jobs:
           git submodule update --init --recursive
 
       - name: Checkout HWI
-        working-directory: ${{runner.workspace}}/
+        working-directory: ${{runner.workspace}}
         run: |
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
       
@@ -54,11 +54,13 @@ jobs:
                       --hidden-import=libusb1 \
                       hwi.py
           
-          #echo "Kiem tra"
           echo "find hwi and otool"
           find ${{runner.workspace}} -name "hwi";
           echo "ls dist"
           ls -l dist
+          
+          echo "Zipping dist folder"
+          zip -r dist.zip dist
           
       - name: Set compiler
         run: |
@@ -157,20 +159,14 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          
+          find ${{runner.workspace}} -name "Nunchuk.app"
+          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
 
           find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "hwi" -exec mv {} ./ \;
           find ${{runner.workspace}} -name "hwi"
           mv hwi Nunchuk.app/Contents/MacOS/hwi
-          
-          find ${{runner.workspace}} -name "Nunchuk.app"
-          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
-          
-          # Copy hwi built above 
-          cp -R ${{runner.workspace}}/HWI-3.1.0/dist/hwi/* $APP_PATH/Contents/MacOS/
-          echo "check copy result"
-          ls -l $APP_PATH/Contents/MacOS/
-          ls -l $APP_PATH/Contents/MacOS/_internal
-          
+   
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
         env:
@@ -198,7 +194,6 @@ jobs:
           security find-identity -v -p codesigning
           echo "$MACOS_CERTIFICATE_NAME"
           
-          # Signing internal components
           echo "Signing internal components..."
           find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
            while IFS= read -r -d '' file; do
@@ -206,8 +201,7 @@ jobs:
              codesign --remove-signature "$file"
              codesign --deep --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
            done
-            
-          # Signing framework and Qt components
+          
           echo "Signing frameworks and Qt components..."
           find "$APP_PATH" -name "Qt*" -type f -print0 | \
            while IFS= read -r -d '' file; do
@@ -216,17 +210,14 @@ jobs:
              codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
            done
 
-          # Sign Nunchuk
           echo "Signing Nunchuk"
           codesign --remove-signature "$APP_PATH/Contents/MacOS/Nunchuk"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/Nunchuk" -vvv
           
-          # Step signing app bundle
           echo "Signing main executables and app bundle..."
           codesign --remove-signature "$APP_PATH"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
-           
-          # Signing hwi
+          
           echo "Signing hwi"
           codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
@@ -234,10 +225,6 @@ jobs:
           echo "Verifying codesigning $APP_PATH"
           codesign -vvvv --deep --strict "$APP_PATH"
           
-          # Disable SIP check
-          #xattr -rd com.apple.quarantine "$APP_PATH/Contents/MacOS/hwi"
-          
-          # Step 5: Validate signature
           echo "Verifying codesigning integrity -dvvvvv ..."
           codesign -dvvvvv "$APP_PATH"
           
@@ -264,38 +251,28 @@ jobs:
         run: |
           set -euo pipefail # Dừng script nếu lỗi
       
-          # Step 1: Tạo hồ sơ notarization
           echo "Creating notarization profile..."
-          xcrun notarytool store-credentials "notarytool-profile" \
-            --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
-            --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
-            --password "$PROD_MACOS_NOTARIZATION_PWD"
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+                                                                  --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+                                                                  --password "$PROD_MACOS_NOTARIZATION_PWD"
       
-          # Step 2: Tạo file ZIP từ app bundle
           echo "Packaging the app bundle..."
           zip_file="${{runner.workspace}}/build/notarization.zip"
           ditto -c -k --keepParent "$APP_PATH" "$zip_file"
       
-          # Step 3: Gửi app bundle để notarization
           echo "Submitting app bundle for notarization..."
-          xcrun notarytool submit "$zip_file" \
-            --keychain-profile "notarytool-profile" \
-            --wait --verbose
+          xcrun notarytool submit "$zip_file" --keychain-profile "notarytool-profile" --wait --verbose
       
-          # Step 4: Gắn notarization ticket vào app
           echo "Stapling notarization ticket to the app bundle..."
           xcrun stapler staple "$APP_PATH"
       
-          # Step 5: Xác minh quá trình stapling
           echo "Validating the stapling..."
           xcrun stapler validate "$APP_PATH"
       
-          # Step 6: Kiểm tra Gatekeeper
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
 
-          # Step 7: Đóng gói app notarized vào ZIP cuối
           echo "Repackaging the notarized app bundle..."
           final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
           mkdir -p "$final_package_dir"
@@ -309,8 +286,15 @@ jobs:
         id: get_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
 
-      - name: Upload Artifact
+      - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
         with:
           name: nunchuk-mac-${{ steps.get_version.outputs.VERSION }}
           path: ${{runner.workspace}}/build/nunchuk-mac-qt.zip
+          
+      - name: Upload HWI
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: hwi_dist
+          path: ${{runner.workspace}}/HWI-3.1.0/dist.zip
+
