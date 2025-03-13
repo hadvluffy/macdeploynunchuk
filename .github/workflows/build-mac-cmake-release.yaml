@@ -31,27 +31,37 @@ jobs:
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
 
-      - name: Setup hwi environment
+      - name: Download HWI
         working-directory: ${{runner.workspace}}
+        run: |
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
+
+      - name: Install Poetry and upgrade Nuitka
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
+          echo "show python version >>>>>>>"
           python --version
+          echo "show python version <<<<<<<"
           python -m pip install --upgrade pip
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-          
-      - name: Install Poetry and upgrade Nuitka and build HWI
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        run: |
           pip install poetry
           pip install --upgrade nuitka
           pip install typing-extensions
-          pip install mnemonic hidapi libusb1 cbor2
+          pip install mnemonic
+          pip install libusb1
+          pip install cbor2
+          pip install hidapi
+          echo "show hidapi >>>>>>>"
+          pip show hidapi
+          which python
+          python -c "import sys; print(sys.executable)"
+          python -m nuitka --version
+          echo "show hidapi <<<<<<<"
           poetry install
-          #export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --include-package=typing_extensions --output-dir=build_output hwi.py
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
                                                   --include-package=typing_extensions \
                                                   --include-package=hwilib \
@@ -63,13 +73,12 @@ jobs:
                                                   --include-package=hwilib.devices.coldcard \
                                                   --include-package=hwilib.devices.bitbox02 \
                                                   --include-package=hwilib.devices.jade \
-                                                  --include-package=mnemonic \
-                                                  --include-package=hidapi \
-                                                  --include-package=libusb1 \
-                                                  --include-package=cbor2 \
+                                                  --include-module=mnemonic \
+                                                  --include-module=hid \
+                                                  --include-module=libusb1 \
+                                                  --include-module=cbor2 \
                                                   --output-dir=build_output \
                                                   hwi.py
-                                                  
           ls -l build_output
 
       - name: Install dependencies
