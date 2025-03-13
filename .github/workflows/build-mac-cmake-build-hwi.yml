@@ -15,11 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Setup hwi environment
-        working-directory: ${{runner.workspace}}
-        shell: bash
+      - name: Set compiler
         run: |
-          set -e
+          #set -e
           sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           echo "export CC=gcc-14" >> ~/.bashrc
           echo "export CXX=g++-14" >> ~/.bashrc
@@ -27,54 +25,81 @@ jobs:
           echo "export AR=gcc-ar-14" >> ~/.bashrc
           echo "export NM=gcc-nm-14" >> ~/.bashrc
           source ~/.bashrc
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
-          cd HWI-3.1.0
+          
+      - name: Remove default openssl
+        run: |
+          rm -rf /usr/local/opt/openssl
+          rm -rf /usr/local/include/openssl
+    
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}
+        shell: bash
+        run: |
+          # 111111
+          #brew install libusb pyenv pyenv-virtualenv
+          #pyenv install 3.9.7
+          #pyenv global 3.9.7
+          #eval "$(pyenv init -)"
+          #eval "$(pyenv init --path)"
+          #wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          #cd HWI-3.1.0
+          #pip3 install poetry pyinstaller
+          #poetry install
+          #pip3 install .
+          #pyinstaller --onedir --clean --noconsole --hidden-import=hidapi --hidden-import=libusb1 hwi.py
+          
+          ##echo "Kiem tra"
+          #echo "find hwi and otool"
+          #find ${{runner.workspace}} -name "hwi" -exec otool -L {} \;
+          #echo "ls dist"
+          #ls -l dist
+      - name: Setup hwi environment
+        working-directory: ${{runner.workspace}}
+        run: |
           brew install libusb pyenv pyenv-virtualenv
-          # Cài đặt Python 3.9.7 nếu chưa có, sau đó đặt làm phiên bản toàn cục
           pyenv install 3.9.7
           pyenv global 3.9.7
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
-          echo "Python version:" 
           python --version
           python -m pip install --upgrade pip
-          pip install nuitka typing-extensions mnemonic libusb1 cbor2 hidapi
-
-          echo "show python version >>>>>>>"
-          python --version
-          echo "show python version <<<<<<<"
-          
-          echo "show hidapi version >>>>>>>"
-          pip show hidapi
-          echo "show hidapi version <<<<<<<"
-          
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka  --onefile --static-libpython=yes \
-                                                          --include-package=typing_extensions \
-                                                          --include-package=hwilib \
-                                                          --include-package=hwilib.devices \
-                                                          --include-package=hwilib.devices.trezor \
-                                                          --include-package=hwilib.devices.ledger \
-                                                          --include-package=hwilib.devices.keepkey \
-                                                          --include-package=hwilib.devices.digitalbitbox \
-                                                          --include-package=hwilib.devices.coldcard \
-                                                          --include-package=hwilib.devices.bitbox02 \
-                                                          --include-package=hwilib.devices.jade \
-                                                          --include-module=mnemonic \
-                                                          --include-module=hid \
-                                                          --include-module=libusb1 \
-                                                          --include-module=cbor2 \
-                                                          --output-dir=build_output \
-                                                          hwi.py
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
+      - name: Install Poetry and upgrade Nuitka
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        run: |
+          pip install poetry
+          pip install --upgrade nuitka
+          pip install typing-extensions
+          pip install nuitka typing-extensions mnemonic libusb1 cbor2
+          poetry install
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
+                                                  --include-package=typing_extensions \
+                                                  --include-package=hwilib \
+                                                  --include-package=hwilib.devices \
+                                                  --include-package=hwilib.devices.trezor \
+                                                  --include-package=hwilib.devices.ledger \
+                                                  --include-package=hwilib.devices.keepkey \
+                                                  --include-package=hwilib.devices.digitalbitbox \
+                                                  --include-package=hwilib.devices.coldcard \
+                                                  --include-package=hwilib.devices.bitbox02 \
+                                                  --include-package=hwilib.devices.jade \
+                                                  --include-module=mnemonic \
+                                                  --include-module=libusb1 \
+                                                  --include-module=cbor2 \
+                                                  --output-dir=build_output \
+                                                  hwi.py
+          ls -l build_output
+      #- name: Check build directory
+      #  working-directory: HWI-3.1.0
+      #  run: ls -l build_output
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
           zip -r dist-macos.zip build_output
           mv dist-macos.zip ${{runner.workspace}}
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist-macos
           path: ${{runner.workspace}}/dist-macos.zip
-
