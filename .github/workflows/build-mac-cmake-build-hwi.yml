@@ -73,7 +73,19 @@ jobs:
           pip install --upgrade nuitka
           pip install typing-extensions
           poetry install
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --include-package=typing_extensions --output-dir=build_output hwi.py
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
+                                                  --include-package=typing_extensions \
+                                                  --include-package=hwilib \
+                                                  --include-package=hwilib.devices \
+                                                  --include-package=hwilib.devices.trezor \
+                                                  --include-package=hwilib.devices.ledger \
+                                                  --include-package=hwilib.devices.keepkey \
+                                                  --include-package=hwilib.devices.digitalbitbox \
+                                                  --include-package=hwilib.devices.coldcard \
+                                                  --include-package=hwilib.devices.bitbox02 \
+                                                  --include-package=hwilib.devices.jade \
+                                                  --output-dir=build_output \
+                                                  hwi.py
           ls -l build_output
 
       #- name: Check build directory
