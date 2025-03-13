@@ -70,7 +70,7 @@ jobs:
           pip install poetry
           pip install --upgrade nuitka
           pip install typing-extensions
-          pip install nuitka typing-extensions mnemonic libusb1 cbor2
+          pip install nuitka typing-extensions mnemonic libusb1 cbor2 hid
           poetry install
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
                                                   --include-package=typing_extensions \
