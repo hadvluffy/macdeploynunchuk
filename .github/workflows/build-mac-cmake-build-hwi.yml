@@ -55,6 +55,7 @@ jobs:
           #ls -l dist
 
       - name: Setup hwi environment
+        working-directory: ${{runner.workspace}}
         run: |
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
@@ -66,7 +67,7 @@ jobs:
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
 
       - name: Install Poetry and upgrade Nuitka
-        working-directory: HWI-3.1.0
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
           pip install poetry
           pip install --upgrade nuitka
@@ -79,7 +80,7 @@ jobs:
       #  run: ls -l build_output
 
       - name: Zip toàn bộ output dist
-        working-directory: HWI-3.1.0
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
           zip -r dist-macos.zip build_output
           mv dist-macos.zip ${{runner.workspace}}
@@ -88,5 +89,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-macos
-          path: ${{runner.workspace}}/dist-macos.zip
+          path: ${{runner.workspace}}/HWI-3.1.0/dist-macos.zip
 
