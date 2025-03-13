@@ -49,6 +49,7 @@ jobs:
           pip install poetry
           pip install --upgrade nuitka
           pip install typing-extensions
+          pip install mnemonic hidapi libusb1 cbor2
           poetry install
           #export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --include-package=typing_extensions --output-dir=build_output hwi.py
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
