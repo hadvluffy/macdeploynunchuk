@@ -72,14 +72,7 @@ jobs:
           pip install poetry
           pip install --upgrade nuitka
           poetry install
-          - name: Build HWI with Nuitka
-          - name: Build HWI with Nuitka
-            working-directory: HWI-3.1.0
-            run: |
-              export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --standalone --onefile --static-libpython=yes \
-                                                             --output-dir=build_output --output-filename=hwi \
-                                                             --include-package=typing_extensions hwi.py
-
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes --include-package=typing_extensions --output-dir=build_output hwi.py
           ls -l build_output
 
       #- name: Check build directory
