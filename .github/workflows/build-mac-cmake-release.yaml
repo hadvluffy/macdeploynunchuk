@@ -32,6 +32,7 @@ jobs:
           rm -rf /usr/local/include/openssl
 
       - name: Setup hwi environment
+        working-directory: ${{runner.workspace}}
         run: |
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
