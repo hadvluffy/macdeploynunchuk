@@ -93,7 +93,6 @@ jobs:
                                                   --include-package=hidapi \
                                                   --include-package=libusb1 \
                                                   --include-package=cbor2 \
-                                                  --include-plugin-dependencies \
                                                   --output-dir=build_output \
                                                   hwi.py
           ls -l build_output
