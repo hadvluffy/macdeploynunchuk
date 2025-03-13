@@ -59,50 +59,52 @@ jobs:
         run: |
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O hwi.zip && unzip -q hwi.zip
 
-      - name: Install Poetry and upgrade Nuitka
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
+      - name: Setup Environment with Pyenv
         run: |
           brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
+          # Cài đặt Python 3.9.7 nếu chưa có, sau đó đặt làm phiên bản toàn cục
+          pyenv install 3.9.7 || echo "Python 3.9.7 đã được cài"
           pyenv global 3.9.7
+          # Khởi tạo pyenv để cập nhật PATH
           eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
+          echo "Python version:" 
+          python --version
+          # Nâng cấp pip và cài đặt các package cần thiết cho build
+          python -m pip install --upgrade pip
+          pip install nuitka typing-extensions mnemonic libusb1 cbor2 hidapi
+      
+      - name: Build HWI with Nuitka (Without Poetry)
+        run: |
           echo "show python version >>>>>>>"
           python --version
           echo "show python version <<<<<<<"
-          python -m pip install --upgrade pip
-          pip install poetry
-          pip install --upgrade nuitka
-          pip install typing-extensions
-          pip install mnemonic
-          pip install libusb1
-          pip install cbor2
-          pip install hidapi
-          echo "show hidapi >>>>>>>"
+          
+          echo "show python version >>>>>>>"
           pip show hidapi
           which python
           python -c "import sys; print(sys.executable)"
           python -m nuitka --version
-          echo "show hidapi <<<<<<<"
-          poetry install
-          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
-                                                  --include-package=typing_extensions \
-                                                  --include-package=hwilib \
-                                                  --include-package=hwilib.devices \
-                                                  --include-package=hwilib.devices.trezor \
-                                                  --include-package=hwilib.devices.ledger \
-                                                  --include-package=hwilib.devices.keepkey \
-                                                  --include-package=hwilib.devices.digitalbitbox \
-                                                  --include-package=hwilib.devices.coldcard \
-                                                  --include-package=hwilib.devices.bitbox02 \
-                                                  --include-package=hwilib.devices.jade \
-                                                  --include-module=mnemonic \
-                                                  --include-module=hid \
-                                                  --include-module=libusb1 \
-                                                  --include-module=cbor2 \
-                                                  --output-dir=build_output \
-                                                  hwi.py
-          ls -l build_output
+          echo "show python version <<<<<<<"
+          
+          export NUITKA_DISABLE_CCACHE=1 && yes | nuitka  --onefile --static-libpython=yes \
+                                                          --include-package=typing_extensions \
+                                                          --include-package=hwilib \
+                                                          --include-package=hwilib.devices \
+                                                          --include-package=hwilib.devices.trezor \
+                                                          --include-package=hwilib.devices.ledger \
+                                                          --include-package=hwilib.devices.keepkey \
+                                                          --include-package=hwilib.devices.digitalbitbox \
+                                                          --include-package=hwilib.devices.coldcard \
+                                                          --include-package=hwilib.devices.bitbox02 \
+                                                          --include-package=hwilib.devices.jade \
+                                                          --include-module=mnemonic \
+                                                          --include-module=hid \
+                                                          --include-module=libusb1 \
+                                                          --include-module=cbor2 \
+                                                          --output-dir=build_output \
+                                                          hwi.py
+
 
       #- name: Check build directory
       #  working-directory: HWI-3.1.0
