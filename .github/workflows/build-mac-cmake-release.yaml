@@ -30,26 +30,7 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
-    
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}
-        shell: bash
-        run: |
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init -)"
-          eval "$(pyenv init --path)"
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          pip3 install poetry
-          poetry install
-          pip3 install .
-          pip3 install -U setuptools
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"          
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
-      
+          
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -93,6 +74,34 @@ jobs:
           ./config --prefix="$PWD/lib"
           make -j8
           make install_dev
+          
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}
+        env:
+          OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+        shell: bash
+        run: |
+          set -e
+          source ~/.bashrc
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+    
+          # No optimize, add debug info
+          export CXXFLAGS="-O0"
+          export CFLAGS="-O0"
+          
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"          
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+          
       - name: Build nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
