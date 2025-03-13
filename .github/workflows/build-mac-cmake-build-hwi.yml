@@ -83,10 +83,7 @@ jobs:
                                                   --include-package=hwilib.devices.coldcard \
                                                   --include-package=hwilib.devices.bitbox02 \
                                                   --include-package=hwilib.devices.jade \
-                                                  --include-module=mnemonic \
-                                                  --include-module=libusb1 \
-                                                  --include-module=cbor2 \
-                                                  --include-module=hid \
+                                                  --follow-imports \
                                                   --output-dir=build_output \
                                                   hwi.py
           ls -l build_output
