@@ -69,6 +69,7 @@ jobs:
       - name: Install Poetry and upgrade Nuitka
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
+          pip show hidapi
           pip install poetry
           pip install --upgrade nuitka
           pip install typing-extensions
