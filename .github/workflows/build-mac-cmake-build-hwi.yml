@@ -34,6 +34,7 @@ jobs:
           pyenv install 3.9.7 || echo "Python 3.9.7 đã được cài"
           pyenv global 3.9.7
           # Khởi tạo pyenv để cập nhật PATH
+          eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           echo "Python version:" 
           python --version
