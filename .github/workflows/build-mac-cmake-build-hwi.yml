@@ -87,9 +87,6 @@ jobs:
                                                   --include-module=libusb1 \
                                                   --include-module=cbor2 \
                                                   --include-module=hid \
-                                                  --include-module=pyaes \
-                                                  --include-module=serial \
-                                                  --include-module=noise \
                                                   --output-dir=build_output \
                                                   hwi.py
           ls -l build_output
