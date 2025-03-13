@@ -14,17 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Set compiler
-        run: |
-          #set -e
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
-          echo "export CC=gcc-14" >> ~/.bashrc
-          echo "export CXX=g++-14" >> ~/.bashrc
-          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
-          echo "export AR=gcc-ar-14" >> ~/.bashrc
-          echo "export NM=gcc-nm-14" >> ~/.bashrc
-          source ~/.bashrc
           
       - name: Build HWI
         working-directory: ${{runner.workspace}}
@@ -38,6 +27,17 @@ jobs:
           bash contrib/build_bin.sh --without-gui
           echo "find hwi"          
           find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+          
+      - name: Set compiler
+        run: |
+          #set -e
+          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
+          echo "export CC=gcc-14" >> ~/.bashrc
+          echo "export CXX=g++-14" >> ~/.bashrc
+          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
+          echo "export AR=gcc-ar-14" >> ~/.bashrc
+          echo "export NM=gcc-nm-14" >> ~/.bashrc
+          source ~/.bashrc
           
       - name: Remove default openssl
         run: |
