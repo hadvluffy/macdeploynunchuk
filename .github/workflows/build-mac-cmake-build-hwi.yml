@@ -66,26 +66,20 @@ jobs:
           pyenv install 3.9.7 || echo "Python 3.9.7 đã được cài"
           pyenv global 3.9.7
           # Khởi tạo pyenv để cập nhật PATH
-          eval "$(pyenv init -)"
           eval "$(pyenv init --path)"
           echo "Python version:" 
           python --version
           # Nâng cấp pip và cài đặt các package cần thiết cho build
           python -m pip install --upgrade pip
           pip install nuitka typing-extensions mnemonic libusb1 cbor2 hidapi
-      
-      - name: Build HWI with Nuitka (Without Poetry)
-        run: |
+
           echo "show python version >>>>>>>"
           python --version
           echo "show python version <<<<<<<"
           
-          echo "show python version >>>>>>>"
+          echo "show hidapi version >>>>>>>"
           pip show hidapi
-          which python
-          python -c "import sys; print(sys.executable)"
-          python -m nuitka --version
-          echo "show python version <<<<<<<"
+          echo "show hidapi version <<<<<<<"
           
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka  --onefile --static-libpython=yes \
                                                           --include-package=typing_extensions \
