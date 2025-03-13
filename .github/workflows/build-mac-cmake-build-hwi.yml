@@ -78,7 +78,7 @@ jobs:
           pip install hidapi
           echo "show hidapi >>>>>>>"
           pip show hidapi
-          echo "show hidapi <<<<<<<
+          echo "show hidapi <<<<<<<"
           poetry install
           export NUITKA_DISABLE_CCACHE=1 && yes | nuitka --onefile --static-libpython=yes \
                                                   --include-package=typing_extensions \
