@@ -146,6 +146,12 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
+
+          find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "*mac-x86_64.tar.gz" -exec mv {} ./ \;
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz" -exec tar -xf {} \;
+          find ${{runner.workspace}} -name "hwi"
+          mv hwi Nunchuk.app/Contents/MacOS/hwi
+          
           # check Nunchuk.app
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
