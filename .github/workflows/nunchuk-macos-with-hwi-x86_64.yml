@@ -208,13 +208,57 @@ jobs:
 
       - name: Download HWI
         working-directory: ${{runner.workspace}}
-        env:
-          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          mkdir -p hwi_macos && wget -c -q "https://github.com/hadvluffy/macdeploynunchuk/actions/runs/13851300127/artifacts/2750877461" -O - | tar -xz -C hwi_macos
-          ls -l hwi_macos
-          cp hwi_macos/hwi "$APP_PATH/Contents/MacOS/hwi"
-      
+          mkdir -p dist_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C dist_macos
+          ls -l dist_macos
+          
+      - name: Download entitlements_hwi.plist
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
+          
+      - name: Sign HWI
+        working-directory: ${{runner.workspace}}/dist_macos
+        env:
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
+        run: |
+          echo "Signing hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "hwi" -vvv
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "hwi-qt" -vvv
+          
+      - name: Zip toàn bộ output dist
+        working-directory: ${{runner.workspace}}
+        run: |
+          zip -r dist_macos.zip dist_macos
+          
+      - name: Notarize dist_macos.zip
+        env:
+          APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail  # Dừng script nếu có lỗi
+          echo "🔹 Creating notarization profile..."
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_ID" \
+                                                                  --team-id "$TEAM_ID" \
+                                                                  --password "$APP_PASSWORD"
+          echo "📤 Submitting dist_macos.zip for notarization..."
+          xcrun notarytool submit "${{runner.workspace}}/dist_macos.zip" --keychain-profile "notarytool-profile" --wait --verbose
+          echo "✅ Notarization complete!"
+          # Giải nén để staple từng file bên trong
+          echo "📦 Extracting notarized package..."
+          unzip -q "${{runner.workspace}}/dist_macos.zip" -d "${{runner.workspace}}/dist"
+          # Staple tất cả app bundle bên trong dist/
+          echo "🔹 Stapling notarization tickets..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec xcrun stapler staple {} \;
+          # Kiểm tra notarization với spctl
+          echo "🔍 Verifying notarization status..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec spctl --assess --type exec --verbose=4 {} \;
+          echo "🎉 Notarization process completed copy to Nunchuk!"
+          
+          cp "${{runner.workspace}}/dist/hwi" "${{runner.workspace}}/build/Nunchuk.app/Contents/MacOS/hwi"
+       
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
         env:
