@@ -125,6 +125,26 @@ jobs:
           
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
+
+      - name: Setup certification
+        env: 
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          BUNDLE_IDENTIFIER: ${{ secrets.IO_BUNDLE_IDENTIFIER }}
+          TEAMID_BUNDLE_IDENTIFIER: ${{ secrets.IO_TEAMID_BUNDLE_IDENTIFIER }}
+          
+        run: |
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security find-identity -v -p codesigning
+          xcrun --find altool
+          xcrun --find notarytool
           
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
@@ -186,7 +206,6 @@ jobs:
           echo "Cleaning up temporary files..."
           rm -f certificate.p12
 
-          
       - name: Download HWI
         working-directory: ${{runner.workspace}}
         env:
