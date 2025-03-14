@@ -39,6 +39,11 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+      
+      - name: Download entitlements_hwi.plist
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
           
       - name: Build HWI
         working-directory: ${{runner.workspace}}/HWI-3.1.0
