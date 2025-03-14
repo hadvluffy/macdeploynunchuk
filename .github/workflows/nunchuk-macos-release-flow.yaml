@@ -23,7 +23,7 @@ jobs:
       - name: Download HWI
         uses: actions/download-artifact@v4
         with:
-          name: dist-macos
+          name: dist_macos.zip
           path: ./downloaded-artifacts
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           repository: ${{ github.repository }}
