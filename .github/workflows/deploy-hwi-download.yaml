@@ -1,4 +1,4 @@
-name: sign-hwi
+name: deploy-hwi-download
 
 on:
   push:
