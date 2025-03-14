@@ -16,8 +16,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup certification
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        shell: bash
         env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
@@ -37,6 +35,11 @@ jobs:
           security find-identity -v -p codesigning
           echo "$MACOS_CERTIFICATE_NAME"
     
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}
+        run: |
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          
       - name: Build HWI
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         shell: bash
