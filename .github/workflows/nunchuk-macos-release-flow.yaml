@@ -18,5 +18,5 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          gh run download 13851885596 -n "deploy-hwi-download"
+          gh run download 13851885596 -n "deploy-hwi-download" --repo hadvluffy/macdeploynunchuk
           ls -l 
