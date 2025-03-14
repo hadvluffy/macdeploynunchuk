@@ -1,4 +1,4 @@
-name: nunchuk-macos-with-hwi-download
+name: nunchuk-macos-with-hwi-x86_64
 
 on:
   push:
@@ -248,10 +248,10 @@ jobs:
           spctl --assess --type exec --verbose=4 "$APP_PATH"
 
           echo "Repackaging the notarized app bundle..."
-          final_package_dir="${{runner.workspace}}/nunchuk-mac-qt"
+          final_package_dir="${{runner.workspace}}/nunchuk-macos-x86_64"
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
-          final_zip="${{runner.workspace}}/build/nunchuk-mac-qt.zip"
+          final_zip="${{runner.workspace}}/build/nunchuk-macos-x86_64.zip"
           ditto -c -k --keepParent "$final_package_dir" "$final_zip"
       
           echo "Notarization and packaging complete!"
@@ -263,5 +263,5 @@ jobs:
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-mac-${{ steps.get_version.outputs.VERSION }}
-          path: ${{runner.workspace}}/build/nunchuk-mac-qt.zip
+          name: nunchuk-macos-x86_64
+          path: ${{runner.workspace}}/build/nunchuk-macos-x86_64.zip
