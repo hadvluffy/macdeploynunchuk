@@ -1,4 +1,4 @@
-name: nunchuk-macos-with-hwi-x86_64
+name: nunchuk-macos-x86_64
 
 on:
   push:
