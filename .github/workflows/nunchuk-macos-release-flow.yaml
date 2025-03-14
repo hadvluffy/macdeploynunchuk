@@ -1,11 +1,6 @@
-name: nunchuk-macos-release-flow
+name: deploy-hwi-pyinstaller
 
 on:
-  workflow_run:
-    workflows: ["deploy-hwi-download"]
-    types:
-      - completed
-      
   push:
     tags:
     - '*'
@@ -15,22 +10,12 @@ on:
 jobs:
   build:
     runs-on: macos-13
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download HWI
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-macos
-          path: ./downloaded-artifacts
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Check hwi result
-        working-directory: ${{ runner.workspace }}
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}
         run: |
-          ls -l
-        
+          wget -c -q "https://github.com/hadvluffy/macdeploynunchuk/actions/runs/13851885596/artifacts/2751027802" -O - | tar -xz
+          ls -l 
