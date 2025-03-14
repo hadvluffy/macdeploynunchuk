@@ -23,7 +23,6 @@ jobs:
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
           MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
         run: |
           echo "Setting up keychain and certificate..."
           # Get certification and create keychain
