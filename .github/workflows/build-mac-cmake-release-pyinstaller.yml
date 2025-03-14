@@ -40,6 +40,15 @@ jobs:
           MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
           ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
         run: |
+          echo "Setting up keychain and certificate..."
+          # Get certification and create keychain
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+        
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
