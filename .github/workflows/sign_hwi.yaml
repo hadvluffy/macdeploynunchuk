@@ -42,12 +42,16 @@ jobs:
           ls -l dist_macos
           
       - name: Download entitlements_hwi.plist
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
+          
+      - name: Sign HWI
         working-directory: ${{runner.workspace}}/dist_macos
         env:
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
           ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
         run: |
-          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
           echo "Signing hwi"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist_macos/hwi" -vvv
           
