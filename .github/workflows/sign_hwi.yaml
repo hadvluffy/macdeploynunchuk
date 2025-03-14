@@ -41,7 +41,7 @@ jobs:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
           mkdir -p dist_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C dist_macos
-         
+          ls -l dist_macos
       - name: Download entitlements_hwi.plist
         working-directory: ${{runner.workspace}}/dist_macos
         run: |
