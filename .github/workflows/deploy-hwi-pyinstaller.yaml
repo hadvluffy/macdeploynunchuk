@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: macos-13
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,31 +34,52 @@ jobs:
           security find-identity -v -p codesigning
           echo "$MACOS_CERTIFICATE_NAME"
     
-      - name: Download, extract, and move HWI
+      - name: Checkout HWI
         working-directory: ${{runner.workspace}}
         run: |
-          mkdir -p dist_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C dist_macos
-          ls -l dist_macos
-          
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+      
       - name: Download entitlements_hwi.plist
         working-directory: ${{runner.workspace}}
         run: |
           curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
           
-      - name: Sign HWI
-        working-directory: ${{runner.workspace}}/dist_macos
+      - name: Build HWI
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        shell: bash
         env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
           ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
-        run: |
-          echo "Signing hwi"
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "hwi" -vvv
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "hwi-qt" -vvv
+        run: |  
+          brew install libusb pyenv pyenv-virtualenv
+          pyenv install 3.9.7
+          pyenv global 3.9.7
+          eval "$(pyenv init -)"
+          eval "$(pyenv init --path)"
+          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
+          cd HWI-3.1.0
+          pip3 install poetry
+          poetry install
+          pip3 install .
+          pip3 install -U setuptools
           
+          sed -i -e "s/codesign_identity=None/codesign_identity='$MACOS_CERTIFICATE_NAME'/g" hwi.spec
+          sed -i -e "s/entitlements_file=None/entitlements_file='$ENTITLEMENTS_HWI'/g" hwi.spec
+          
+          bash contrib/build_bin.sh --without-gui
+          echo "find hwi"          
+          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+
+          echo "Signing hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist/hwi" -vvv
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist/hwi.app" -vvv
+
       - name: Zip toàn bộ output dist
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
-          zip -r dist_macos.zip dist_macos
+          zip -r dist_macos.zip dist
+          mv dist_macos.zip ${{runner.workspace}}
 
       - name: Notarize dist_macos.zip
         env:
