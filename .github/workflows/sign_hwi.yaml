@@ -60,7 +60,6 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           zip -r dist_macos.zip dist_macos
-          mv dist_macos.zip ${{runner.workspace}}
 
       - name: Notarize dist_macos.zip
         env:
