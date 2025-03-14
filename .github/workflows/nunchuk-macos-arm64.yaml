@@ -212,9 +212,6 @@ jobs:
 
           echo "Check otool..."
           otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
-
-          echo "Copy hwi"
-          cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
         
           echo "Cleaning up temporary files..."
           rm -f certificate.p12
@@ -250,6 +247,9 @@ jobs:
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
+
+          echo "Copy hwi"
+          cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
 
           echo "Repackaging the notarized app bundle..."
           final_package_dir="${{runner.workspace}}/nunchuk-macos-arm64"
