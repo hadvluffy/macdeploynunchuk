@@ -59,7 +59,7 @@ jobs:
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/dist_macos
         run: |
-          zip -r dist_macos.zip dist
+          zip -r dist_macos.zip dist_macos
           mv dist_macos.zip ${{runner.workspace}}
 
       - name: Notarize dist_macos.zip
