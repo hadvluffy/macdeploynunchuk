@@ -67,16 +67,18 @@ jobs:
           sed -i -e "s|entitlements_file=None|entitlements_file='$ENTITLEMENTS_HWI'|g" hwi.spec
           bash contrib/build_bin.sh --without-gui
           echo "find hwi"          
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
-
+          find "${{runner.workspace}}" -name "hwi-3.1.0-mac-x86_64.tar.gz" -exec tar -xzf {} \;
+          ls dist/hwi-3.1.0-mac-x86_64
+          mkdir dist_macos 
+          mv dist/hwi-3.1.0-mac-x86_64/hwi dist_macos/hwi
+          
           echo "Signing hwi"
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist/hwi" -vvv
-          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist/hwi.app" -vvv
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "dist_macos/hwi" -vvv
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
-          zip -r dist_macos.zip dist
+          zip -r dist_macos.zip dist_macos
           mv dist_macos.zip ${{runner.workspace}}
 
       - name: Notarize dist_macos.zip
