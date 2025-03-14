@@ -43,6 +43,11 @@ jobs:
           
       - name: Download entitlements_hwi.plist
         working-directory: ${{runner.workspace}}/dist_macos
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
         run: |
           curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
           echo "Signing hwi"
