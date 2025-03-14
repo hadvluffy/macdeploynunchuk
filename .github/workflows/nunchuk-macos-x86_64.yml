@@ -267,5 +267,5 @@ jobs:
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-x86_64
+          name: nunchuk-macos-x86_64.zip
           path: ${{runner.workspace}}/build/nunchuk-macos-x86_64.zip
