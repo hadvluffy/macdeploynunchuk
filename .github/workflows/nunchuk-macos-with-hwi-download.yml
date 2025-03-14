@@ -1,4 +1,4 @@
-name: build-mac-cmake-release-pyinstaller
+name: nunchuk-macos-with-hwi-download
 
 on:
   push:
