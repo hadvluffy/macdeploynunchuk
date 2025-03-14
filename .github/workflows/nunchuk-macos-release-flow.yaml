@@ -1,4 +1,4 @@
-name: deploy-hwi-pyinstaller
+name: deploy-hwi-release-flow
 
 on:
   push:
