@@ -43,7 +43,7 @@ jobs:
         env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
-          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+          ENTITLEMENTS_HWI: entitlements_hwi.plist
         run: |  
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
@@ -70,7 +70,7 @@ jobs:
           codesign -dv --verbose=4 dist/hwi.app
 
           echo "Zipping dist folder"
-          zip -r dist.zip dist
+          zip -r dist_macos.zip dist
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
