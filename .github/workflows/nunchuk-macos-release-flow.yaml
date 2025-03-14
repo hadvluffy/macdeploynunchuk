@@ -17,5 +17,5 @@ jobs:
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
         run: |
-          wget -c -q "https://github.com/hadvluffy/macdeploynunchuk/actions/runs/13851885596/artifacts/2751027802" -O - | tar -xz
+          gh run download 13851885596 -n "deploy-hwi-download"
           ls -l 
