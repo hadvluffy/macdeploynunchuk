@@ -15,6 +15,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh run download 13855144879 -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
+          unzip hwi_macos.zip
+          echo "ls -l"
+          ls -l 
+          echo "ls -l hwi_macos"
+          ls -l hwi_macos
+
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -201,22 +212,12 @@ jobs:
 
           echo "Check otool..."
           otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
-      
-          # Step 6: Cleanup
+
+          echo "Copy hwi"
+          cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
+        
           echo "Cleaning up temporary files..."
           rm -f certificate.p12
-
-      - name: Checkout HWI
-        working-directory: ${{runner.workspace}}
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          gh run download 13851885596 -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
-          unzip hwi_macos.zip
-          echo "ls -l"
-          ls -l 
-          echo "ls -l hwi_macos"
-          ls -l hwi_macos
-          cp "hwi_macos/hwi" "build/Nunchuk.app/Contents/MacOS/hwi"
  
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
