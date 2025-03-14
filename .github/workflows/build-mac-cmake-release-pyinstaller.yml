@@ -58,7 +58,9 @@ jobs:
           find ${{runner.workspace}} -name "hwi";
           echo "ls dist"
           ls -l dist
-          
+          codesign -dv --verbose=4 dist/hwi
+          codesign -dv --verbose=4 dist/hwi.app
+
           echo "Zipping dist folder"
           zip -r dist.zip dist
           
