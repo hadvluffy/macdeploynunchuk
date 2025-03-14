@@ -24,61 +24,6 @@ jobs:
           git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
           cd nunchuk-qt
           git submodule update --init --recursive
-
-      - name: Checkout HWI
-        working-directory: ${{runner.workspace}}
-        run: |
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-      
-      - name: Build HWI
-        working-directory: ${{runner.workspace}}/HWI-3.1.0
-        shell: bash
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
-        run: |
-          echo "Setting up keychain and certificate..."
-          # Get certification and create keychain
-          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-        
-          echo "Checking Developer ID"
-          security find-identity -v -p codesigning
-          echo "$MACOS_CERTIFICATE_NAME"
-          
-          brew install libusb pyenv pyenv-virtualenv
-          pyenv install 3.9.7
-          pyenv global 3.9.7
-          eval "$(pyenv init --path)"
-          eval "$(pyenv virtualenv-init -)"
-          pip3 install poetry pyinstaller
-          poetry install
-          pip3 install .
-          pyinstaller --onefile \
-                      --clean \
-                      --noconsole \
-                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
-                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
-                      --hidden-import=hidapi \
-                      --hidden-import=libusb1 \
-                      hwi.py
-          
-          echo "find hwi and otool"
-          find ${{runner.workspace}} -name "hwi";
-          echo "ls dist"
-          ls -l dist
-          codesign -dv --verbose=4 dist/hwi
-          codesign -dv --verbose=4 dist/hwi.app
-
-          echo "Zipping dist folder"
-          zip -r dist.zip dist
           
       - name: Set compiler
         run: |
@@ -166,7 +111,7 @@ jobs:
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
           
-      - name: Deploy Dmg
+      - name: Deploy Nunchuk
         working-directory: ${{runner.workspace}}/build
         env:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
@@ -180,11 +125,7 @@ jobs:
           
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
-
-          find ${{runner.workspace}}/HWI-3.1.0/dist/ -name "hwi" -exec mv {} ./ \;
-          find ${{runner.workspace}} -name "hwi"
-          mv hwi Nunchuk.app/Contents/MacOS/hwi
-   
+          
       - name: Codesign app bundle
         working-directory: ${{runner.workspace}}/build
         env:
@@ -225,11 +166,7 @@ jobs:
           echo "Signing main executables and app bundle..."
           codesign --remove-signature "$APP_PATH"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
-          
-          #echo "Signing hwi"
-          #codesign --remove-signature "$APP_PATH/Contents/MacOS/hwi"
-          #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/hwi" -vvv
-
+      
           echo "Verifying codesigning $APP_PATH"
           codesign -vvvv --deep --strict "$APP_PATH"
           
@@ -248,6 +185,16 @@ jobs:
           # Step 6: Cleanup
           echo "Cleaning up temporary files..."
           rm -f certificate.p12
+
+          
+      - name: Download HWI
+        working-directory: ${{runner.workspace}}
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          mkdir -p hwi_macos && wget -c -q "https://github.com/hadvluffy/macdeploynunchuk/actions/runs/13851300127/artifacts/2750877461" -O - | tar -xz -C hwi_macos
+          ls -l hwi_macos
+          cp hwi_macos/hwi "$APP_PATH/Contents/MacOS/hwi"
       
       - name: Notarize app bundle
         working-directory: ${{runner.workspace}}/build
@@ -299,10 +246,3 @@ jobs:
         with:
           name: nunchuk-mac-${{ steps.get_version.outputs.VERSION }}
           path: ${{runner.workspace}}/build/nunchuk-mac-qt.zip
-          
-      - name: Upload HWI
-        uses: 'actions/upload-artifact@v4'
-        with:
-          name: hwi_dist
-          path: ${{runner.workspace}}/HWI-3.1.0/dist.zip
-
