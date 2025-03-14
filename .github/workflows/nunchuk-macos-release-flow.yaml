@@ -1,0 +1,36 @@
+name: nunchuk-macos-release-flow
+
+on:
+  workflow_run:
+    workflows: ["deploy-hwi-download"]
+    types:
+      - completed
+      
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download HWI
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-macos
+          path: ./downloaded-artifacts
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Check hwi result
+        working-directory: ${{ runner.workspace }}
+        run: |
+          ls -l
+        
