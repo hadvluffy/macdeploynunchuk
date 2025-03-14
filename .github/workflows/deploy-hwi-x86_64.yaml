@@ -38,8 +38,8 @@ jobs:
       - name: Download, extract, and move HWI
         working-directory: ${{runner.workspace}}
         run: |
-          mkdir -p dist_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C dist_macos
-          ls -l dist_macos
+          mkdir -p hwi_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi_macos
+          ls -l hwi_macos
           
       - name: Download entitlements_hwi.plist
         working-directory: ${{runner.workspace}}
@@ -47,7 +47,7 @@ jobs:
           curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
           
       - name: Sign HWI
-        working-directory: ${{runner.workspace}}/dist_macos
+        working-directory: ${{runner.workspace}}/hwi_macos
         env:
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
           ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
@@ -59,9 +59,9 @@ jobs:
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}
         run: |
-          zip -r dist_macos.zip dist_macos
+          zip -r hwi_macos.zip hwi_macos
 
-      - name: Notarize dist_macos.zip
+      - name: Notarize hwi_macos.zip
         env:
           APPLE_ID: ${{ secrets.IO_APPLE_ID }}
           TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
@@ -74,14 +74,14 @@ jobs:
                                                                   --team-id "$TEAM_ID" \
                                                                   --password "$APP_PASSWORD"
 
-          echo "📤 Submitting dist_macos.zip for notarization..."
-          xcrun notarytool submit "${{runner.workspace}}/dist_macos.zip" --keychain-profile "notarytool-profile" --wait --verbose
+          echo "📤 Submitting hwi_macos.zip for notarization..."
+          xcrun notarytool submit "${{runner.workspace}}/hwi_macos.zip" --keychain-profile "notarytool-profile" --wait --verbose
 
           echo "✅ Notarization complete!"
 
           # Giải nén để staple từng file bên trong
           echo "📦 Extracting notarized package..."
-          unzip -q "${{runner.workspace}}/dist_macos.zip" -d "${{runner.workspace}}/dist"
+          unzip -q "${{runner.workspace}}/hwi_macos.zip" -d "${{runner.workspace}}/dist"
 
           # Staple tất cả app bundle bên trong dist/
           echo "🔹 Stapling notarization tickets..."
@@ -96,5 +96,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist_macos.zip
-          path: ${{runner.workspace}}/dist_macos.zip
+          name: hwi_macos.zip
+          path: ${{runner.workspace}}/hwi_macos.zip
