@@ -81,7 +81,7 @@ jobs:
         working-directory: ${{runner.workspace}}/HWI-3.1.0
         run: |
           zip -r dist_macos.zip dist
-          mv dist-macos.zip ${{runner.workspace}}
+          mv dist_macos.zip ${{runner.workspace}}
           
       - name: Upload artifact
         uses: actions/upload-artifact@v4
