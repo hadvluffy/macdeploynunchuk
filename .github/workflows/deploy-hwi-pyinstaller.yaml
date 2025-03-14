@@ -68,6 +68,7 @@ jobs:
           bash contrib/build_bin.sh --without-gui
           echo "find hwi"          
           find "${{runner.workspace}}" -name "hwi-3.1.0-mac-x86_64.tar.gz" -exec tar -xzf {} \;
+          ls dist
           ls dist/hwi-3.1.0-mac-x86_64
           mkdir dist_macos 
           mv dist/hwi-3.1.0-mac-x86_64/hwi dist_macos/hwi
