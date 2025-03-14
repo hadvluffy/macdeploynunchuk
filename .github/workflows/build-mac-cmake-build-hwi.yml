@@ -51,7 +51,7 @@ jobs:
         env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
-          ENTITLEMENTS_HWI: entitlements_hwi.plist
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
         run: |  
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
