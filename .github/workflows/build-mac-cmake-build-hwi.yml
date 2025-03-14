@@ -86,7 +86,39 @@ jobs:
         run: |
           zip -r dist_macos.zip dist
           mv dist_macos.zip ${{runner.workspace}}
-          
+
+      - name: Notarize dist_macos.zip
+        env:
+          APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail  # Dừng script nếu có lỗi
+
+          echo "🔹 Creating notarization profile..."
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_ID" \
+                                                                  --team-id "$TEAM_ID" \
+                                                                  --password "$APP_PASSWORD"
+
+          echo "📤 Submitting dist_macos.zip for notarization..."
+          xcrun notarytool submit "${{runner.workspace}}/dist_macos.zip" --keychain-profile "notarytool-profile" --wait --verbose
+
+          echo "✅ Notarization complete!"
+
+          # Giải nén để staple từng file bên trong
+          echo "📦 Extracting notarized package..."
+          unzip -q "${{runner.workspace}}/dist_macos.zip" -d "${{runner.workspace}}/dist"
+
+          # Staple tất cả app bundle bên trong dist/
+          echo "🔹 Stapling notarization tickets..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec xcrun stapler staple {} \;
+
+          # Kiểm tra notarization với spctl
+          echo "🔍 Verifying notarization status..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec spctl --assess --type exec --verbose=4 {} \;
+
+          echo "🎉 Notarization process completed successfully!"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
