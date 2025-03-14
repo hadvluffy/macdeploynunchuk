@@ -14,35 +14,64 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup certification
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+        run: |
+          echo "Setting up keychain and certificate..."
+          # Get certification and create keychain
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
         
-      - name: Set compiler
-        run: |
-          #set -e
-          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
-          echo "export CC=gcc-14" >> ~/.bashrc
-          echo "export CXX=g++-14" >> ~/.bashrc
-          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
-          echo "export AR=gcc-ar-14" >> ~/.bashrc
-          echo "export NM=gcc-nm-14" >> ~/.bashrc
-          source ~/.bashrc
-          
-      - name: Remove default openssl
-        run: |
-          rm -rf /usr/local/opt/openssl
-          rm -rf /usr/local/include/openssl
+          echo "Checking Developer ID"
+          security find-identity -v -p codesigning
+          echo "$MACOS_CERTIFICATE_NAME"
     
       - name: Build HWI
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{runner.workspace}}/HWI-3.1.0
         shell: bash
-        run: |
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+        run: |  
           brew install libusb pyenv pyenv-virtualenv
           pyenv install 3.9.7
           pyenv global 3.9.7
-          wget -c -q "https://github.com/bitcoin-core/HWI/archive/refs/tags/3.1.0.zip" -O - | tar -xz
-          cd HWI-3.1.0
-          bash contrib/build_bin.sh --without-gui
-          echo "find hwi"          
-          find ${{runner.workspace}} -name "*mac-x86_64.tar.gz"
+          eval "$(pyenv init --path)"
+          eval "$(pyenv virtualenv-init -)"
+          pip3 install poetry pyinstaller
+          poetry install
+          pip3 install .
+          pyinstaller --onefile \
+                      --clean \
+                      --noconsole \
+                      --codesign-identity="$MACOS_CERTIFICATE_NAME" \
+                      --osx-entitlements-file="$ENTITLEMENTS_HWI" \
+                      --hidden-import=hidapi \
+                      --hidden-import=libusb1 \
+                      hwi.py
+          
+          echo "find hwi and otool"
+          find ${{runner.workspace}} -name "hwi";
+          echo "ls dist"
+          ls -l dist
+          codesign -dv --verbose=4 dist/hwi
+          codesign -dv --verbose=4 dist/hwi.app
+
+          echo "Zipping dist folder"
+          zip -r dist.zip dist
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}/HWI-3.1.0
