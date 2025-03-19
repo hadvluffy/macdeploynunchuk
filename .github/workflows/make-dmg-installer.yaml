@@ -29,7 +29,8 @@ jobs:
 
       - name: Build DMG Installer
         run: |
-          mkdir -p distcreate-dmg \
+          mkdir -p dist
+          create-dmg \
             --volname "Nunchuk Installer" \
             --background "background.png" \
             --window-pos 200 120 \
@@ -40,7 +41,10 @@ jobs:
             --app-drop-link 600 200 \
             "nunchuk-macos-x86_64/Nunchuk.app" \
             "dist/Nunchuk-Installer.dmg"
-
+            
+      - name: List DMG file
+        run: ls -lh dist/
+        
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
         with:
