@@ -29,8 +29,17 @@ jobs:
 
       - name: Build DMG Installer
         run: |
-          mkdir -p dist
-          create-dmg "nunchuk-macos-x86_64/Nunchuk.app" "dist/Nunchuk-Installer.dmg" --dmg-title="Nunchuk Installer"
+          mkdir -p distcreate-dmg \
+            --volname "Nunchuk Installer" \
+            --background "background.png" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "Nunchuk.app" 200 200 \
+            --hide-extension "Nunchuk.app" \
+            --app-drop-link 600 200 \
+            "nunchuk-macos-x86_64/Nunchuk.app" \
+            "dist/Nunchuk-Installer.dmg"
 
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
