@@ -33,7 +33,7 @@ jobs:
           create-dmg "nunchuk-macos-x86_64/Nunchuk.app" dist/ --dmg-title="Nunchuk Installer"
       
       - name: Upload DMG Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Nunchuk.dmg
           path: dist/*.dmg
