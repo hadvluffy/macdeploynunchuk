@@ -29,27 +29,39 @@ jobs:
 
       - name: Build DMG Installer
         working-directory: ${{runner.workspace}}
+        env:
+          VERSION: "1.9.43"
+          DMG_NAME: "nunchuk-macos-v$VERSION.dmg"
+          VOL_NAME: "Nunchuk Installer"
         run: |
-          mkdir dist
-          ls -l
-          set -x
+          
+          mkdir "nunchuk-macos-v$VERSION"
           create-dmg \
-            --volname "Nunchuk Installer" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "Nunchuk.app" 200 200 \
-            --hide-extension "Nunchuk.app" \
-            --app-drop-link 600 200 \
-            "${{runner.workspace}}/dist/Nunchuk-Installer.dmg" \
-            "${{runner.workspace}}/nunchuk-macos-x86_64/"
+          --volname "$VOL_NAME" \
+          --window-pos 200 120 \
+          --window-size 800 400 \
+          --icon-size 100 \
+          --icon "Nunchuk.app" 200 200 \
+          --hide-extension "Nunchuk.app" \
+          --app-drop-link 600 200 \
+          "nunchuk-macos-v$VERSION/$VOL_NAMEdmg" \
+          "nunchuk-macos-v$VERSION/"
             
       - name: List DMG file
         working-directory: ${{runner.workspace}}
-        run: ls -lh dist/
+        env:
+          VERSION: "1.9.43"
+          DMG_NAME: "nunchuk-macos-v$VERSION.dmg"
+          VOL_NAME: "Nunchuk Installer"
+        run: |
+          ls -lh "nunchuk-macos-v$VERSION"
         
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
+        env:
+          VERSION: "1.9.43"
+          DMG_NAME: "nunchuk-macos-v$VERSION.dmg"
+          VOL_NAME: "Nunchuk Installer"
         with:
           name: Nunchuk.dmg
-          path: ${{runner.workspace}}/dist/*.dmg
+          path: "nunchuk-macos-v$VERSION/*.dmg"
