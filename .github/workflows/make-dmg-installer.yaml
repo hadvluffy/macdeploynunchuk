@@ -41,8 +41,8 @@ jobs:
             --icon "Nunchuk.app" 200 200 \
             --hide-extension "Nunchuk.app" \
             --app-drop-link 600 200 \
-            "nunchuk-macos-x86_64/Nunchuk.app" \
-            "dist/Nunchuk-Installer.dmg"
+            "${{runner.workspace}}/nunchuk-macos-x86_64/Nunchuk.app" \
+            "${{runner.workspace}}/dist/Nunchuk-Installer.dmg"
             
       - name: List DMG file
         working-directory: ${{runner.workspace}}
