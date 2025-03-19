@@ -1,0 +1,100 @@
+name: deploy-hwi-x86_64-make-dmg
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup certification
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+        run: |
+          echo "Setting up keychain and certificate..."
+          # Get certification and create keychain
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+        
+          echo "Checking Developer ID"
+          security find-identity -v -p codesigning
+          echo "$MACOS_CERTIFICATE_NAME"
+    
+      - name: Download, extract, and move HWI
+        working-directory: ${{runner.workspace}}
+        run: |
+          mkdir -p hwi_macos && wget -c -q "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi_macos
+          ls -l hwi_macos
+          
+      - name: Download entitlements_hwi.plist
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/entitlements_hwi.plist
+          
+      - name: Sign HWI
+        working-directory: ${{runner.workspace}}/hwi_macos
+        env:
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/entitlements_hwi.plist
+        run: |
+          find . -name "hwi-qt" -exec rm -f {} \;
+          echo "Signing hwi"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS_HWI" -s "$MACOS_CERTIFICATE_NAME" "hwi" -vvv
+            
+      - name: Zip toàn bộ output dist
+        working-directory: ${{runner.workspace}}
+        run: |
+          zip -r hwi_macos.zip hwi_macos
+
+      - name: Notarize hwi_macos.zip
+        env:
+          APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail  # Dừng script nếu có lỗi
+
+          echo "🔹 Creating notarization profile..."
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$APPLE_ID" \
+                                                                  --team-id "$TEAM_ID" \
+                                                                  --password "$APP_PASSWORD"
+
+          echo "📤 Submitting hwi_macos.zip for notarization..."
+          xcrun notarytool submit "${{runner.workspace}}/hwi_macos.zip" --keychain-profile "notarytool-profile" --wait --verbose
+
+          echo "✅ Notarization complete!"
+
+          # Giải nén để staple từng file bên trong
+          echo "📦 Extracting notarized package..."
+          unzip -q "${{runner.workspace}}/hwi_macos.zip" -d "${{runner.workspace}}/dist"
+
+          # Staple tất cả app bundle bên trong dist/
+          echo "🔹 Stapling notarization tickets..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec xcrun stapler staple {} \;
+
+          # Kiểm tra notarization với spctl
+          echo "🔍 Verifying notarization status..."
+          find "${{runner.workspace}}/dist" -name "*.app" -exec spctl --assess --type exec --verbose=4 {} \;
+
+          echo "🎉 Notarization process completed successfully!"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hwi_macos.zip
+          path: ${{runner.workspace}}/hwi_macos.zip
