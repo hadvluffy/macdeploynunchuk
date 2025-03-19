@@ -32,7 +32,6 @@ jobs:
           mkdir -p dist
           create-dmg \
             --volname "Nunchuk Installer" \
-            --background "background.png" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
@@ -40,7 +39,7 @@ jobs:
             --hide-extension "Nunchuk.app" \
             --app-drop-link 600 200 \
             "nunchuk-macos-x86_64/Nunchuk.app" \
-            "dist/Nunchuk-Installer.dmg"
+            "dist/"
             
       - name: List DMG file
         run: ls -lh dist/
