@@ -44,7 +44,7 @@ jobs:
           --icon "Nunchuk.app" 200 200 \
           --hide-extension "Nunchuk.app" \
           --app-drop-link 600 200 \
-          "nunchuk-macos-v$VERSION/$VOL_NAMEdmg" \
+          "nunchuk-macos-v$VERSION/$VOL_NAME.dmg" \
           "nunchuk-macos-v$VERSION/"
             
       - name: List DMG file
