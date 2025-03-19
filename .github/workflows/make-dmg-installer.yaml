@@ -1,0 +1,27 @@
+name: make-dmg-installer
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          gh run download 13943466455 -n "nunchuk-macos-x86_64" --repo hadvluffy/macdeploynunchuk
+          unzip nunchuk-macos-x86_64.zip
+          echo "ls -l"
+          ls -l 
+          echo "ls -l nunchuk-macos-x86_64"
+          ls -l nunchuk-macos-x86_64
