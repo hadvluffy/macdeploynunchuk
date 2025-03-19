@@ -28,6 +28,7 @@ jobs:
         run: brew install create-dmg
 
       - name: Build DMG Installer
+        working-directory: ${{runner.workspace}}
         run: |
           mkdir -p dist
           ls -lh nunchuk-macos-x86_64/Nunchuk.app
@@ -43,10 +44,11 @@ jobs:
             "dist/"
             
       - name: List DMG file
+        working-directory: ${{runner.workspace}}
         run: ls -lh dist/
         
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Nunchuk.dmg
-          path: dist/*.dmg
+          path: ${{runner.workspace}}/dist/*.dmg
