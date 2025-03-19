@@ -30,8 +30,8 @@ jobs:
       - name: Build DMG Installer
         working-directory: ${{runner.workspace}}
         run: |
-          mkdir -p dist
-          ls -lh nunchuk-macos-x86_64/Nunchuk.app
+          mkdir dist
+          ls -l
           set -x
           create-dmg \
             --volname "Nunchuk Installer" \
