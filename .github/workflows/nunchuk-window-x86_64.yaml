@@ -4,7 +4,6 @@ on:
   push:
     tags:
     - '*'
-
   workflow_dispatch:
 
 env:
@@ -25,7 +24,7 @@ jobs:
       - name: Setup msbuild
         uses: microsoft/setup-msbuild@v2
         with:
-            msbuild-architecture: x64
+          msbuild-architecture: x64
 
       - name: Cache vcpkg
         id: cache-vcpkg
@@ -45,98 +44,25 @@ jobs:
         with:
           vcpkgDirectory: 'D:/a/vcpkg'
           vcpkgGitCommitId: 'eb492805e92a2c14a230f5c3deb3e89f6771c321'
-          
+
+      - name: Install dependencies with vcpkg
+        run: |
+          vcpkg install boost:x64-windows \
+                        zeromq:x64-windows \
+                        libevent:x64-windows \
+                        berkeleydb:x64-windows \
+                        sqlite3:x64-windows \
+                        sqlcipher:x64-windows \
+                        qt5:x64-windows \
+                        qt5-graphicaleffects:x64-windows \
+                        qt5-quickcontrols:x64-windows \
+                        qtKeychain:x64-windows
+                        
+          vcpkg integrate install
+
       - name: Checkout libolm
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{ runner.workspace }}
         run: |
           git clone https://gitlab.matrix.org/matrix-org/olm --depth 1
           cd olm
           git submodule update --init --recursive
-
-      - name: Checkout nunchuk-qt
-        working-directory: ${{runner.workspace}}
-        env:
-          GITLAB_AT: ${{ secrets.GITLAB_AT }} 
-        run: |
-          git clone -b online https://bakaoh:$env:GITLAB_AT@gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
-          cd nunchuk-qt
-          git submodule update --init --recursive
-
-      - name: Setup cmake
-        uses: lukka/get-cmake@v3.29.2
-
-      - name: Copy files
-        working-directory: ${{runner.workspace}}
-        shell: cmd
-        run: |
-          copy /Y ${{runner.workspace}}\windeploynunchuk\vcpkg.json ${{runner.workspace}}\nunchuk-qt
-          copy /Y ${{runner.workspace}}\windeploynunchuk\CMakePresets.json ${{runner.workspace}}\nunchuk-qt
-          copy /Y ${{runner.workspace}}\windeploynunchuk\CMakePresets.json ${{runner.workspace}}\olm
-
-      - name: Build libolm
-        uses: lukka/run-cmake@v10
-        with:
-          cmakeListsTxtPath: '${{runner.workspace}}/olm/CMakeLists.txt'
-          configurePreset: ninja-multi-vcpkg
-          buildPreset: ninja-multi-vcpkg
-          buildPresetAdditionalArgs: "['--target install', '--config Release']"
-
-      - name: Config Nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
-        run: |
-          & "$env:VCPKG_ROOT\vcpkg" integrate install
-
-      - name: Build Nunchuk-qt
-        uses: lukka/run-cmake@v10
-        with:
-          cmakeListsTxtPath: '${{runner.workspace}}/nunchuk-qt/CMakeLists.txt'
-          configurePreset: ninja-multi-vcpkg
-          buildPreset: ninja-multi-vcpkg
-          buildPresetAdditionalArgs: "['--config Release']"
-
-      - name: Prepare Build Artifacts
-        shell: pwsh
-        run: |
-          mkdir ${{runner.workspace}}\nunchuk-window
-          $hwi_path = "${{runner.workspace}}/hwi"
-          $target_folder = "${{runner.workspace}}/nunchuk-window"
-          $release_path = "${{runner.workspace}}/nunchuk-qt/build"
-          $vcpkg_path = "D:/a/vcpkg"
-          $olm_path = "${{runner.workspace}}/olm"
-          $build_script = "${{runner.workspace}}/build-scripts"
-          $app_name = "nunchuk"
-          
-          # Check hwi neu ko co thi download
-          curl "https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-windows-x86_64.zip" -O "$hwi_path\hwi.zip"
-
-          # Extract hwi to target folder
-          Expand-Archive -Force $hwi_path\hwi.zip $target_folder
-          $hwi_qt_path = Join-Path $target_folder "hwi-qt.exe"
-          if (Test-Path $hwi_qt_path) {
-              Remove-Item -Force $hwi_qt_path
-          }
-
-          # Copy Release build to target folder
-          Copy-Item -Path "$release_path\*" -Destination "$target_folder" -Recurse
-          # Copy Qt5 libraries to target folder
-          Copy-Item -Path "$vcpkg_path\installed\x64-windows\bin\Qt5*.dll" -Destination "$target_folder"
-          # Copy window additional libraries
-          Copy-Item -Path "C:\Windows\System32\msvcp*.dll" -Destination "$target_folder"
-          Copy-Item -Path "C:\Windows\System32\vccorlib*.dll" -Destination "$target_folder"
-          Copy-Item -Path "C:\Windows\System32\vcruntime*.dll" -Destination "$target_folder"
-
-          Copy-Item -Path "C:\Qt\5.15.1\msvc2019_64\bin\libEGL.dll" -Destination "$target_folder"
-          Copy-Item -Path "C:\Qt\5.15.1\msvc2019_64\bin\libGLESv2.dll" -Destination "$target_folder"
-          Copy-Item -Path "C:\Qt\5.15.1\msvc2019_64\bin\d3dcompiler_*.dll" -Destination "$target_folder"
-
-          # Copy olm
-          Copy-Item -Path "$olm_path\*" -Destination "$target_folder"
-          # Zipping the portable version
-          if (Test-Path -Path "$build_script\$app_name.zip") { Remove-Item "$build_script\$app_name.zip" -Recurse  | Remove-Item }
-          Compress-Archive -Path "$target_folder" -DestinationPath "$build_script\$app_name.zip"
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts
-          path: ${{runner.workspace}}/nunchuk-window
