@@ -38,16 +38,16 @@ jobs:
         working-directory: ${{runner.workspace}}
         shell: powershell
         run: |
-          vcpkg\vcpkg.exe install boost:x64-windows \
-                            zeromq:x64-windows \
-                            libevent:x64-windows \
-                            berkeleydb:x64-windows \
-                            sqlite3:x64-windows \
-                            sqlcipher:x64-windows \
-                            qt5:x64-windows \
-                            qt5-graphicaleffects:x64-windows \
-                            qt5-quickcontrols:x64-windows \
-                            qtKeychain:x64-windows
+          vcpkg\vcpkg.exe install boost:x64-windows `
+                                  zeromq:x64-windows `
+                                  libevent:x64-windows `
+                                  berkeleydb:x64-windows `
+                                  sqlite3:x64-windows `
+                                  sqlcipher:x64-windows `
+                                  qt5:x64-windows `
+                                  qt5-graphicaleffects:x64-windows `
+                                  qt5-quickcontrols:x64-windows `
+                                  qtKeychain:x64-windows
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
