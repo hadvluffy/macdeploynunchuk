@@ -254,7 +254,16 @@ jobs:
           final_package_dir="${{runner.workspace}}/nunchuk-macos-x86_64"
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
-          
+
+      - name: Unmount existing DMG if any
+        run: |
+          for disk in $(hdiutil info | grep '/dev/disk' | awk '{print $1}'); do
+            hdiutil detach $disk || echo "Failed to unmount $disk"
+          done
+
+      - name: Debug running processes
+        run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
+  
       - name: Create installer
         working-directory: ${{runner.workspace}}
         run: |
