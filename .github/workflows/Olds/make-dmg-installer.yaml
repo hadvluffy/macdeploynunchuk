@@ -1,4 +1,4 @@
-name: nunchuk-macos-dmg
+name: make-dmg-installer
 
 on:
   push:
