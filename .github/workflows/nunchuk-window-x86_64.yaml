@@ -34,10 +34,10 @@ jobs:
           restore-keys: vcpkg-${{ runner.os }}-
 
       - name: Install dependencies with vcpkg
-        working-directory: ${{runner.workspace}}/vcpkg
+        working-directory: ${{runner.workspace}}
         shell: powershell
         run: |
-          vcpkg.exe install boost:x64-windows \
+          vcpkg\vcpkg.exe install boost:x64-windows \
                             zeromq:x64-windows \
                             libevent:x64-windows \
                             berkeleydb:x64-windows \
@@ -48,6 +48,6 @@ jobs:
                             qt5-quickcontrols:x64-windows \
                             qtKeychain:x64-windows
                         
-          vcpkg.exe integrate install
-          vcpkg.exe list
+          vcpkg\vcpkg.exe integrate install
+          vcpkg\vcpkg.exe list
 
