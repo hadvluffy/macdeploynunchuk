@@ -5,64 +5,43 @@ on:
     tags:
     - '*'
   workflow_dispatch:
-
-env:
-  VCPKG_BINARY_SOURCES: clear
-  VCPKG_DEFAULT_TRIPLET: 'x64-windows'
-
+  
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-2022]
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
+      - name: Check out repository
+        uses: actions/checkout@v4
+        
+      - name: Check Windows Version
+        run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+        shell: cmd
 
-      - name: Setup msbuild
-        uses: microsoft/setup-msbuild@v2
-        with:
-          msbuild-architecture: x64
-
-      - name: Cache vcpkg
-        id: cache-vcpkg
-        uses: actions/cache@v3
-        with:
-          path: |
-            D:/a/vcpkg
-            ~/.cache/vcpkg
-          key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-
-
-      - name: Setup vcpkg
-        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-        uses: lukka/run-vcpkg@v11
-        id: runvcpkg
-        with:
-          vcpkgDirectory: 'D:/a/vcpkg'
-          vcpkgGitCommitId: 'eb492805e92a2c14a230f5c3deb3e89f6771c321'
-
-      - name: Install dependencies with vcpkg
+      - name: Set up vcpkg
         run: |
-          vcpkg install boost:x64-windows \
-                        zeromq:x64-windows \
-                        libevent:x64-windows \
-                        berkeleydb:x64-windows \
-                        sqlite3:x64-windows \
-                        sqlcipher:x64-windows \
-                        qt5:x64-windows \
-                        qt5-graphicaleffects:x64-windows \
-                        qt5-quickcontrols:x64-windows \
-                        qtKeychain:x64-windows
-                        
-          vcpkg integrate install
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
+          .\bootstrap-vcpkg.bat
+        shell: powershell
 
-      - name: Checkout libolm
-        working-directory: ${{ runner.workspace }}
+      - name: Cache vcpkg dependencies
+        uses: actions/cache@v4
+        with:
+          path: vcpkg/installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies (example: boost)
         run: |
-          git clone https://gitlab.matrix.org/matrix-org/olm --depth 1
-          cd olm
-          git submodule update --init --recursive
+          vcpkg\vcpkg.exe install boost
+        shell: powershell
+
+      - name: Build project
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build .
+        shell: powershell
