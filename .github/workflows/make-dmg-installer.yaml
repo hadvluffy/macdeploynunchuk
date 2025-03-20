@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64
+name: nunchuk-macos-dmg
 
 on:
   push:
@@ -249,17 +249,17 @@ jobs:
           echo "Performing Gatekeeper verification..."
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
-
-      - name: Create installer
-        working-directory: ${{runner.workspace}}/build
-        run: |
-          echo "Install tool create-dmg"
-          brew install create-dmg
-
-          echo "Copy the notarized app bundle to the folder nunchuk-macos"
+          
+          echo "Copy the notarized app bundle to the folder nunchuk-macos-x86_64"
           final_package_dir="${{runner.workspace}}/nunchuk-macos-x86_64"
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
+
+      - name: Create installer
+        working-directory: ${{runner.workspace}}
+        run: |
+          echo "Install tool create-dmg"
+          brew install create-dmg
 
           echo "Starting create dmg"
           final_dmg_dir="${{runner.workspace}}/nunchuk-macos-vX.YY.ZZ"
@@ -274,7 +274,7 @@ jobs:
           --hide-extension "Nunchuk.app" \
           --app-drop-link 600 200 \
           "$final_dmg_dir/Nunchuk.dmg" \
-          "$final_package_dir/"
+          "nunchuk-macos-x86_64/"
           
           final_zip="${{runner.workspace}}/build/nunchuk-macos-vX.YY.ZZ.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
