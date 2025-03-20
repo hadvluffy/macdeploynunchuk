@@ -264,16 +264,15 @@ jobs:
           final_dmg_dir="${{runner.workspace}}/nunchuk-macos-vX.YY.ZZ"
           mkdir -p "$final_dmg_dir"
           
-          create-dmg \
-          --volname "nunchuk-macos" \
-          --window-pos 200 150 \
-          --window-size 800 400 \
-          --icon-size 100 \
-          --icon "Nunchuk.app" 200 200 \
-          --hide-extension "Nunchuk.app" \
-          --app-drop-link 600 200 \
-          "$final_dmg_dir/Nunchuk.dmg" \
-          "nunchuk-macos-x86_64/"
+          create-dmg  --volname "nunchuk-macos" \
+                      --window-pos 200 150 \
+                      --window-size 800 400 \
+                      --icon-size 100 \
+                      --icon "Nunchuk.app" 200 200 \
+                      --hide-extension "Nunchuk.app" \
+                      --app-drop-link 600 200 \
+                      "$final_dmg_dir/Nunchuk.dmg" \
+                      "nunchuk-macos-x86_64/"
           
           final_zip="${{runner.workspace}}/build/nunchuk-macos-vX.YY.ZZ.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
