@@ -27,7 +27,7 @@ jobs:
             vcpkg-full-${{ runner.os }}-
 
       - name: Set up vcpkg
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{ runner.workspace }}
         shell: powershell
         run: |
           git clone https://github.com/microsoft/vcpkg.git
@@ -36,7 +36,7 @@ jobs:
           .\bootstrap-vcpkg.bat
 
       - name: Install dependencies with vcpkg
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{ runner.workspace }}
         shell: powershell
         run: |
           vcpkg\vcpkg.exe install boost:x64-windows `
