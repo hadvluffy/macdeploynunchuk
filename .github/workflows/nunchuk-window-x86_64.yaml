@@ -33,15 +33,8 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: vcpkg-${{ runner.os }}-
 
-      - name: Install dependencies (example: boost)
-        run: |
-          vcpkg\vcpkg.exe install boost
-        shell: powershell
+      #- name: Install dependencies (example: boost)
+      #  run: |
+      #    vcpkg\vcpkg.exe install boost
+      #  shell: powershell
 
-      - name: Build project
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
-          cmake --build .
-        shell: powershell
