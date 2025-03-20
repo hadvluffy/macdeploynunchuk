@@ -21,14 +21,10 @@ jobs:
       - name: Setup Cache vcpkg packages
         uses: actions/cache@v4
         with:
-          path: |
-            ${{ runner.workspace }}/vcpkg/installed
-            ${{ runner.workspace }}/vcpkg/buildtrees
-            ${{ runner.workspace }}/vcpkg/packages
-            ${{ runner.workspace }}/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          path: ${{ runner.workspace }}/vcpkg
+          key: vcpkg-full-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-
+            vcpkg-full-${{ runner.os }}-
 
       - name: Set up vcpkg
         working-directory: ${{runner.workspace}}
