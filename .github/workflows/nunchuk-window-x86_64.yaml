@@ -27,12 +27,17 @@ jobs:
           git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
           .\bootstrap-vcpkg.bat
 
-      - name: Cache vcpkg dependencies
+      - name: Cache vcpkg packages
         uses: actions/cache@v4
         with:
-          path: vcpkg/installed
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: vcpkg-${{ runner.os }}-
+          path: |
+            ${{ runner.workspace }}/vcpkg/installed
+            ${{ runner.workspace }}/vcpkg/buildtrees
+            ${{ runner.workspace }}/vcpkg/packages
+            ${{ runner.workspace }}/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       - name: Install dependencies with vcpkg
         working-directory: ${{runner.workspace}}
