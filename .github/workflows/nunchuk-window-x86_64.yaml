@@ -18,16 +18,7 @@ jobs:
         shell: powershell
         run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
 
-      - name: Set up vcpkg
-        working-directory: ${{runner.workspace}}
-        shell: powershell
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
-          .\bootstrap-vcpkg.bat
-
-      - name: Cache vcpkg packages
+      - name: Setup Cache vcpkg packages
         uses: actions/cache@v4
         with:
           path: |
@@ -38,6 +29,15 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
             vcpkg-${{ runner.os }}-
+
+      - name: Set up vcpkg
+        working-directory: ${{runner.workspace}}
+        shell: powershell
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
+          .\bootstrap-vcpkg.bat
 
       - name: Install dependencies with vcpkg
         working-directory: ${{runner.workspace}}
