@@ -14,10 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         
-      - name: Set CPU cores as env variable
-        run: |
-          echo "CORES=$(nproc --all)" >> $GITHUB_ENV
-          echo "Using $CORES cores for build"
+      #- name: Set CPU cores as env variable
+      #  run: |
+      #    echo "CORES=$(nproc --all)" >> $GITHUB_ENV
+      #    echo "Using $CORES cores for build"
         
       - name: Check Windows Version
         shell: powershell
@@ -68,7 +68,7 @@ jobs:
           mkdir -p build
           cd build
           cmake ../
-          cmake --build . --config Release -j$CORES
+          cmake --build . --config Release -j4
 
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
