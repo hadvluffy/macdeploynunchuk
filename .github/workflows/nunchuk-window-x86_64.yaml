@@ -15,7 +15,9 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Set CPU cores as env variable
-        run: echo "CORES=$(nproc --all)" >> $GITHUB_ENV
+        run: |
+          echo "CORES=$(nproc --all)" >> $GITHUB_ENV
+          echo "Using $CORES cores for build"
         
       - name: Check Windows Version
         shell: powershell
@@ -56,7 +58,7 @@ jobs:
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
           
-      - name: Clone Olm
+      - name: Checkout Olm
         working-directory: ${{ runner.workspace }}
         run: git clone https://gitlab.matrix.org/matrix-org/olm.git
 
@@ -67,4 +69,30 @@ jobs:
           cd build
           cmake ../
           cmake --build . --config Release -j$CORES
+
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
+          cd nunchuk-qt
+          git submodule update --init --recursive
+
+      - name: Configure CMake
+        working-directory: ${{ runner.workspace }}
+        shell: powershell
+        run: |
+          $cmakeConfigureCmd = @(
+            "-S", 
+            ".",  
+            ${{ runner.workspace }}/nunchuk-qt
+            "-B", "build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "-DVCPKG_TARGET_TRIPLET=x64-windows",
+            "-DUR__DISABLE_TESTS=ON"
+          )
+          cmake @cmakeConfigureCmd
 
