@@ -23,8 +23,13 @@ jobs:
         shell: pwsh
         run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
 
-      - name: Setup MSVC
+      - name: Setup msbuild
         uses: microsoft/setup-msbuild@v2
+        with:
+            msbuild-architecture: x64
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
 
       - name: Setup Cache vcpkg packages
         uses: actions/cache@v4
