@@ -52,4 +52,15 @@ jobs:
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
+          
+      - name: Clone Olm
+        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
+
+      - name: Build Olm
+        run: |
+          cd olm
+          mkdir -p build
+          cd build
+          cmake ../
+          cmake --build . --config Release -j8
 
