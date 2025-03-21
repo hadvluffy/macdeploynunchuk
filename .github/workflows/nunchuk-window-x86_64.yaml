@@ -103,22 +103,22 @@ jobs:
               "-DCMAKE_TOOLCHAIN_FILE=$workspace\vcpkg\scripts\buildsystems\vcpkg.cmake",
               "-DVCPKG_TARGET_TRIPLET=x64-windows",
               "-DUR__DISABLE_TESTS=ON",
-              "-DBOOST_ASIO_NO_DEPRECATED=0"
+              "-DCMAKE_CXX_FLAGS=/D BOOST_ASIO_NO_DEPRECATED=0"
           )
           cmake @cmakeConfigureCmd
           
-      - name: Build nunchuk-qt
-        working-directory: ${{ runner.workspace }}
-        shell: pwsh
-        run: |
-          $cmakeBuildCmd = @(
-            "--build",  
-            "build", 
-            "--config", 
-            "Release", 
-            "--",
-            "/m:4"
-          )
-          cmake $cmakeBuildCmd
+      #- name: Build nunchuk-qt
+      #  working-directory: ${{ runner.workspace }}
+      #  shell: pwsh
+      #  run: |
+      #    $cmakeBuildCmd = @(
+      #      "--build",  
+      #      "build", 
+      #      "--config", 
+      #      "Release", 
+      #      "--",
+      #      "/m:4"
+      #    )
+      #    cmake $cmakeBuildCmd
 
 
