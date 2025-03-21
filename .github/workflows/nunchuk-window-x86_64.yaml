@@ -96,6 +96,7 @@ jobs:
               "-DUR__DISABLE_TESTS=ON"
           )
           cmake @cmakeConfigureCmd
+          
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}
         shell: pwsh
