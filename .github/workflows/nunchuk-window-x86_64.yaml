@@ -20,7 +20,7 @@ jobs:
       #    echo "Using $CORES cores for build"
         
       - name: Check Windows Version
-        shell: powershell
+        shell: pwsh
         run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
 
       - name: Setup Cache vcpkg packages
@@ -33,7 +33,7 @@ jobs:
 
       - name: Set up vcpkg
         working-directory: ${{ runner.workspace }}
-        shell: powershell
+        shell: pwsh
         run: |
           git clone https://github.com/microsoft/vcpkg.git
           cd vcpkg
@@ -42,7 +42,7 @@ jobs:
 
       - name: Install dependencies with vcpkg
         working-directory: ${{ runner.workspace }}
-        shell: powershell
+        shell: pwsh
         run: |
           vcpkg\vcpkg.exe install boost:x64-windows `
                                   zeromq:x64-windows `
@@ -80,9 +80,9 @@ jobs:
           cd nunchuk-qt
           git submodule update --init --recursive
 
-      - name: Configure CMake
+      - name: Configure nunchuk-qt
         working-directory: ${{ runner.workspace }}
-        shell: powershell
+        shell: pwsh
         run: |
           $workspace = "${{ runner.workspace }}"
           $cmakeConfigureCmd = @(
@@ -96,3 +96,18 @@ jobs:
               "-DUR__DISABLE_TESTS=ON"
           )
           cmake @cmakeConfigureCmd
+      - name: Build nunchuk-qt
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        run: |
+          $cmakeBuildCmd = @(
+            "--build",  
+            "build", 
+            "--config", 
+            "Release", 
+            "--",
+            "/m:4"
+          )
+          cmake $cmakeBuildCmd
+
+
