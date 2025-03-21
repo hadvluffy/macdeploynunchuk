@@ -86,14 +86,12 @@ jobs:
         run: |
           $workspace = "${{ runner.workspace }}"
           $cmakeConfigureCmd = @(
-            "-S", 
-            @workspace\nunchuk-qt,
-            "-B", 
-            "build",
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DCMAKE_TOOLCHAIN_FILE=@workspace\vcpkg\scripts\buildsystems\vcpkg.cmake",
-            "-DVCPKG_TARGET_TRIPLET=x64-windows",
-            "-DUR__DISABLE_TESTS=ON"
+              "-S", 
+              "$workspace\nunchuk-qt",  # Dùng "$variable" để nối chuỗi
+              "-B", "build",
+              "-DCMAKE_BUILD_TYPE=Release",
+              "-DCMAKE_TOOLCHAIN_FILE=$workspace\vcpkg\scripts\buildsystems\vcpkg.cmake",
+              "-DVCPKG_TARGET_TRIPLET=x64-windows",
+              "-DUR__DISABLE_TESTS=ON"
           )
           cmake @cmakeConfigureCmd
-
