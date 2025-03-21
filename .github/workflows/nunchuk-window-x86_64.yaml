@@ -84,13 +84,14 @@ jobs:
         working-directory: ${{ runner.workspace }}
         shell: powershell
         run: |
+          $workspace = "${{ runner.workspace }}"
           $cmakeConfigureCmd = @(
             "-S", 
-            ".",  
-            ${{ runner.workspace }}/nunchuk-qt
-            "-B", "build",
+            @workspace\nunchuk-qt,
+            "-B", 
+            "build",
             "-DCMAKE_BUILD_TYPE=Release",
-            "-DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "-DCMAKE_TOOLCHAIN_FILE=@workspace\vcpkg\scripts\buildsystems\vcpkg.cmake",
             "-DVCPKG_TARGET_TRIPLET=x64-windows",
             "-DUR__DISABLE_TESTS=ON"
           )
