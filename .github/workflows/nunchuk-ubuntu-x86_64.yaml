@@ -13,16 +13,36 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ubuntu-24.04-apt-${{ runner.os }}-${{ hashFiles('**/dependencies.txt') }}
+          restore-keys: |
+            ubuntu-24.04-apt-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake g++ make ninja-build libboost-all-dev \
-                              libzmq3-dev libevent-dev libdb++-dev \
-                              sqlite3 libsqlite3-dev qtbase5-dev \
-                              qtdeclarative5-dev qtquickcontrols2-5-dev \
-                              qttools5-dev qttools5-dev-tools libqt5svg5-dev \
-                              libqt5networkauth5-dev git
+          sudo apt install -y cmake \
+                              g++ \
+                              make \
+                              ninja-build \
+                              libboost-all-dev \
+                              libzmq3-dev \
+                              libevent-dev \
+                              libdb++-dev \
+                              sqlite3 \
+                              libsqlite3-dev \
+                              qtbase5-dev \
+                              qtdeclarative5-dev \
+                              qtquickcontrols2-5-dev \
+                              qttools5-dev \
+                              qttools5-dev-tools \
+                              libqt5svg5-dev \
+                              libqt5networkauth5-dev \
+                              git
 
       - name: Checkout Olm
         working-directory: ${{ runner.workspace }}
