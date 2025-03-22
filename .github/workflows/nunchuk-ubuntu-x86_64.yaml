@@ -1,0 +1,64 @@
+name: nunchuk-ubuntu-x86_64
+
+on:
+  push:
+    tags:
+    - '*'
+  workflow_dispatch:
+  
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake g++ make ninja-build libboost-all-dev \
+                              libzmq3-dev libevent-dev libdb++-dev \
+                              sqlite3 libsqlite3-dev qtbase5-dev \
+                              qtdeclarative5-dev qtquickcontrols2-5-dev \
+                              qttools5-dev qttools5-dev-tools libqt5svg5-dev \
+                              libqt5networkauth5-dev git
+
+      - name: Checkout Olm
+        working-directory: ${{ runner.workspace }}
+        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
+
+      - name: Build Olm
+        working-directory: ${{ runner.workspace }}/olm
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+
+      - name: Checkout nunchuk-qt
+        working-directory: ${{ runner.workspace }}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" > ~/.netrc
+          chmod 600 ~/.netrc
+          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
+          cd nunchuk-qt
+          git submodule update --init --recursive
+
+      - name: Configure nunchuk-qt
+        working-directory: ${{ runner.workspace }}/nunchuk-qt
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DUR__DISABLE_TESTS=ON \
+                -DCMAKE_CXX_FLAGS="-DBOOST_ASIO_NO_DEPRECATED=0"
+
+      - name: Build nunchuk-qt
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        run: make -j$(nproc)
