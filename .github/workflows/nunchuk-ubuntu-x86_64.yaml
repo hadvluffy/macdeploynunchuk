@@ -99,11 +99,40 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake .. \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DUR__DISABLE_TESTS=ON \
-                -DCMAKE_CXX_FLAGS="-DBOOST_ASIO_NO_DEPRECATED=0"
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
 
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: make -j$(nproc)
+
+      - name: Check linked libraries
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        run: |
+          ldd ./nunchuk-qt || echo "Library dependencies check failed!"
+
+      - name: Deploy to release folder
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        run: |
+          mkdir -p ${{ runner.workspace }}/nunchuk-qt-linux
+          cp -r * ${{ runner.workspace }}/nunchuk-qt-linux
+          echo "Deployment completed."
+
+      - name: Create Debian package
+        working-directory: ${{ runner.workspace }}/nunchuk-qt-linux
+        run: |
+          mkdir -p DEBIAN
+          echo "Package: nunchuk-qt" > DEBIAN/control
+          echo "Version: 1.0" >> DEBIAN/control
+          echo "Section: base" >> DEBIAN/control
+          echo "Priority: optional" >> DEBIAN/control
+          echo "Architecture: amd64" >> DEBIAN/control
+          echo "Maintainer: Your Name <your.email@example.com>" >> DEBIAN/control
+          echo "Description: Nunchuk Qt application" >> DEBIAN/control
+          dpkg-deb --build ${{ runner.workspace }}/nunchuk-qt-linux nunchuk-qt.deb
+
+      - name: Zip release package
+        working-directory: ${{ runner.workspace }}
+        run: |
+          zip -r nunchuk-qt-linux.zip nunchuk-qt-linux
+          echo "Release package created."
+
