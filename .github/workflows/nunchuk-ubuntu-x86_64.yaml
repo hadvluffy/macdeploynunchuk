@@ -116,8 +116,8 @@ jobs:
       - name: Deploy to release folder
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: |
-          mkdir -p ${{ runner.workspace }}/nunchuk-qt-linux
-          cp -r * ${{ runner.workspace }}/nunchuk-qt-linux
+          mkdir -p ${{ runner.workspace }}/nunchuk-linux
+          cp -r * ${{ runner.workspace }}/nunchuk-linux
           echo "Deployment completed."
 
       - name: Create Debian package
