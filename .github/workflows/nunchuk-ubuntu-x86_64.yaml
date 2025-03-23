@@ -100,12 +100,12 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          export CC="gcc -no-pie"
-          export CXX="g++ -no-pie"
+          echo $CXXFLAGS
+          echo $LDFLAGS
           #cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
-          CXXFLAGS="-fno-PIE" LDFLAGS="-no-pie" cmake .. -DCMAKE_BUILD_TYPE=Release \
+          CXXFLAGS="-fno-pie" LDFLAGS="-no-pie" cmake .. -DCMAKE_BUILD_TYPE=Release \
                                                          -DUR__DISABLE_TESTS=ON \
-                                                         -DCMAKE_CXX_FLAGS="-DBOOST_ASIO_NO_DEPRECATED=0 -static-libstdc++ -static-libgcc -fno-pie -no-pie" \
+                                                         -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc -fno-pie -no-pie" \
                                                          -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc -fno-pie -no-pie"
 
       - name: Build nunchuk-qt
