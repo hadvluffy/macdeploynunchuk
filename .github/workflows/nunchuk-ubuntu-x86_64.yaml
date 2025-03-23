@@ -43,6 +43,7 @@ jobs:
                               qttools5-dev-tools \
                               libqt5svg5-dev \
                               libqt5networkauth5-dev \
+                              libsecret-1-dev \
                               git
       
       - name: Build and Install qtkeychain
