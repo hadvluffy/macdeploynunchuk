@@ -103,7 +103,7 @@ jobs:
               "-DCMAKE_TOOLCHAIN_FILE=$workspace\vcpkg\scripts\buildsystems\vcpkg.cmake",
               "-DVCPKG_TARGET_TRIPLET=x64-windows",
               "-DUR__DISABLE_TESTS=ON",
-              "-DCMAKE_CXX_FLAGS=/D BOOST_ASIO_NO_DEPRECATED=0 /EHsc"
+              "/EHsc"
           )
           cmake @cmakeConfigureCmd
           
