@@ -91,8 +91,7 @@ jobs:
         run: |
           source ~/.bashrc
           ./config --prefix="$PWD/lib"
-          CORES=$(sysctl -n hw.ncpu)
-          make -j$CORES
+          make -j$(nproc)
           make install_dev
 
       - name: Configure nunchuk-qt
