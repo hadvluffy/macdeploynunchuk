@@ -44,7 +44,8 @@ jobs:
                               libqt5svg5-dev \
                               libqt5networkauth5-dev \
                               libsecret-1-dev \
-                              git
+                              git \
+                              dpkg-dev 
       
       - name: Build and Install qtkeychain
         working-directory: ${{ runner.workspace }}
@@ -118,7 +119,7 @@ jobs:
           echo "Deployment completed."
 
       - name: Create Debian package
-        working-directory: ${{ runner.workspace }}/nunchuk-qt-linux
+        working-directory: ${{ runner.workspace }}/nunchuk-linux
         run: |
           mkdir -p DEBIAN
           echo "Package: nunchuk-qt" > DEBIAN/control
@@ -126,13 +127,22 @@ jobs:
           echo "Section: base" >> DEBIAN/control
           echo "Priority: optional" >> DEBIAN/control
           echo "Architecture: amd64" >> DEBIAN/control
-          echo "Maintainer: Your Name <your.email@example.com>" >> DEBIAN/control
+          echo "Maintainer: Nunchuk Inc<contact@nunchuk.io>" >> DEBIAN/control
           echo "Description: Nunchuk Qt application" >> DEBIAN/control
-          dpkg-deb --build ${{ runner.workspace }}/nunchuk-qt-linux nunchuk-qt.deb
+          dpkg-shlibdeps -O ./nunchuk-qt >> DEBIAN/control
+          dpkg-deb --build ${{ runner.workspace }}/nunchuk-linux nunchuk-qt.deb
 
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
         run: |
-          zip -r nunchuk-qt-linux.zip nunchuk-qt-linux
+          zip -r nunchuk-linux.zip nunchuk-linux
           echo "Release package created."
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-linux
+          path: |
+            ${{ runner.workspace }}/nunchuk-qt.deb
+            ${{ runner.workspace }}/nunchuk-linux.zip
 
