@@ -39,12 +39,22 @@ jobs:
                               qtdeclarative5-dev \
                               qtquickcontrols2-5-dev \
                               qtmultimedia5-dev \
-                              qtkeychain-dev \
                               qttools5-dev \
                               qttools5-dev-tools \
                               libqt5svg5-dev \
                               libqt5networkauth5-dev \
                               git
+      
+      - name: Build and Install qtkeychain
+        working-directory: ${{ runner.workspace }}
+        run: |
+          git clone https://github.com/frankosterfeld/qtkeychain.git
+          cd qtkeychain
+          mkdir build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
 
       - name: Checkout Olm
         working-directory: ${{ runner.workspace }}
