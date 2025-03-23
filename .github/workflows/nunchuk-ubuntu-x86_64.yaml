@@ -100,6 +100,8 @@ jobs:
         run: |
           mkdir -p build
           cd build
+          export CC="gcc -no-pie"
+          export CXX="g++ -no-pie"
           cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
 
       - name: Build nunchuk-qt
