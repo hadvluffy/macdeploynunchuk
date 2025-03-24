@@ -46,6 +46,20 @@ jobs:
                               libsecret-1-dev \
                               git \
                               dpkg-dev
+
+      - name: Set environment variables
+        run: |
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV
+          echo "RANLIB=gcc-ranlib-14" >> $GITHUB_ENV
+          echo "AR=gcc-ar-14" >> $GITHUB_ENV
+          echo "NM=gcc-nm-14" >> $GITHUB_ENV
+
+      - name: Verify GCC version
+        run: gcc --version
+      
+      - name: Verify G++ version
+        run: g++ --version
       
       - name: Build and Install qtkeychain
         working-directory: ${{ runner.workspace }}
