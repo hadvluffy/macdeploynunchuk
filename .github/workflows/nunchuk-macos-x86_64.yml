@@ -263,6 +263,13 @@ jobs:
 
       - name: Debug running processes
         run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
+
+      - name: Get latest tag of nunchuk-qt
+        working-directory: ${{runner.workspace}}/nunchuk-qt
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Latest tag: $LATEST_TAG"
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
   
       - name: Create installer
         working-directory: ${{runner.workspace}}
@@ -270,7 +277,8 @@ jobs:
           echo "Install tool create-dmg"
           brew install create-dmg
           echo "Starting create dmg"
-          final_dmg_dir="${{runner.workspace}}/nunchuk-macos-v1.9.44"
+          
+          final_dmg_dir="${{runner.workspace}}/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
           
           create-dmg  --volname "nunchuk-macos" \
@@ -283,12 +291,12 @@ jobs:
                       "$final_dmg_dir/Nunchuk.dmg" \
                       "nunchuk-macos-x86_64/"
           
-          final_zip="${{runner.workspace}}/build/nunchuk-macos-v1.9.44.zip"
+          final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
           echo "Make dmg completed!"
       
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v1.9.44
-          path: ${{runner.workspace}}/build/nunchuk-macos-v1.9.44.zip
+          name: nunchuk-macos-v${{ env.LATEST_TAG }}
+          path: ${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
