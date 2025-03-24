@@ -169,17 +169,25 @@ jobs:
 
       #    dpkg-deb --build ${{ runner.workspace }}/nunchuk-linux nunchuk-qt.deb
 
+      - name: Get latest tag
+        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+      - name: Deploy to release folder
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        run: |
+          mkdir -p ${{ runner.workspace }}/nunchuk-linux-v${{ env.RELEASE_VERSION }}
+          cp -r * ${{ runner.workspace }}/nunchuk-linux-v${{ env.RELEASE_VERSION }}
+          echo "Deployment completed."
+
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
         run: |
-          zip -r nunchuk-linux.zip nunchuk-linux
+          zip -r nunchuk-linux-v${{ env.RELEASE_VERSION }}.zip nunchuk-linux-v${{ env.RELEASE_VERSION }}
           echo "Release package created."
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nunchuk-linux
-          path: |
-            ${{ runner.workspace }}/nunchuk-qt.deb
-            ${{ runner.workspace }}/nunchuk-linux.zip
+          name: nunchuk-linux-v${{ env.RELEASE_VERSION }}
+          path: ${{ runner.workspace }}/nunchuk-linux-v${{ env.RELEASE_VERSION }}.zip
 
