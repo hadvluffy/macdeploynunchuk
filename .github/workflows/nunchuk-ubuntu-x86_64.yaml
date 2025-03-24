@@ -47,6 +47,14 @@ jobs:
                               git \
                               dpkg-dev
 
+      - name: Install GCC 14
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt update
+          sudo apt install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+
       - name: Set environment variables
         run: |
           echo "CC=gcc-14" >> $GITHUB_ENV
@@ -120,8 +128,7 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release \
                    -DUR__DISABLE_TESTS=ON \
                    -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc -fno-pie -no-pie" \
-                   -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc -fno-pie -no-pie" \
-                   --verbose
+                   -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc -fno-pie -no-pie"
 
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
