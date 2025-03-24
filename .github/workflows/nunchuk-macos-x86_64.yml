@@ -270,7 +270,7 @@ jobs:
           echo "Install tool create-dmg"
           brew install create-dmg
           echo "Starting create dmg"
-          final_dmg_dir="${{runner.workspace}}/nunchuk-macos-vX.YY.ZZ"
+          final_dmg_dir="${{runner.workspace}}/nunchuk-macos-v1.9.44"
           mkdir -p "$final_dmg_dir"
           
           create-dmg  --volname "nunchuk-macos" \
@@ -283,12 +283,12 @@ jobs:
                       "$final_dmg_dir/Nunchuk.dmg" \
                       "nunchuk-macos-x86_64/"
           
-          final_zip="${{runner.workspace}}/build/nunchuk-macos-vX.YY.ZZ.zip"
+          final_zip="${{runner.workspace}}/build/nunchuk-macos-v1.9.44.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
           echo "Make dmg completed!"
       
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-vX.YY.ZZ
-          path: ${{runner.workspace}}/build/nunchuk-macos-vX.YY.ZZ.zip
+          name: nunchuk-macos-v1.9.44
+          path: ${{runner.workspace}}/build/nunchuk-macos-v1.9.44.zip
