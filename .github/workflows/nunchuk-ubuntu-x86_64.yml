@@ -172,15 +172,21 @@ jobs:
           mkdir -p $OUTPUT_DIR/AppDir/usr/bin
           cp ./nunchuk-qt $OUTPUT_DIR/AppDir/usr/bin/
           chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
-
           mkdir -p $OUTPUT_DIR/AppDir/usr/lib
           
-          # Copy libolm
-          cp /usr/local/lib/libolm.so* $OUTPUT_DIR/AppDir/usr/lib/
-          
-          # Copy qtkeychain
-          cp /usr/local/lib/libqt5keychain.so* $OUTPUT_DIR/AppDir/usr/lib/
+          OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
+          echo "📌 Copy libstdc++ and libgcc..."
+          cp -a /usr/lib/gcc/x86_64-linux-gnu/14/libstdc++.so.6* $OUTPUT_LIB/
+          cp -a /usr/lib/gcc/x86_64-linux-gnu/14/libgcc_s.so.1 $OUTPUT_LIB/
 
+          # Copy libolm (Olm library)
+          echo "📌 Copying libolm..."
+          cp -a /usr/local/lib/libolm.so* $OUTPUT_LIB/
+
+          # Copy libqtkeychain (QtKeychain)
+          echo "📌 Copying libqtkeychain..."
+          cp -a /usr/lib/x86_64-linux-gnu/libqt5keychain.so* $OUTPUT_LIB/
+          
           # Copy logo
           mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
           cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/nunchuk.png
@@ -198,7 +204,6 @@ jobs:
           
           export ARCH=x86_64
           ./linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
-
           mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
 
       #- name: Deploy to release folder
