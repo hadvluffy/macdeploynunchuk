@@ -150,12 +150,48 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Deploy to release folder
+      - name: Download logo
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+
+      - name: Install AppImage tools
+        run: |
+          sudo apt install -y fuse
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: |
-          mkdir -p ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
-          cp -r * ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
-          echo "Deployment completed."
+          OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
+          mkdir -p $OUTPUT_DIR/AppDir/usr/bin
+          cp ./nunchuk-qt $OUTPUT_DIR/AppDir/usr/bin/
+          chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
+
+          mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
+          cp ../resources/icons/nunchuk.png $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/
+
+          echo "[Desktop Entry]
+          Name=Nunchuk
+          Exec=nunchuk-qt
+          Icon=nunchuk
+          Type=Application
+          Categories=Utility;" > $OUTPUT_DIR/AppDir/nunchuk.desktop
+
+          export ARCH=x86_64
+          ./linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
+
+          mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
+
+      #- name: Deploy to release folder
+      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+      #  run: |
+      #    mkdir -p ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
+      #    cp -r * ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
+      #    echo "Deployment completed."
 
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
