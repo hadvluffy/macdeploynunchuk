@@ -1,5 +1,4 @@
 name: nunchuk-ubuntu-x86_64
-
 on:
   push:
     tags:
@@ -142,32 +141,7 @@ jobs:
         run: |
           mkdir -p ${{ runner.workspace }}/nunchuk-linux
           cp -r * ${{ runner.workspace }}/nunchuk-linux
-          echo "Deployment completed."
-
-      #- name: Create Debian package
-      #  working-directory: ${{ runner.workspace }}/nunchuk-linux
-      #  run: |
-      #    mkdir -p DEBIAN
-      #    cat <<EOF > DEBIAN/control
-      #    Package: nunchuk-qt
-      #    Version: 1.0
-      #    Section: base
-      #    Priority: optional
-      #    Architecture: amd64
-      #    Maintainer: Nunchuk Inc <contact@nunchuk.io>
-      #    Description: Nunchuk Qt application
-      #    EOF
-          
-          # Kiểm tra tồn tại của nunchuk-qt
-      #    if [ ! -f ./nunchuk-qt ]; then
-      #      echo "Error: nunchuk-qt binary not found!"
-      #     exit 1
-      #    fi
-
-          # Chạy dpkg-shlibdeps đúng thư mục
-      #    dpkg-shlibdeps -O ./nunchuk-qt 2>/dev/null | tee -a DEBIAN/control
-
-      #    dpkg-deb --build ${{ runner.workspace }}/nunchuk-linux nunchuk-qt.deb
+          echo "Packaging release completed."
 
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
