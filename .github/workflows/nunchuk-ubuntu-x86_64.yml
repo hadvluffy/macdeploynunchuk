@@ -165,15 +165,27 @@ jobs:
 
       - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        env:
+          NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
         run: |
           OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
           mkdir -p $OUTPUT_DIR/AppDir/usr/bin
           cp ./nunchuk-qt $OUTPUT_DIR/AppDir/usr/bin/
           chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
 
-          mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
-          cp ../resources/icons/nunchuk.png $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/
+          mkdir -p $OUTPUT_DIR/AppDir/usr/lib
+          
+          # Copy libolm
+          cp /usr/local/lib/libolm.so* $OUTPUT_DIR/AppDir/usr/lib/
+          
+          # Copy qtkeychain
+          cp /usr/local/lib/libqt5keychain.so* $OUTPUT_DIR/AppDir/usr/lib/
 
+          # Copy logo
+          mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
+          cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/nunchuk.png
+
+          # Create .desktop file
           echo "[Desktop Entry]
           Name=Nunchuk
           Exec=nunchuk-qt
@@ -181,6 +193,9 @@ jobs:
           Type=Application
           Categories=Utility;" > $OUTPUT_DIR/AppDir/nunchuk.desktop
 
+          # Fix missing library links
+          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
+          
           export ARCH=x86_64
           ./linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
 
