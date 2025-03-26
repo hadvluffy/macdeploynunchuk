@@ -183,13 +183,25 @@ jobs:
           cp -a "$LIBSTDCXX_PATH"* $OUTPUT_LIB/
           cp -a "$LIBGCC_PATH"* $OUTPUT_LIB/
           
-          # Copy libolm (Olm library)
-          echo "📌 Copying libolm..."
-          cp -a /usr/local/lib/libolm.so* $OUTPUT_LIB/
+          # Copy libolm (đúng thư viện đã build)
+          LIBOLM_PATH=$(ldconfig -p | grep libolm.so | awk '{print $NF}' | head -n 1)
+          if [ -f "$LIBOLM_PATH" ]; then
+            echo "📌 Copying libolm from $LIBOLM_PATH"
+            cp -a "$LIBOLM_PATH"* $OUTPUT_LIB/
+          else
+            echo "❌ libolm not found!"
+            exit 1
+          fi
 
-          # Copy libqtkeychain (QtKeychain)
-          echo "📌 Copying libqtkeychain..."
-          cp -a /usr/lib/x86_64-linux-gnu/libqt5keychain.so* $OUTPUT_LIB/
+          # Copy libqt5keychain (đúng thư viện đã build)
+          LIBKEYCHAIN_PATH=$(ldconfig -p | grep libqt5keychain.so | awk '{print $NF}' | head -n 1)
+          if [ -f "$LIBKEYCHAIN_PATH" ]; then
+            echo "📌 Copying libqt5keychain from $LIBKEYCHAIN_PATH"
+            cp -a "$LIBKEYCHAIN_PATH"* $OUTPUT_LIB/
+          else
+            echo "❌ libqt5keychain not found!"
+            exit 1
+          fi
           
           # Copy logo
           mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
