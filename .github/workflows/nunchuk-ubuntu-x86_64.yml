@@ -222,15 +222,18 @@ jobs:
           # Copy logo
           mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
           cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/nunchuk.png
+          cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/nunchuk.png
 
           # Create .desktop file
-          echo "[Desktop Entry]
+          cat > ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}/AppDir/nunchuk.desktop <<EOF
+          [Desktop Entry]
           Name=Nunchuk
           Exec=nunchuk-qt
           Icon=nunchuk
           Type=Application
-          Categories=Utility;" > $OUTPUT_DIR/AppDir/nunchuk.desktop
-
+          Categories=Utility;
+          EOF
+          
           # Fix missing library links
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
           
