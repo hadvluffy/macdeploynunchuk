@@ -170,13 +170,7 @@ jobs:
       - name: Install cqtdeployer tools
         working-directory: ${{runner.workspace}}
         run: |
-          git clone https://github.com/QuasarApp/CQtDeployer.git
-          cd CQtDeployer
-          git submodule update --init --recursive
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          sudo make install
+          sudo snap install cqtdeployer
 
       - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
