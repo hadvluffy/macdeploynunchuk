@@ -54,6 +54,7 @@ jobs:
         run: |
           wget https://github.com/QuasarApp/CQtDeployer/releases/download/VERSION/cqtdeployer-VERSION-linux.deb
           sudo dpkg -i cqtdeployer-VERSION-linux.deb
+          cqtdeployer v
 
       - name: Install GCC 14
         run: |
