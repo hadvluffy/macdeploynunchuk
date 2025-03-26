@@ -248,7 +248,8 @@ jobs:
                       -libDir $OUTPUT_DIR/AppDir/usr/lib \
                       -targetDir $OUTPUT_DIR/AppDir \
                       #-target appimage \
-                      -noTranslation -noStrip
+                      noTranslation 
+                      noStrip
           ls -l
           
           # Đổi tên file đầu ra
