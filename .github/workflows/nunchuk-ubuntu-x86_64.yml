@@ -247,10 +247,11 @@ jobs:
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -libDir $OUTPUT_DIR/AppDir/usr/lib \
                       -targetDir $OUTPUT_DIR/AppDir \
-                      #-target appimage \
-                      noTranslation 
+                      noTranslation \
                       noStrip
           ls -l
+          
+          #-target appimage \
           
           # Đổi tên file đầu ra
           mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
