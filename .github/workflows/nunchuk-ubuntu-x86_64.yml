@@ -235,7 +235,7 @@ jobs:
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
           
           export ARCH=x86_64
-          ./${{runner.workspace}}/linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
+          ${{runner.workspace}}/linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
           mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
 
       #- name: Deploy to release folder
