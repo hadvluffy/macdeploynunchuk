@@ -47,7 +47,8 @@ jobs:
                               libsecret-1-dev \
                               git \
                               dpkg-dev \
-                              fuse
+                              fuse \
+                              snapd
 
       - name: Install GCC 14
         run: |
