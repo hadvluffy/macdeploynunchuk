@@ -177,9 +177,12 @@ jobs:
           
           OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
           echo "📌 Copy libstdc++ and libgcc..."
-          cp -a /usr/lib/gcc/x86_64-linux-gnu/14/libstdc++.so.6* $OUTPUT_LIB/
-          cp -a /usr/lib/gcc/x86_64-linux-gnu/14/libgcc_s.so.1 $OUTPUT_LIB/
-
+          # Copy libstdc++ and libgcc (đúng phiên bản build)
+          LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
+          LIBGCC_PATH=$(gcc --print-file-name=libgcc_s.so.1)
+          cp -a "$LIBSTDCXX_PATH"* $OUTPUT_LIB/
+          cp -a "$LIBGCC_PATH"* $OUTPUT_LIB/
+          
           # Copy libolm (Olm library)
           echo "📌 Copying libolm..."
           cp -a /usr/local/lib/libolm.so* $OUTPUT_LIB/
