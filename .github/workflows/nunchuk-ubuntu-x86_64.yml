@@ -47,8 +47,13 @@ jobs:
                               libsecret-1-dev \
                               git \
                               dpkg-dev \
-                              fuse \
-                              snapd
+                              fuse
+                              
+      - name: Install cqtdeployer tools
+        working-directory: ${{runner.workspace}}
+        run: |
+          wget https://github.com/QuasarApp/CQtDeployer/releases/download/VERSION/cqtdeployer-VERSION-linux.deb
+          sudo dpkg -i cqtdeployer-VERSION-linux.deb
 
       - name: Install GCC 14
         run: |
@@ -168,11 +173,6 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           ls -l
       
-      - name: Install cqtdeployer tools
-        working-directory: ${{runner.workspace}}
-        run: |
-          sudo snap install cqtdeployer
-
       - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         env:
