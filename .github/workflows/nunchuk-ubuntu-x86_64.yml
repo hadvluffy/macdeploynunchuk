@@ -40,6 +40,8 @@ jobs:
                               qtmultimedia5-dev \
                               qttools5-dev \
                               qttools5-dev-tools \
+                              qt5-qmake \
+                              qtchooser \
                               libqt5svg5-dev \
                               libqt5networkauth5-dev \
                               libsecret-1-dev \
@@ -161,11 +163,19 @@ jobs:
       - name: Install AppImage tools
         working-directory: ${{runner.workspace}}
         run: |
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
           ls -l
+      
+      - name: Install cqtdeployer tools
+        working-directory: ${{runner.workspace}}
+        run: |
+          git clone https://github.com/QuasarApp/CQtDeployer.git
+          cd CQtDeployer
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
 
       - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
@@ -173,11 +183,13 @@ jobs:
           NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
         run: |
           OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          mkdir -p $OUTPUT_DIR/AppDir/usr/bin
-          cp ./nunchuk-qt $OUTPUT_DIR/AppDir/usr/bin/
-          chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
-          mkdir -p $OUTPUT_DIR/AppDir/usr/lib
           OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
+          OUTPUT_BIN=$OUTPUT_DIR/AppDir/usr/bin
+          mkdir -p $OUTPUT_LIB
+          mkdir -p $OUTPUT_BIN
+          
+          cp nunchuk-qt $OUTPUT_BIN
+          chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
           
           # Copy libstdc++
           LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
@@ -220,33 +232,21 @@ jobs:
           fi
           
           # Copy logo
-          mkdir -p $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps
-          cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/usr/share/icons/hicolor/256x256/apps/nunchuk.png
-          cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/AppDir/nunchuk.png
-
-          # Create .desktop file
-          cat > ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}/AppDir/nunchuk.desktop <<EOF
-          [Desktop Entry]
-          Name=Nunchuk
-          Exec=nunchuk-qt
-          Icon=nunchuk
-          Type=Application
-          Categories=Utility;
-          EOF
-          
-          # Fix missing library links
-          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
+          #cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/nunchuk-qt.png
           
           export ARCH=x86_64
-          ${{runner.workspace}}/linuxdeploy-x86_64.AppImage --appdir=$OUTPUT_DIR/AppDir --output appimage
+          # Deploy bằng CQtDeployer
+          cqtdeployer -bin $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt \
+                      -qmake /usr/lib/qt5/bin/qmake \
+                      -qmlDir ${{ runner.workspace }}/nunchuk-qt \
+                      -libDir $OUTPUT_DIR/AppDir/usr/lib \
+                      -target appimage
+
+          ls -l
+          
+          # Đổi tên file đầu ra
           mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
 
-      #- name: Deploy to release folder
-      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-      #  run: |
-      #    mkdir -p ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
-      #    cp -r * ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}
-      #    echo "Deployment completed."
 
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
