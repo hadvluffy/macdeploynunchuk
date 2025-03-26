@@ -44,7 +44,8 @@ jobs:
                               libqt5networkauth5-dev \
                               libsecret-1-dev \
                               git \
-                              dpkg-dev
+                              dpkg-dev \
+                              fuse
 
       - name: Install GCC 14
         run: |
@@ -160,11 +161,11 @@ jobs:
       - name: Install AppImage tools
         working-directory: ${{runner.workspace}}
         run: |
-          sudo apt install -y fuse
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ls -l
 
       - name: Package as AppImage
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
@@ -176,14 +177,27 @@ jobs:
           cp ./nunchuk-qt $OUTPUT_DIR/AppDir/usr/bin/
           chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
           mkdir -p $OUTPUT_DIR/AppDir/usr/lib
-          
           OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
-          echo "📌 Copy libstdc++ and libgcc..."
-          # Copy libstdc++ and libgcc (đúng phiên bản build)
+          
+          # Copy libstdc++
           LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
+          if [ -f "$LIBSTDCXX_PATH" ]; then
+            echo "📌 Copying libstdc++ from $LIBSTDCXX_PATH"
+            cp -a "$LIBSTDCXX_PATH"* $OUTPUT_LIB/
+          else
+            echo "❌ libstdc++ not found!"
+            exit 1
+          fi
+
+          # Copy libgcc
           LIBGCC_PATH=$(gcc --print-file-name=libgcc_s.so.1)
-          cp -a "$LIBSTDCXX_PATH"* $OUTPUT_LIB/
-          cp -a "$LIBGCC_PATH"* $OUTPUT_LIB/
+          if [ -f "$LIBGCC_PATH" ]; then
+            echo "📌 Copying libgcc from $LIBGCC_PATH"
+            cp -a "$LIBGCC_PATH"* $OUTPUT_LIB/
+          else
+            echo "❌ libgcc not found!"
+            exit 1
+          fi
           
           # Copy libolm (đúng thư viện đã build)
           LIBOLM_PATH=$(ldconfig -p | grep libolm.so | awk '{print $NF}' | head -n 1)
