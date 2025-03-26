@@ -154,7 +154,8 @@ jobs:
       - name: Download logo
         working-directory: ${{runner.workspace}}
         run: |
-          curl -L -o entitlements_hwi.plist https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+          curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+          ls -l
 
       - name: Install AppImage tools
         run: |
