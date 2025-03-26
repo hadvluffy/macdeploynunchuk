@@ -245,8 +245,9 @@ jobs:
                       -qmake /usr/lib/qt5/bin/qmake \
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -libDir $OUTPUT_DIR/AppDir/usr/lib \
-                      -target appimage
-
+                      -targetDir $OUTPUT_DIR/AppDir \
+                      #-target appimage \
+                      -noTranslation -noStrip
           ls -l
           
           # Đổi tên file đầu ra
