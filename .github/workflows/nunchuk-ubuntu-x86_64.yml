@@ -255,7 +255,7 @@ jobs:
         run: |
           final_dir="${{runner.workspace}}/nunchuk-linux-v${{ env.LATEST_TAG }}"
           final_zip="${{runner.workspace}}/nunchuk-linux-v${{ env.LATEST_TAG }}.zip"
-          ditto -c -k --keepParent "$final_dir" "$final_zip"
+          zip -r "$final_zip" "$final_dir"
           echo "Release package created."
 
       - name: Upload artifacts
