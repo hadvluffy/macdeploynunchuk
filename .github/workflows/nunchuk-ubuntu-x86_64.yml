@@ -131,6 +131,14 @@ jobs:
             sudo ldconfig
           fi
 
+      - name: Cache nunchuk-qt source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/nunchuk-qt
+          key: nunchuk-qt-${{ runner.os }}-${{ github.ref }}
+          restore-keys: |
+            nunchuk-qt-${{ runner.os }}-
+
       - name: Checkout nunchuk-qt
         working-directory: ${{ runner.workspace }}
         env:
@@ -138,8 +146,19 @@ jobs:
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" > ~/.netrc
           chmod 600 ~/.netrc
-          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
-          cd nunchuk-qt
+          if [ -d "nunchuk-qt/.git" ]; then
+            echo "Using cached repository"
+            cd nunchuk-qt
+            git reset --hard
+            git clean -fdx
+            git fetch origin do-group-wallet
+            git checkout do-group-wallet
+            git pull origin do-group-wallet
+          else
+            echo "Cloning fresh repository"
+            git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+            cd nunchuk-qt
+          fi
           git submodule update --init --recursive
 
       - name: Remove default openssl
