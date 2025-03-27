@@ -77,31 +77,59 @@ jobs:
       
       - name: Verify G++ version
         run: g++ --version
+
+      - name: Cache qtkeychain
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/qtkeychain/build
+          key: qtkeychain-${{ runner.os }}-${{ hashFiles('**/qtkeychain/**') }}
+          restore-keys: |
+            qtkeychain-${{ runner.os }}-
       
       - name: Build and Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
-          git clone https://github.com/frankosterfeld/qtkeychain.git
-          cd qtkeychain
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
-
+          if [ ! -d "qtkeychain/build" ]; then
+            git clone https://github.com/frankosterfeld/qtkeychain.git
+            cd qtkeychain
+            mkdir build && cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+            make -j$(nproc)
+            sudo make install
+            sudo ldconfig
+          else
+            echo "Using cached qtkeychain build"
+            cd qtkeychain/build
+            sudo make install
+            sudo ldconfig
+          fi
+     
+      - name: Cache Olm
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/olm/build
+          key: olm-${{ runner.os }}-${{ hashFiles('**/olm/**') }}
+          restore-keys: |
+            olm-${{ runner.os }}-
+            
       - name: Checkout Olm
         working-directory: ${{ runner.workspace }}
-        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
-
-      - name: Build Olm
-        working-directory: ${{ runner.workspace }}/olm
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
+          if [ ! -d "olm/build" ]; then
+            git clone https://gitlab.matrix.org/matrix-org/olm.git
+            cd olm
+            mkdir -p build
+            cd build
+            cmake ..
+            make -j$(nproc)
+            sudo make install
+            sudo ldconfig
+          else
+            echo "Using cached Olm build"
+            cd olm/build
+            sudo make install
+            sudo ldconfig
+          fi
 
       - name: Checkout nunchuk-qt
         working-directory: ${{ runner.workspace }}
