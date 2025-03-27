@@ -81,55 +81,75 @@ jobs:
       - name: Cache qtkeychain
         uses: actions/cache@v4
         with:
-          path: ${{ runner.workspace }}/qtkeychain/build
-          key: qtkeychain-${{ runner.os }}-${{ hashFiles('**/qtkeychain/**') }}
+          path: ${{ runner.workspace }}/qtkeychain
+          key: qtkeychain-${{ runner.os }}-${{ hashFiles('qtkeychain/**') }}
           restore-keys: |
             qtkeychain-${{ runner.os }}-
-      
-      - name: Build and Install qtkeychain
+
+      - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
-          if [ ! -d "qtkeychain/build" ]; then
+          if [ ! -d "qtkeychain/.git" ]; then
+            echo "Cloning qtkeychain repository..."
+            rm -rf qtkeychain
             git clone https://github.com/frankosterfeld/qtkeychain.git
-            cd qtkeychain
-            mkdir build && cd build
+          else
+            echo "Using cached qtkeychain repository"
+          fi
+          
+          cd qtkeychain
+          echo "Latest commit: $(git show HEAD --oneline)"
+          
+          if [ ! -d "build" ]; then
+            echo "Building qtkeychain from source..."
+            mkdir -p build
+            cd build
             cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
             make -j$(nproc)
-            sudo make install
-            sudo ldconfig
           else
             echo "Using cached qtkeychain build"
-            cd qtkeychain/build
-            sudo make install
-            sudo ldconfig
+            cd build
           fi
-     
+          
+          # Cài đặt qtkeychain
+          sudo make install
+          sudo ldconfig
+
       - name: Cache Olm
         uses: actions/cache@v4
         with:
-          path: ${{ runner.workspace }}/olm/build
-          key: olm-${{ runner.os }}-${{ hashFiles('**/olm/**') }}
+          path: ${{ runner.workspace }}/olm
+          key: olm-${{ runner.os }}-${{ hashFiles('olm/**') }}
           restore-keys: |
             olm-${{ runner.os }}-
             
-      - name: Checkout Olm
+      - name: Checkout, Build & Install Olm
         working-directory: ${{ runner.workspace }}
         run: |
-          if [ ! -d "olm/build" ]; then
+          if [ ! -d "olm/.git" ]; then
+            echo "Cloning Olm repository..."
+            rm -rf olm
             git clone https://gitlab.matrix.org/matrix-org/olm.git
-            cd olm
+          else
+            echo "Using cached Olm repository"
+          fi
+          
+          cd olm
+          echo "Latest commit: $(git show HEAD --oneline)"
+          
+          if [ ! -d "build" ]; then
+            echo "Building Olm from source..."
             mkdir -p build
             cd build
             cmake ..
             make -j$(nproc)
-            sudo make install
-            sudo ldconfig
           else
             echo "Using cached Olm build"
-            cd olm/build
-            sudo make install
-            sudo ldconfig
+            cd build
           fi
+          
+          sudo make install
+          sudo ldconfig
 
       - name: Cache nunchuk-qt source
         uses: actions/cache@v4
@@ -160,6 +180,7 @@ jobs:
             cd nunchuk-qt
           fi
           git submodule update --init --recursive
+          echo "Latest commit: $(git show HEAD --oneline)"
 
       - name: Remove default openssl
         run: |
