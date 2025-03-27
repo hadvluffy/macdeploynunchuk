@@ -160,22 +160,22 @@ jobs:
       #    curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
       #    ls -l
 
-      - name: Install AppImage tools
-        working-directory: ${{runner.workspace}}
-        run: |
-          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          ls -l
+      #- name: Install AppImage tools
+      #  working-directory: ${{runner.workspace}}
+      #  run: |
+      #    wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+      #    chmod +x appimagetool-x86_64.AppImage
+      #    ls -l
           
       - name: Deploy nunchuk-qt
         working-directory: ${{ runner.workspace }}
         run: |
-          OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
+          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}"
+          EXECUTION_PATH=nunchuk-qt/build/nunchuk-qt
           
           cqtdeployer -bin $EXECUTION_PATH \
                       -qmake /usr/lib/qt5/bin/qmake \
-                      -qmlDir ${{ runner.workspace }}/nunchuk-qt \
+                      -qmlDir nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
                       -noTranslation true \
                       -noSystemLibraries true \
@@ -206,8 +206,8 @@ jobs:
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
         run: |
-          final_dir="${{runner.workspace}}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          final_zip="${{runner.workspace}}/nunchuk-linux-v${{ env.LATEST_TAG }}.zip"
+          final_dir="nunchuk-linux-v${{ env.LATEST_TAG }}"
+          final_zip="nunchuk-linux-v${{ env.LATEST_TAG }}.zip"
           zip -r "$final_zip" "$final_dir"
           echo "Release package created."
 
