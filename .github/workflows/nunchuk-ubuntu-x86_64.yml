@@ -172,6 +172,7 @@ jobs:
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}"
           EXECUTION_PATH=nunchuk-qt/build/nunchuk-qt
+          mkdir -p $OUTPUT_DIR
           
           cqtdeployer -bin $EXECUTION_PATH \
                       -qmake /usr/lib/qt5/bin/qmake \
