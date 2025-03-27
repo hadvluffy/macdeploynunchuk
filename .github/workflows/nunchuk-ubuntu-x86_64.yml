@@ -248,7 +248,8 @@ jobs:
               if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
                   if [ -f "$lib" ]; then
                       echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/lib/"
-                      cp -a "$lib" "$OUTPUT_DIR/lib/"
+                      cp -L "$lib" "$OUTPUT_DIR/lib/"
+                      chmod 775 "$OUTPUT_DIR/lib/$(basename "$lib")"
                   fi
               fi
           done
