@@ -147,12 +147,12 @@ jobs:
         run: |
           ldd ./nunchuk-qt || echo "Library dependencies check failed!"
 
-      - name: Deploy to release folder
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-        run: |
-          mkdir -p ${{ runner.workspace }}/nunchuk-linux
-          cp -r * ${{ runner.workspace }}/nunchuk-linux
-          echo "Packaging release completed."
+      #- name: Deploy to release folder
+      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+      #  run: |
+      #    mkdir -p ${{ runner.workspace }}/nunchuk-linux
+      #    cp -r * ${{ runner.workspace }}/nunchuk-linux
+      #    echo "Packaging release completed."
 
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
@@ -161,11 +161,11 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Download logo
-        working-directory: ${{runner.workspace}}
-        run: |
-          curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
-          ls -l
+      #- name: Download logo
+      #  working-directory: ${{runner.workspace}}
+      #  run: |
+      #    curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+      #    ls -l
 
       - name: Install AppImage tools
         working-directory: ${{runner.workspace}}
@@ -173,20 +173,33 @@ jobs:
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           ls -l
-      
-      - name: Package as AppImage
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-        env:
-          NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
+          
+      - name: Deploy nunchuk-qt
+        working-directory: ${{ runner.workspace }}
         run: |
           OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
-          OUTPUT_BIN=$OUTPUT_DIR/AppDir/usr/bin
-          mkdir -p $OUTPUT_LIB
-          mkdir -p $OUTPUT_BIN
+          EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
           
-          cp nunchuk-qt $OUTPUT_BIN
-          chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
+          cqtdeployer -bin $EXECUTION_PATH \
+                      -qmake /usr/lib/qt5/bin/qmake \
+                      -qmlDir ${{ runner.workspace }}/nunchuk-qt \
+                      -targetDir $OUTPUT_DIR \
+                      -noTranslation true
+          ls -l
+      
+      #- name: Package as AppImage
+      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+      #  env:
+      #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
+      #  run: |
+          #OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
+          #OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
+          #OUTPUT_BIN=$OUTPUT_DIR/AppDir/usr/bin
+          #mkdir -p $OUTPUT_LIB
+          #mkdir -p $OUTPUT_BIN
+          
+          #cp nunchuk-qt $OUTPUT_BIN
+          #chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
           
           # Copy libstdc++
           #LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
@@ -232,26 +245,16 @@ jobs:
           #cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/nunchuk-qt.png
 
           # Copy libraries (except Qt)
-          ldd $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
-              if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
-                  if [ -f "$lib" ]; then
-                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/usr/lib/"
-                      cp -a "$lib" "$OUTPUT_DIR/AppDir/usr/lib/"
-                  fi
-              fi
-          done
-          
-          # Deploy with CQtDeployer
-          cqtdeployer -bin $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt \
-                      -qmake /usr/lib/qt5/bin/qmake \
-                      -qmlDir ${{ runner.workspace }}/nunchuk-qt \
-                      -libDir $OUTPUT_DIR/AppDir/usr/lib \
-                      -targetDir $OUTPUT_DIR/AppDir \
-                      -noTranslation true
-          ls -l
+          #ldd $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+          #    if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
+          #        if [ -f "$lib" ]; then
+          #            echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/usr/lib/"
+          #            cp -a "$lib" "$OUTPUT_DIR/AppDir/usr/lib/"
+          #        fi
+          #    fi
+          #done
           
           #-target appimage \
-          
           # Đổi tên file đầu ra
           #mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
 
