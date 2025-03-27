@@ -180,6 +180,9 @@ jobs:
                       -noTranslation true \
                       -noSystemLibraries true \
                       -noStrip true
+          
+          patchelf --set-rpath '$ORIGIN/../lib' $EXECUTION_PATH
+          echo "RPATH set to: $(patchelf --print-rpath $EXECUTION_PATH)"
           ls -l
       
       - name: Collect other dependences
