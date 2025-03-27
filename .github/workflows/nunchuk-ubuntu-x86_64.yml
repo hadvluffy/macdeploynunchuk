@@ -185,71 +185,24 @@ jobs:
           echo "RPATH set to: $(patchelf --print-rpath $EXECUTION_PATH)"
           ls -l
       
-      - name: Collect other dependences
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-        env:
-          NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
-        run: |
-          OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
+      #- name: Collect other dependences
+      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+      #  env:
+      #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
+      #  run: |
+      #    OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
+      #    EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
+      #    
+      #    # Copy libraries (except Qt)
+      #    ldd $OUTPUT_DIR/AppDir/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+      #        if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
+      #            if [ -f "$lib" ]; then
+      #                echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/lib/"
+      #                cp -a "$lib" "$OUTPUT_DIR/AppDir/lib/"
+      #            fi
+      #        fi
+      #    done
           
-          # Copy libraries (except Qt)
-          ldd $OUTPUT_DIR/AppDir/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
-              if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
-                  if [ -f "$lib" ]; then
-                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/lib/"
-                      cp -a "$lib" "$OUTPUT_DIR/AppDir/lib/"
-                  fi
-              fi
-          done
-          
-          # Copy libstdc++
-          #LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
-          #if [ -f "$LIBSTDCXX_PATH" ]; then
-          #  echo "📌 Copying libstdc++ from $LIBSTDCXX_PATH"
-          #  cp -a "$LIBSTDCXX_PATH"* $OUTPUT_LIB/
-          #else
-          #  echo "❌ libstdc++ not found!"
-          #  exit 1
-          #fi
-
-          # Copy libgcc
-          #LIBGCC_PATH=$(gcc --print-file-name=libgcc_s.so.1)
-          #if [ -f "$LIBGCC_PATH" ]; then
-          #  echo "📌 Copying libgcc from $LIBGCC_PATH"
-          #  cp -a "$LIBGCC_PATH"* $OUTPUT_LIB/
-          #else
-          #  echo "❌ libgcc not found!"
-          #  exit 1
-          #fi
-          
-          # Copy libolm (đúng thư viện đã build)
-          #LIBOLM_PATH=$(ldconfig -p | grep libolm.so | awk '{print $NF}' | head -n 1)
-          #if [ -f "$LIBOLM_PATH" ]; then
-          #  echo "📌 Copying libolm from $LIBOLM_PATH"
-          #  cp -a "$LIBOLM_PATH"* $OUTPUT_LIB/
-          #else
-          #  echo "❌ libolm not found!"
-          #  exit 1
-          #fi
-
-          # Copy libqt5keychain (đúng thư viện đã build)
-          #LIBKEYCHAIN_PATH=$(ldconfig -p | grep libqt5keychain.so | awk '{print $NF}' | head -n 1)
-          #if [ -f "$LIBKEYCHAIN_PATH" ]; then
-          #  echo "📌 Copying libqt5keychain from $LIBKEYCHAIN_PATH"
-          #  cp -a "$LIBKEYCHAIN_PATH"* $OUTPUT_LIB/
-          #else
-          #  echo "❌ libqt5keychain not found!"
-          #  exit 1
-          #fi
-          
-          # Copy logo
-          #cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/nunchuk-qt.png
-          
-          #-target appimage \
-          # Đổi tên file đầu ra
-          #mv Nunchuk-*.AppImage $OUTPUT_DIR/nunchuk-linux-v${{ env.LATEST_TAG }}.AppImage
-
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
         run: |
