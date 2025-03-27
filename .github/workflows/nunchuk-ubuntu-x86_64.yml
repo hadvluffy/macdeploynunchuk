@@ -147,13 +147,6 @@ jobs:
         run: |
           ldd ./nunchuk-qt || echo "Library dependencies check failed!"
 
-      #- name: Deploy to release folder
-      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-      #  run: |
-      #    mkdir -p ${{ runner.workspace }}/nunchuk-linux
-      #    cp -r * ${{ runner.workspace }}/nunchuk-linux
-      #    echo "Packaging release completed."
-
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
         run: |
@@ -189,19 +182,23 @@ jobs:
                       -noStrip true
           ls -l
       
-      #- name: Package as AppImage
-      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-      #  env:
-      #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
-      #  run: |
-          #OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-          #OUTPUT_LIB=$OUTPUT_DIR/AppDir/usr/lib
-          #OUTPUT_BIN=$OUTPUT_DIR/AppDir/usr/bin
-          #mkdir -p $OUTPUT_LIB
-          #mkdir -p $OUTPUT_BIN
+      - name: Collect other dependences
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+        env:
+          NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
+        run: |
+          OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
+          EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
           
-          #cp nunchuk-qt $OUTPUT_BIN
-          #chmod +x $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt
+          # Copy libraries (except Qt)
+          ldd $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+              if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
+                  if [ -f "$lib" ]; then
+                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/usr/lib/"
+                      cp -a "$lib" "$OUTPUT_DIR/AppDir/usr/lib/"
+                  fi
+              fi
+          done
           
           # Copy libstdc++
           #LIBSTDCXX_PATH=$(gcc --print-file-name=libstdc++.so.6)
@@ -245,16 +242,6 @@ jobs:
           
           # Copy logo
           #cp ${{ env.NUNCHUK_LOGO }} $OUTPUT_DIR/nunchuk-qt.png
-
-          # Copy libraries (except Qt)
-          #ldd $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
-          #    if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
-          #        if [ -f "$lib" ]; then
-          #            echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/usr/lib/"
-          #            cp -a "$lib" "$OUTPUT_DIR/AppDir/usr/lib/"
-          #        fi
-          #    fi
-          #done
           
           #-target appimage \
           # Đổi tên file đầu ra
