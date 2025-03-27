@@ -236,7 +236,7 @@ jobs:
         working-directory: ${{ runner.workspace }}
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
-          EXECUTION_PATH="$${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt"
+          EXECUTION_PATH="${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt"
           mkdir -p $OUTPUT_DIR
           
           cqtdeployer -bin $EXECUTION_PATH \
