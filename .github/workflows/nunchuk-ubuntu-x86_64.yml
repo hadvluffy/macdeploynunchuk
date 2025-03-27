@@ -20,7 +20,6 @@ jobs:
           key: ubuntu-24.04-apt-${{ runner.os }}-${{ hashFiles('**/dependencies.txt') }}
           restore-keys: |
             ubuntu-24.04-apt-${{ runner.os }}-
-
       - name: Install dependencies
         run: |
           sudo apt update
@@ -55,7 +54,6 @@ jobs:
           wget https://github.com/QuasarApp/CQtDeployer/releases/download/v1.6.2365/CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
           sudo dpkg -i CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
           cqtdeployer v
-
       - name: Install GCC 14
         run: |
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
@@ -63,7 +61,6 @@ jobs:
           sudo apt install -y gcc-14 g++-14
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
-
       - name: Set environment variables
         run: |
           echo "CC=gcc-14" >> $GITHUB_ENV
@@ -71,7 +68,6 @@ jobs:
           echo "RANLIB=gcc-ranlib-14" >> $GITHUB_ENV
           echo "AR=gcc-ar-14" >> $GITHUB_ENV
           echo "NM=gcc-nm-14" >> $GITHUB_ENV
-
       - name: Verify GCC version
         run: gcc --version
       
@@ -82,10 +78,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.workspace }}/qtkeychain
-          key: qtkeychain-${{ runner.os }}-${{ hashFiles('qtkeychain/**') }}
-          restore-keys: |
-            qtkeychain-${{ runner.os }}-
-      
+          key: qtkeychain-${{ runner.os }}
+          restore-keys: qtkeychain-${{ runner.os }}
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
@@ -96,38 +90,31 @@ jobs:
           else
             echo "Using cached qtkeychain repository"
           fi
-      
+          
           cd qtkeychain
           echo "Latest commit: $(git show HEAD --oneline)"
-          echo "Cache key: qtkeychain-${{ runner.os }}-${{ hashFiles('qtkeychain/**') }}"
-          ls -al ${{ runner.workspace }}/qtkeychain
-          git status
-          du -sh ${{ runner.workspace }}/qtkeychain
-      
+          
           if [ ! -d "build" ]; then
             echo "Building qtkeychain from source..."
             mkdir -p build
             cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install -DCMAKE_BUILD_TYPE=Release
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
             make -j$(nproc)
           else
             echo "Using cached qtkeychain build"
             cd build
           fi
-      
-          make install
-          echo "Adding install/bin to PATH"
-          echo "::add-path::${{ runner.workspace }}/install/bin"
-          ldconfig
-
+          
+          # Cài đặt qtkeychain
+          sudo make install
+          sudo ldconfig
       - name: Cache Olm
         uses: actions/cache@v4
         with:
           path: ${{ runner.workspace }}/olm
-          key: olm-${{ runner.os }}-${{ hashFiles('olm/**') }}
-          restore-keys: |
-            olm-${{ runner.os }}-
-
+          key: olm-${{ runner.os }}
+          restore-keys: olm-${{ runner.os }}
+            
       - name: Checkout, Build & Install Olm
         working-directory: ${{ runner.workspace }}
         run: |
@@ -138,38 +125,31 @@ jobs:
           else
             echo "Using cached Olm repository"
           fi
-      
+          
           cd olm
           echo "Latest commit: $(git show HEAD --oneline)"
-          echo "Cache key: olm-${{ runner.os }}-${{ hashFiles('olm/**') }}"
-          ls -al ${{ runner.workspace }}/olm
-          git status
-          du -sh ${{ runner.workspace }}/olm
-      
+          
           if [ ! -d "build" ]; then
             echo "Building Olm from source..."
             mkdir -p build
             cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
+            cmake ..
             make -j$(nproc)
           else
             echo "Using cached Olm build"
             cd build
           fi
-      
-          make install
-          echo "Adding install/bin to PATH"
-          echo "::add-path::${{ runner.workspace }}/install/bin"
-          ldconfig
-
+          
+          sudo make install
+          sudo ldconfig
+          
       - name: Cache nunchuk-qt source
         uses: actions/cache@v4
         with:
           path: ${{ runner.workspace }}/nunchuk-qt
-          key: nunchuk-qt-${{ runner.os }}-${{ hashFiles('nunchuk-qt/**') }}
-          restore-keys: |
-            nunchuk-qt-${{ runner.os }}-
-
+          key: nunchuk-qt-${{ runner.os }}
+          restore-keys: nunchuk-qt-${{ runner.os }}
+          
       - name: Checkout nunchuk-qt
         working-directory: ${{ runner.workspace }}
         env:
@@ -192,7 +172,6 @@ jobs:
           fi
           git submodule update --init --recursive
           echo "Latest commit: $(git show HEAD --oneline)"
-
       - name: Remove default openssl
         run: |
           sudo mv /usr/include/x86_64-linux-gnu/openssl /usr/include/x86_64-linux-gnu/openssl_bak
@@ -204,7 +183,6 @@ jobs:
           ./config --prefix="$PWD/lib"
           make -j$(nproc)
           make install_dev
-
       - name: Configure nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt
         run: |
@@ -213,7 +191,6 @@ jobs:
           echo $CXXFLAGS
           echo $LDFLAGS
           cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
-
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: make -j$(nproc)
@@ -222,14 +199,12 @@ jobs:
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: |
           ldd ./nunchuk-qt || echo "Library dependencies check failed!"
-
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0)
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
-
       #- name: Download logo
       #  working-directory: ${{runner.workspace}}
       #  run: |
@@ -286,10 +261,8 @@ jobs:
           final_zip="nunchuk-linux-v${{ env.LATEST_TAG }}.zip"
           zip -r "$final_zip" "$final_dir"
           echo "Release package created."
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: nunchuk-linux-v${{ env.LATEST_TAG }}
           path: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}.zip
-
