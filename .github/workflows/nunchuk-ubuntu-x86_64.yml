@@ -247,8 +247,7 @@ jobs:
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -libDir $OUTPUT_DIR/AppDir/usr/lib \
                       -targetDir $OUTPUT_DIR/AppDir \
-                      -noTranslation \
-                      -noStrip
+                      -noTranslation true
           ls -l
           
           #-target appimage \
