@@ -168,7 +168,7 @@ jobs:
         working-directory: ${{ runner.workspace }}
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
-          EXECUTION_PATH="$OUTPUT_DIR/bin/nunchuk-qt"
+          EXECUTION_PATH="$${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt"
           mkdir -p $OUTPUT_DIR
           
           cqtdeployer -bin $EXECUTION_PATH \
@@ -179,8 +179,8 @@ jobs:
                       -noSystemLibraries true \
                       -noStrip true
           
-          patchelf --set-rpath '$ORIGIN/../lib' $EXECUTION_PATH
-          echo "RPATH set to: $(patchelf --print-rpath $EXECUTION_PATH)"
+          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
+          echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
       
       - name: Collect other dependences
         working-directory: ${{ runner.workspace }}
