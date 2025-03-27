@@ -110,7 +110,6 @@ jobs:
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" > ~/.netrc
           chmod 600 ~/.netrc
-          #git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt --depth 1
           git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
           cd nunchuk-qt
           git submodule update --init --recursive
@@ -134,9 +133,7 @@ jobs:
           cd build
           echo $CXXFLAGS
           echo $LDFLAGS
-          #cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
-                   -DUR__DISABLE_TESTS=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DUR__DISABLE_TESTS=ON
 
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
@@ -171,7 +168,7 @@ jobs:
         working-directory: ${{ runner.workspace }}
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
-          EXECUTION_PATH=nunchuk-qt/build/nunchuk-qt
+          EXECUTION_PATH="$OUTPUT_DIR/bin/nunchuk-qt"
           mkdir -p $OUTPUT_DIR
           
           cqtdeployer -bin $EXECUTION_PATH \
@@ -182,9 +179,8 @@ jobs:
                       -noSystemLibraries true \
                       -noStrip true
           
-          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/nunchuk-qt
+          patchelf --set-rpath '$ORIGIN/../lib' $EXECUTION_PATH
           echo "RPATH set to: $(patchelf --print-rpath $EXECUTION_PATH)"
-          ls -l
       
       - name: Collect other dependences
         working-directory: ${{ runner.workspace }}
