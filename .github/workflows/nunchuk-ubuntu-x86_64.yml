@@ -194,11 +194,11 @@ jobs:
           EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
           
           # Copy libraries (except Qt)
-          ldd $OUTPUT_DIR/AppDir/usr/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+          ldd $OUTPUT_DIR/AppDir/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
               if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
                   if [ -f "$lib" ]; then
-                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/usr/lib/"
-                      cp -a "$lib" "$OUTPUT_DIR/AppDir/usr/lib/"
+                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/lib/"
+                      cp -a "$lib" "$OUTPUT_DIR/AppDir/lib/"
                   fi
               fi
           done
