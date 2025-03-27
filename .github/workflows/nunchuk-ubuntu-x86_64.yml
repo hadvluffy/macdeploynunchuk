@@ -184,7 +184,9 @@ jobs:
                       -qmake /usr/lib/qt5/bin/qmake \
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
-                      -noTranslation true
+                      -noTranslation true \
+                      -noSystemLibraries true \
+                      -noStrip true
           ls -l
       
       #- name: Package as AppImage
