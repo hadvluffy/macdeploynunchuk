@@ -170,7 +170,7 @@ jobs:
       - name: Deploy nunchuk-qt
         working-directory: ${{ runner.workspace }}
         run: |
-          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}"
+          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
           EXECUTION_PATH=nunchuk-qt/build/nunchuk-qt
           mkdir -p $OUTPUT_DIR
           
@@ -182,27 +182,27 @@ jobs:
                       -noSystemLibraries true \
                       -noStrip true
           
-          patchelf --set-rpath '$ORIGIN/../lib' $EXECUTION_PATH
+          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $EXECUTION_PATH)"
           ls -l
       
-      #- name: Collect other dependences
-      #  working-directory: ${{ runner.workspace }}/nunchuk-qt/build
+      - name: Collect other dependences
+        working-directory: ${{ runner.workspace }}
       #  env:
       #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
-      #  run: |
-      #    OUTPUT_DIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}"
-      #    EXECUTION_PATH=${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt
-      #    
-      #    # Copy libraries (except Qt)
-      #    ldd $OUTPUT_DIR/AppDir/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
-      #        if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
-      #            if [ -f "$lib" ]; then
-      #                echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/AppDir/lib/"
-      #                cp -a "$lib" "$OUTPUT_DIR/AppDir/lib/"
-      #            fi
-      #        fi
-      #    done
+        run: |
+          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
+          EXECUTION_PATH=$OUTPUT_DIR/bin/nunchuk-qt
+          
+          # Copy libraries (except Qt)
+          ldd $OUTPUT_DIR/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+              if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
+                  if [ -f "$lib" ]; then
+                      echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/lib/"
+                      cp -a "$lib" "$OUTPUT_DIR/lib/"
+                  fi
+              fi
+          done
           
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
