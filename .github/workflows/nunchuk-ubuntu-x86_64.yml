@@ -189,6 +189,8 @@ jobs:
         run: |
           mkdir -p build
           cd build
+          
+          source ~/.bashrc
           export LDFLAGS="$LDFLAGS -L$OPENSSL_ROOT_DIR/lib"
           export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
           export CPPFLAGS="$CPPFLAGS -I$OPENSSL_ROOT_DIR/include"
@@ -211,12 +213,7 @@ jobs:
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: make -j$(nproc)
-
-      - name: Check linked libraries
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-        run: |
-          ldd ./nunchuk-qt || echo "Library dependencies check failed!"
-          
+        
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
         run: |
@@ -260,6 +257,11 @@ jobs:
           
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
+          
+      - name: Check linked libraries
+        working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir/bin
+        run: |
+          ldd ./nunchuk-qt
           
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
