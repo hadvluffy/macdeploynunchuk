@@ -287,8 +287,7 @@ jobs:
           final_dmg_dir="${{runner.workspace}}/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
           
-          create-dmg  --force \
-                      --volname "nunchuk-macos" \
+          create-dmg  --volname "nunchuk-macos" \
                       --window-pos 200 150 \
                       --window-size 800 400 \
                       --icon-size 100 \
