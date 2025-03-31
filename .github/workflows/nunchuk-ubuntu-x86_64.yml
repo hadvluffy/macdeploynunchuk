@@ -257,6 +257,15 @@ jobs:
                   fi
               fi
           done
+
+          OPENSSL_LIB_DIR="${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib"
+          for lib_ssl in "$OPENSSL_LIB_DIR"/libssl.so* "$OPENSSL_LIB_DIR"/libcrypto.so*; do
+            if [ -f "$lib_ssl" ]; then
+                echo "📌 Copying $(basename "$lib_ssl") from $lib_ssl to $OUTPUT_DIR/lib/"
+                cp -L "$lib_ssl" "$OUTPUT_DIR/lib/"
+                chmod 775 "$OUTPUT_DIR/lib/$(basename "$lib_ssl")"
+            fi
+          done
           
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
