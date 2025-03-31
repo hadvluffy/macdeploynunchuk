@@ -207,19 +207,6 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
           
-      #- name: Download logo
-      #  working-directory: ${{runner.workspace}}
-      #  run: |
-      #    curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
-      #    ls -l
-
-      #- name: Install AppImage tools
-      #  working-directory: ${{runner.workspace}}
-      #  run: |
-      #    wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-      #    chmod +x appimagetool-x86_64.AppImage
-      #    ls -l
-          
       - name: Deploy nunchuk-qt
         working-directory: ${{ runner.workspace }}
         run: |
@@ -234,9 +221,6 @@ jobs:
                       -noTranslation true \
                       -noSystemLibraries true \
                       -noStrip true
-          
-          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
-          echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
       
       - name: Collect other dependences
         working-directory: ${{ runner.workspace }}
@@ -256,6 +240,9 @@ jobs:
                   fi
               fi
           done
+          
+          patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
+          echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
           
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
