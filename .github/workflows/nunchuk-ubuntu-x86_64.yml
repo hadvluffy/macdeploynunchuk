@@ -182,7 +182,7 @@ jobs:
           make -j$(nproc)
           make install_dev
           
-      - name: Configure nunchuk-qt
+      - name: Configure and build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt
         env:
           OPENSSL_ROOT_DIR: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
@@ -194,10 +194,11 @@ jobs:
           source ~/.bashrc
       
           # Set compiler and linker flags
-          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++ -L$OPENSSL_ROOT_DIR/lib"
+          export LDFLAGS="$LDFLAGS -L$OPENSSL_ROOT_DIR/lib -lssl -lcrypto"
+          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
           export CPPFLAGS="$CPPFLAGS -I$OPENSSL_ROOT_DIR/include"
-          export CXXFLAGS="$CXXFLAGS -O0"
-          export CFLAGS="$CFLAGS -O0"
+          export CXXFLAGS="$CXXFLAGS -O0 $CPPFLAGS"
+          export CFLAGS="$CFLAGS -O0 $CPPFLAGS"
       
           echo "Using CXX flags: $CXXFLAGS"
           echo "Using Linker flags: $LDFLAGS"
@@ -211,11 +212,10 @@ jobs:
                 -DNM=$(which gcc-nm-14) \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+                -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR"
 
-      - name: Build nunchuk-qt
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/build
-        run: make -j$(nproc)
+          make -j$(nproc)
         
       - name: Get latest tag of nunchuk-qt
         working-directory: ${{runner.workspace}}/nunchuk-qt
