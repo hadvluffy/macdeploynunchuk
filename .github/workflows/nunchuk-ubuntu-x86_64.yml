@@ -189,16 +189,20 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          
+      
+          # Load environment variables
           source ~/.bashrc
-          export LDFLAGS="$LDFLAGS -L$OPENSSL_ROOT_DIR/lib"
-          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
+      
+          # Set compiler and linker flags
+          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++ -L$OPENSSL_ROOT_DIR/lib"
           export CPPFLAGS="$CPPFLAGS -I$OPENSSL_ROOT_DIR/include"
           export CXXFLAGS="$CXXFLAGS -O0"
           export CFLAGS="$CFLAGS -O0"
+      
           echo "Using CXX flags: $CXXFLAGS"
           echo "Using Linker flags: $LDFLAGS"
-          
+      
+          # Run CMake configuration
           cmake .. \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DUR__DISABLE_TESTS=ON \
@@ -206,10 +210,9 @@ jobs:
                 -DAR=$(which gcc-ar-14) \
                 -DNM=$(which gcc-nm-14) \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
-                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
-          
+
       - name: Build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt/build
         run: make -j$(nproc)
