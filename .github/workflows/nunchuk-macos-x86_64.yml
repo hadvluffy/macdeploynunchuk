@@ -259,11 +259,13 @@ jobs:
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
-      - name: Unmount existing DMG if any
+      - name: Unmount any existing disk images
         run: |
-          for disk in $(hdiutil info | grep '/dev/disk' | awk '{print $1}'); do
-            hdiutil detach $disk || echo "Failed to unmount $disk"
-          done
+          MOUNTED_DISKS=$(hdiutil info | grep "/dev/disk" | awk '{print $1}')
+          if [[ ! -z "$MOUNTED_DISKS" ]]; then
+            echo "Unmounting existing disk images..."
+            echo "$MOUNTED_DISKS" | xargs -I {} hdiutil detach -force {}
+          fi
 
       - name: Debug running processes
         run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
