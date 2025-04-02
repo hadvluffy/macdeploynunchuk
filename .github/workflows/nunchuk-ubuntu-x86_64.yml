@@ -124,6 +124,7 @@ jobs:
           fi
           
           cd olm
+          git checkout 3.2.16
           cmake --version
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           
