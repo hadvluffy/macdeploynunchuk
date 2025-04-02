@@ -41,35 +41,6 @@ jobs:
                               dpkg-dev \
                               fuse
                               
-      - name: Install cqtdeployer tools
-        working-directory: ${{runner.workspace}}
-        run: |
-          wget https://github.com/QuasarApp/CQtDeployer/releases/download/v1.6.2365/CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
-          sudo dpkg -i CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
-          cqtdeployer v
-          
-      - name: Install GCC 14
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-          sudo apt update
-          sudo apt install -y gcc-14 g++-14
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
-          
-      - name: Set environment variables
-        run: |
-          echo "CC=gcc-14" >> $GITHUB_ENV
-          echo "CXX=g++-14" >> $GITHUB_ENV
-          echo "RANLIB=gcc-ranlib-14" >> $GITHUB_ENV
-          echo "AR=gcc-ar-14" >> $GITHUB_ENV
-          echo "NM=gcc-nm-14" >> $GITHUB_ENV
-          
-      - name: Verify GCC version
-        run: gcc --version
-      
-      - name: Verify G++ version
-        run: g++ --version
-          
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
@@ -98,6 +69,35 @@ jobs:
           make -j$(nproc)
           sudo make install
           sudo ldconfig
+          
+      - name: Install cqtdeployer tools
+        working-directory: ${{runner.workspace}}
+        run: |
+          wget https://github.com/QuasarApp/CQtDeployer/releases/download/v1.6.2365/CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
+          sudo dpkg -i CQtDeployer_1.6.2365.7cce7f3_Linux_x86_64.deb
+          cqtdeployer v
+          
+      - name: Install GCC 14
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt update
+          sudo apt install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          
+      - name: Set environment variables
+        run: |
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV
+          echo "RANLIB=gcc-ranlib-14" >> $GITHUB_ENV
+          echo "AR=gcc-ar-14" >> $GITHUB_ENV
+          echo "NM=gcc-nm-14" >> $GITHUB_ENV
+          
+      - name: Verify GCC version
+        run: gcc --version
+      
+      - name: Verify G++ version
+        run: g++ --version
           
       - name: Cache nunchuk-qt source
         uses: actions/cache@v4
