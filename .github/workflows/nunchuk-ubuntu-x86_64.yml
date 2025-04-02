@@ -69,25 +69,11 @@ jobs:
       
       - name: Verify G++ version
         run: g++ --version
-
-      - name: Cache qtkeychain
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.workspace }}/qtkeychain
-          key: qtkeychain-${{ runner.os }}
-          restore-keys: qtkeychain-${{ runner.os }}
           
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
-          if [ ! -d "qtkeychain/.git" ]; then
-            echo "Cloning qtkeychain repository..."
-            rm -rf qtkeychain
-            git clone https://github.com/frankosterfeld/qtkeychain.git
-          else
-            echo "Using cached qtkeychain repository"
-          fi
-          
+          git clone https://github.com/frankosterfeld/qtkeychain.git
           cd qtkeychain
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           rm -rf build
@@ -96,24 +82,11 @@ jobs:
           make -j$(nproc)
           sudo make install
           sudo ldconfig
-      - name: Cache Olm
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.workspace }}/olm
-          key: olm-${{ runner.os }}
-          restore-keys: olm-${{ runner.os }}
             
       - name: Checkout, Build & Install Olm
         working-directory: ${{ runner.workspace }}
         run: |
-          if [ ! -d "olm/.git" ]; then
-            echo "Cloning Olm repository..."
-            rm -rf olm
-            git clone https://gitlab.matrix.org/matrix-org/olm.git
-          else
-            echo "Using cached Olm repository"
-          fi
-          
+          git clone https://gitlab.matrix.org/matrix-org/olm.git
           cd olm
           git checkout 3.2.16
           cmake --version
