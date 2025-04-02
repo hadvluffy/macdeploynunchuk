@@ -124,6 +124,7 @@ jobs:
           fi
           
           cd olm
+          cmake --version
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           
           if [ ! -d "build" ]; then
@@ -259,6 +260,8 @@ jobs:
           done
 
           OPENSSL_LIB_DIR="${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib"
+          ls -l "$OPENSSL_LIB_DIR"
+          
           for lib_ssl in "$OPENSSL_LIB_DIR"/libssl.so* "$OPENSSL_LIB_DIR"/libcrypto.so*; do
             if [ -f "$lib_ssl" ]; then
                 echo "📌 Copying $(basename "$lib_ssl") from $lib_ssl to $OUTPUT_DIR/lib/"
