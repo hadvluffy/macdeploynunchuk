@@ -259,14 +259,6 @@ jobs:
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
-      - name: Unmount any existing disk images
-        run: |
-          MOUNTED_DISKS=$(hdiutil info | grep "/dev/disk" | awk '{print $1}')
-          if [[ ! -z "$MOUNTED_DISKS" ]]; then
-            echo "Unmounting existing disk images..."
-            echo "$MOUNTED_DISKS" | xargs -I {} hdiutil detach -force {}
-          fi
-
       - name: Debug running processes
         run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
 
@@ -276,26 +268,37 @@ jobs:
           LATEST_TAG=$(git describe --tags --abbrev=0)
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Unmount all disk images
+        run: |
+          for disk in $(hdiutil info | grep "/dev/disk" | awk '{print $1}'); do
+            echo "Unmounting $disk..."
+            hdiutil detach -force "$disk" || true
+          done
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+        
+      - name: Wait before creating DMG
+        run: sleep 5
   
       - name: Create installer
         working-directory: ${{runner.workspace}}
         run: |
-          echo "Install tool create-dmg"
-          brew install create-dmg
           echo "Starting create dmg"
           
-          final_dmg_dir="${{runner.workspace}}/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          final_dmg_dir="/tmp/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
           
-          create-dmg  --volname "nunchuk-macos" \
-                      --window-pos 200 150 \
-                      --window-size 800 400 \
-                      --icon-size 100 \
-                      --icon "Nunchuk.app" 200 200 \
-                      --hide-extension "Nunchuk.app" \
-                      --app-drop-link 600 200 \
-                      "$final_dmg_dir/Nunchuk.dmg" \
-                      "nunchuk-macos-x86_64/"
+          sudo create-dmg --volname "nunchuk-macos" \
+                          --window-pos 200 150 \
+                          --window-size 800 400 \
+                          --icon-size 100 \
+                          --icon "Nunchuk.app" 200 200 \
+                          --hide-extension "Nunchuk.app" \
+                          --app-drop-link 600 200 \
+                          "$final_dmg_dir/Nunchuk.dmg" \
+                          "nunchuk-macos-x86_64/"
           
           final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
