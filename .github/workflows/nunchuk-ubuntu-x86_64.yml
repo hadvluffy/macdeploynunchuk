@@ -95,14 +95,14 @@ jobs:
             echo "Building qtkeychain from source..."
             mkdir -p build
             cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-            make -j$(nproc)
           else
             echo "Using cached qtkeychain build"
             cd build
           fi
           
           # Cài đặt qtkeychain
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
           sudo make install
           sudo ldconfig
       - name: Cache Olm
@@ -130,14 +130,13 @@ jobs:
           if [ ! -d "build" ]; then
             echo "Building Olm from source..."
             mkdir -p build
-            cd build
-            cmake ..
-            make -j$(nproc)
           else
             echo "Using cached Olm build"
             cd build
           fi
           
+          cmake ..
+          make -j$(nproc)
           sudo make install
           sudo ldconfig
           
