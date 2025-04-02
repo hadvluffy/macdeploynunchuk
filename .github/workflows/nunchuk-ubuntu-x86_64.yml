@@ -90,17 +90,8 @@ jobs:
           
           cd qtkeychain
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
-          
-          if [ ! -d "build" ]; then
-            echo "Building qtkeychain from source..."
-            mkdir -p build
-            cd build
-          else
-            echo "Using cached qtkeychain build"
-            cd build
-          fi
-          
-          # Cài đặt qtkeychain
+          rm -rf build
+          mkdir build && cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
           sudo make install
@@ -128,14 +119,8 @@ jobs:
           cmake --version
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           
-          if [ ! -d "build" ]; then
-            echo "Building Olm from source..."
-            mkdir -p build
-          else
-            echo "Using cached Olm build"
-            cd build
-          fi
-          
+          rm -rf build
+          mkdir build && cd build
           cmake ..
           make -j$(nproc)
           sudo make install
