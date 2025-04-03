@@ -297,6 +297,7 @@ jobs:
                           --icon "Nunchuk.app" 200 200 \
                           --hide-extension "Nunchuk.app" \
                           --app-drop-link 600 200 \
+                          --hdiutil-verbose \
                           "$final_dmg_dir/Nunchuk.dmg" \
                           "nunchuk-macos-x86_64/"
           
