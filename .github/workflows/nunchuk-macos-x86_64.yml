@@ -271,6 +271,10 @@ jobs:
 
       - name: Eject all disk images
         run: |
+          echo "diskutil list"
+          diskutil list
+
+          echo "diskutil list - with volume nunchuk-macos"
           diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
           for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
             sudo diskutil eject $disk
