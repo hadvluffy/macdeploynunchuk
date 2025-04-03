@@ -20,12 +20,7 @@ jobs:
         run: |
           echo "diskutil list"
           diskutil list
-          echo "lsof nunchuk-macos-v1.9.44"
-          sudo lsof +D /tmp/nunchuk-macos-v1.9.44
-          echo "lsof nunchuk-macos-x86_64"
-          sudo lsof +D nunchuk-macos-x86_64
 
-          
       - name: Check destination folder
         run: |
           echo "Check destination folder"
@@ -271,7 +266,8 @@ jobs:
           spctl --assess --type exec --verbose=4 "$APP_PATH"
 
           echo "Repackaging the notarized app bundle..."
-          final_package_dir="${{runner.workspace}}/nunchuk-macos-x86_64"
+          timestamp=$(date +%Y%m%d%H%M%S)
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
           mkdir -p "$final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
@@ -314,6 +310,8 @@ jobs:
           timestamp=$(date +%Y%m%d%H%M%S)
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
+
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
           
           echo "ls -l /tmp/"
           ls -l /tmp/
@@ -328,10 +326,8 @@ jobs:
                           --app-drop-link 600 200 \
                           --hdiutil-verbose \
                           "$final_dmg_dir/Nunchuk.dmg" \
-                          "nunchuk-macos-x86_64/"
+                          "$final_package_dir/"
           echo "Completed create dmg"
-          echo "diskutil list"
-          diskutil list
           
           final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
