@@ -15,22 +15,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Eject all disk images
+      - name: Check all disk images
         run: |
           echo "diskutil list"
           diskutil list
-
-          echo "diskutil list - with volume nunchuk-macos"
-          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
-          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
-            sudo diskutil eject $disk
-            sleep 1
-            if ! diskutil list | grep -q $disk; then
-              echo "$disk already ejected"
-            else
-              echo "$disk ejected"
-            fi
-          done
+          
+      - name: Check destination folder
+        run: |
+          echo "Check destination folder"
+          ls -l /tmp/
 
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
