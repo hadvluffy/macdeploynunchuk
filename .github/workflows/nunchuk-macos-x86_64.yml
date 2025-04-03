@@ -16,9 +16,15 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Check all disk images
+        working-directory: ${{runner.workspace}}
         run: |
           echo "diskutil list"
           diskutil list
+          echo "lsof nunchuk-macos-v1.9.44"
+          sudo lsof +D /tmp/nunchuk-macos-v1.9.44
+          echo "lsof nunchuk-macos-x86_64"
+          sudo lsof +D nunchuk-macos-x86_64
+
           
       - name: Check destination folder
         run: |
