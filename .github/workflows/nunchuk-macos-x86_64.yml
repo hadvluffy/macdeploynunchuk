@@ -305,12 +305,12 @@ jobs:
       - name: Create installer
         working-directory: ${{runner.workspace}}
         run: |
-          echo "ls -l /tmp/"
-          ls -l /tmp/
-          
           timestamp=$(date +%Y%m%d%H%M%S)
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
+          
+          echo "ls -l /tmp/"
+          ls -l /tmp/
           
           echo "Starting create dmg"
           sudo create-dmg --volname "nunchuk-macos" \
