@@ -271,6 +271,7 @@ jobs:
 
       - name: Unmount all disk images
         run: |
+          hdiutil info | grep "/dev/disk"
           for disk in $(hdiutil info | grep "/dev/disk" | awk '{print $1}'); do
             echo "Unmounting $disk..."
             hdiutil detach -force "$disk" || true
