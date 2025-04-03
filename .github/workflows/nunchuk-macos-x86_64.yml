@@ -305,11 +305,14 @@ jobs:
       - name: Create installer
         working-directory: ${{runner.workspace}}
         run: |
-          echo "Starting create dmg"
+          echo "ls -l /tmp/"
+          ls -l /tmp/
           
-          final_dmg_dir="/tmp/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          timestamp=$(date +%Y%m%d%H%M%S)
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
           
+          echo "Starting create dmg"
           sudo create-dmg --volname "nunchuk-macos" \
                           --window-pos 200 150 \
                           --window-size 800 400 \
@@ -324,19 +327,6 @@ jobs:
           final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
           echo "Make dmg completed!"
-
-      - name: Eject all disk images
-        run: |
-          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
-          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
-            sudo diskutil eject $disk
-            sleep 1
-            if ! diskutil list | grep -q $disk; then
-              echo "$disk already ejected"
-            else
-              echo "$disk ejected"
-            fi
-          done
       
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
