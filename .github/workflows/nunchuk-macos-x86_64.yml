@@ -269,12 +269,17 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Unmount all disk images
+      - name: Eject all disk images
         run: |
-          hdiutil info | grep "/dev/disk"
-          for disk in $(hdiutil info | grep "/dev/disk" | awk '{print $1}'); do
-            echo "Unmounting $disk..."
-            hdiutil detach -force "$disk" || true
+          diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
+          for disk in $(diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
+            sudo diskutil eject $disk
+            sleep 1
+            if ! diskutil list | grep -q $disk; then
+              echo "$disk already ejected"
+            else
+              echo "$disk ejected"
+            fi
           done
 
       - name: Install create-dmg
@@ -305,6 +310,19 @@ jobs:
           final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
           echo "Make dmg completed!"
+
+      - name: Eject all disk images
+        run: |
+          diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
+          for disk in $(diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
+            sudo diskutil eject $disk
+            sleep 1
+            if ! diskutil list | grep -q $disk; then
+              echo "$disk already ejected"
+            else
+              echo "$disk ejected"
+            fi
+          done
       
       - name: Upload Nunchuk
         uses: 'actions/upload-artifact@v4'
