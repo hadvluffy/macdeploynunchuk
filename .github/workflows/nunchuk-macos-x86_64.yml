@@ -271,8 +271,8 @@ jobs:
 
       - name: Eject all disk images
         run: |
-          diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
-          for disk in $(diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
+          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
+          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
             sudo diskutil eject $disk
             sleep 1
             if ! diskutil list | grep -q $disk; then
@@ -313,8 +313,8 @@ jobs:
 
       - name: Eject all disk images
         run: |
-          diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
-          for disk in $(diskutil list | grep -B 1 "Nunchuk" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
+          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
+          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
             sudo diskutil eject $disk
             sleep 1
             if ! diskutil list | grep -q $disk; then
