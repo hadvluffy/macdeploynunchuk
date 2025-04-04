@@ -338,7 +338,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           timestamp=${{ env.TIMESTAMP }}
-          final_dmg_dir="/tmp//nunchuk-macos-v${{ env.LATEST_TAG }}"
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
 
