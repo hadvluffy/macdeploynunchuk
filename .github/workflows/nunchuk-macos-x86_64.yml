@@ -358,6 +358,7 @@ jobs:
                           --app-drop-link 600 200 \
                           --hdiutil-verbose \
                           --no-internet-enable \
+                          --skip-jenkins \
                           "$final_dmg_dir/Nunchuk.dmg" \
                           "$final_package_dir/"
           echo "Completed create dmg"
