@@ -357,6 +357,7 @@ jobs:
                           --hide-extension "Nunchuk.app" \
                           --app-drop-link 600 200 \
                           --hdiutil-verbose \
+                          --no-internet-enable \
                           "$final_dmg_dir/Nunchuk.dmg" \
                           "$final_package_dir/"
           echo "Completed create dmg"
