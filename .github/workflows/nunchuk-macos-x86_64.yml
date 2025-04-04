@@ -84,8 +84,9 @@ jobs:
       - name: Check environment variants
         id: set-timestamp
         run: |
-          echo "Timestamp  build ${{ env.TIMESTAMP }}"
-          echo "Tag target build ${{ env.LATEST_TAG }}"
+          echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
+          echo "Tag target build :>>> ${{ env.LATEST_TAG }}"
+          echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           
       - name: Set compiler
         run: |
