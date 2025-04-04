@@ -14,17 +14,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Check all disk images
-        working-directory: ${{runner.workspace}}
-        run: |
-          echo "diskutil list"
-          diskutil list
 
-      - name: Check destination folder
+      - name: Generate build timestamp
         run: |
-          echo "Check destination folder"
-          ls -l /tmp/
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "Timestamp: $TIMESTAMP"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+      
+      - name: Check timestamp variant
+        id: set-timestamp
+        run: echo "${{ env.TIMESTAMP }}"
 
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
@@ -265,10 +264,10 @@ jobs:
           spctl -a -vvvv "$APP_PATH"
           spctl --assess --type exec --verbose=4 "$APP_PATH"
 
-          echo "Repackaging the notarized app bundle..."
-          timestamp=$(date +%Y%m%d%H%M%S)
+          timestamp=${{ env.TIMESTAMP }}
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
           mkdir -p "$final_package_dir"
+          echo "Repackaging the notarized app bundle to $final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
       - name: Debug running processes
@@ -307,11 +306,13 @@ jobs:
       - name: Create installer
         working-directory: ${{runner.workspace}}
         run: |
-          timestamp=$(date +%Y%m%d%H%M%S)
-          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          timestamp=${{ env.TIMESTAMP }}
+          final_dmg_dir="/tmp//nunchuk-macos-v${{ env.LATEST_TAG }}"
           mkdir -p "$final_dmg_dir"
-
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+
+          echo "Create DMG from source : $final_package_dir"
+          echo "Create DMG to directory: $final_dmg_dir"
           
           echo "ls -l /tmp/"
           ls -l /tmp/
