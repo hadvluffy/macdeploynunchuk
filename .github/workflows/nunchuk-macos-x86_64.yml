@@ -15,16 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate build timestamp
-        run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          echo "Timestamp: $TIMESTAMP"
-          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
-      
-      - name: Check timestamp variant
-        id: set-timestamp
-        run: echo "${{ env.TIMESTAMP }}"
-
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
         run: |
@@ -36,6 +26,13 @@ jobs:
           ls -l 
           echo "ls -l hwi_macos"
           ls -l hwi_macos
+          
+      - name: Cache nunchuk-qt source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/nunchuk-qt
+          key: nunchuk-qt-${{ runner.os }}
+          restore-keys: nunchuk-qt-${{ runner.os }}
 
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
@@ -43,12 +40,52 @@ jobs:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          # Get only latest commit (may not include tag if last commit have not set tag)
-          #git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt  --depth 1
-          # Get full commit and tags
-          git clone -b do-group-wallet https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
-          cd nunchuk-qt
+          TARGET_BRANCH="do-group-wallet"
+          if [ -d "nunchuk-qt/.git" ]; then
+            echo "Using cached repository"
+            cd nunchuk-qt
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            echo "Current branch: $CURRENT_BRANCH"
+      
+            if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
+              echo "Switching to branch $TARGET_BRANCH"
+              git fetch origin $TARGET_BRANCH
+              git checkout $TARGET_BRANCH
+            else
+              echo "Already on $TARGET_BRANCH"
+              git fetch origin $TARGET_BRANCH
+            fi
+      
+            git reset --hard
+            git clean -fdx
+            git pull origin $TARGET_BRANCH
+          else
+            echo "Cloning fresh repository"
+            git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+            cd nunchuk-qt
+          fi
           git submodule update --init --recursive
+          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Get latest tag of nunchuk-qt
+        working-directory: ${{runner.workspace}}/nunchuk-qt
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Latest tag: $LATEST_TAG"
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Generate build timestamp
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "Timestamp: $TIMESTAMP"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+
+      - name: Check environment variants
+        id: set-timestamp
+        run: |
+          echo "Timestamp  build ${{ env.TIMESTAMP }}"
+          echo "Tag target build ${{ env.LATEST_TAG }}"
           
       - name: Set compiler
         run: |
@@ -272,13 +309,6 @@ jobs:
 
       - name: Debug running processes
         run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
-
-      - name: Get latest tag of nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Eject all disk images
         run: |
