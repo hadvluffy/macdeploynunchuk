@@ -45,9 +45,9 @@ jobs:
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
             cd nunchuk-qt
+            git fetch --all
             CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
             echo "Current branch: $CURRENT_BRANCH"
-      
             if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
               echo "Switching to branch $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
@@ -56,7 +56,6 @@ jobs:
               echo "Already on $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
             fi
-      
             git reset --hard
             git clean -fdx
             git pull origin $TARGET_BRANCH
@@ -67,13 +66,9 @@ jobs:
           fi
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "Latest tag  ----->>>>> $(git describe --tags --abbrev=0)
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
-      - name: Get Nunchuk version
-        working-directory: ${{ runner.workspace }}/nunchuk-qt
-        run: |
-          VERSION=$(grep -oP '(?<=project\(nunchuk-qt VERSION ")[^"]+' ${{ runner.workspace }}/nunchuk-qt/CMakeLists.txt)
-          echo "LATEST_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "LATEST_VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
 
       - name: Generate build timestamp
         run: |
