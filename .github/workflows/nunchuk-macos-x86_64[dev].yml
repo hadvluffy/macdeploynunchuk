@@ -40,14 +40,14 @@ jobs:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          TARGET_BRANCH="dev"
+          TARGET_BRANCH="fixbug"
 
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
             cd nunchuk-qt
+            git fetch --all
             CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
             echo "Current branch: $CURRENT_BRANCH"
-      
             if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
               echo "Switching to branch $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
@@ -56,7 +56,6 @@ jobs:
               echo "Already on $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
             fi
-      
             git reset --hard
             git clean -fdx
             git pull origin $TARGET_BRANCH
@@ -65,17 +64,21 @@ jobs:
             git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
             cd nunchuk-qt
           fi
+          git fetch --all --tags --force
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-      - name: Get latest tag of nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
-        run: |
-          git fetch --tags --force
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          # Get the latest tag based on the time it was tagged (taggerdate)
+          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
+          
+          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
+          echo "Current commit: $CURRENT_COMMIT"
+                    
+          # Export LATEST_VERSION as an environment variable in GitHub Actions
+          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Generate build timestamp
         run: |
@@ -87,7 +90,7 @@ jobs:
         id: set-timestamp
         run: |
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
-          echo "Tag target build :>>> ${{ env.LATEST_TAG }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           
       - name: Set compiler
@@ -344,7 +347,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           timestamp=${{ env.TIMESTAMP }}
-          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
 
@@ -369,7 +372,7 @@ jobs:
                           "$final_package_dir/"
           echo "Completed create dmg"
           
-          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
+          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_dmg_zip"
           echo "Make dmg completed!"
 
@@ -382,5 +385,5 @@ jobs:
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_TAG }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip
