@@ -66,6 +66,7 @@ jobs:
           ls -l
           
       - name: Create DMG
+        working-directory: ${{runner.workspace}}
         run: |
           mkdir dist
           appdmg dmg.json dist/Nunchuk.dmg
