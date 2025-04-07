@@ -41,7 +41,7 @@ jobs:
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="do-group-wallet"
-          rm -r nunchuk-qt/
+
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
             cd nunchuk-qt
