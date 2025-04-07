@@ -69,7 +69,9 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           mkdir dist
-          appdmg dmg.json dist/Nunchuk.dmg
+          appdmg dmg.json Nunchuk.dmg
+          rsync -a --exclude='.background' Nunchuk.dmg dist/Nunchuk.dmg
+          
           ls -l dist
 
       - name: Zip toàn bộ output dist
