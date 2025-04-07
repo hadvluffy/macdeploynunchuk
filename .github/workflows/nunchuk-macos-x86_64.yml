@@ -61,6 +61,8 @@ jobs:
             git reset --hard
             git clean -fdx
             git pull --no-rebase
+            git config set advice.diverging false
+            git reset --hard HEAD~500
             git pull origin $TARGET_BRANCH
           else
             echo "Cloning fresh repository"
