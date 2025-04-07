@@ -63,6 +63,7 @@ jobs:
               }
             ]
           }' > dmg.json  # Tạo file dmg.json trong thư mục hiện tại
+          ls -l
           
       - name: Create DMG
         run: |
