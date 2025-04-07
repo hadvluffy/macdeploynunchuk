@@ -69,13 +69,11 @@ jobs:
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-      - name: Get latest tag of nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
+      - name: Get Nunchuk version
+        working-directory: ${{ runner.workspace }}/nunchuk-qt
         run: |
-          git fetch --tags --force
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          VERSION=$(grep -oP '(?<=project\(nunchuk-qt VERSION ")[^"]+' ${{ runner.workspace }}/nunchuk-qt/CMakeLists.txt)
+          echo "LATEST_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Generate build timestamp
         run: |
@@ -87,7 +85,7 @@ jobs:
         id: set-timestamp
         run: |
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
-          echo "Tag target build :>>> ${{ env.LATEST_TAG }}"
+          echo "Tag target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           
       - name: Set compiler
@@ -344,7 +342,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           timestamp=${{ env.TIMESTAMP }}
-          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
 
@@ -369,7 +367,7 @@ jobs:
                           "$final_package_dir/"
           echo "Completed create dmg"
           
-          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
+          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_dmg_zip"
           echo "Make dmg completed!"
 
@@ -382,5 +380,5 @@ jobs:
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_TAG }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip
