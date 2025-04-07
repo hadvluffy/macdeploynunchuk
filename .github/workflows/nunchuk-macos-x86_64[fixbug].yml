@@ -85,7 +85,7 @@ jobs:
         id: set-timestamp
         run: |
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
-          echo "Tag target build :>>> ${{ env.LATEST_VERSION }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           
       - name: Set compiler
