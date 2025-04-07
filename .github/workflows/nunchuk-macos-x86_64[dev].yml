@@ -310,6 +310,10 @@ jobs:
           echo "Repackaging the notarized app bundle to $final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
+          echo "Packaging built folder..."
+          final_built_zip="/tmp/$timestamp/nunchuk-macos-built.zip"
+          ditto -c -k --keepParent "$final_package_dir" "$final_built_zip"
+
       - name: Debug running processes
         run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
 
@@ -365,12 +369,18 @@ jobs:
                           "$final_package_dir/"
           echo "Completed create dmg"
           
-          final_zip="${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
-          ditto -c -k --keepParent "$final_dmg_dir" "$final_zip"
+          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
+          ditto -c -k --keepParent "$final_dmg_dir" "$final_dmg_zip"
           echo "Make dmg completed!"
+
+      - name: Upload Nunchuk BUILT
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-macos-built
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-built.zip
       
-      - name: Upload Nunchuk
+      - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
           name: nunchuk-macos-v${{ env.LATEST_TAG }}
-          path: ${{runner.workspace}}/build/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
