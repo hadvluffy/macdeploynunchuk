@@ -33,27 +33,21 @@ jobs:
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
         run: |
-          # Tạo file dmg.json với nội dung cấu hình appdmg
-          echo '{
+          cat <<EOF > dmg.json
+          {
             "title": "nunchuk-macos",
-            "background": "path/to/background.png",  # Thay thế bằng đường dẫn đúng nếu cần
+            "background": "",
+            "icon-size": 100,
             "window": {
-              "position": [200, 150],
-              "size": [800, 400]
+              "size": [800, 400],
+              "position": [200, 150]
             },
-            "iconSize": 100,
-            "icon": {
-              "path": "Nunchuk.app",
-              "x": 200,
-              "y": 200
-            },
-            "hideExtension": "Nunchuk.app",
             "contents": [
               {
                 "x": 200,
                 "y": 200,
                 "type": "file",
-                "path": "build/Release/Nunchuk.app"
+                "path": "nunchuk-macos-built/Nunchuk.app"
               },
               {
                 "x": 600,
@@ -62,7 +56,8 @@ jobs:
                 "path": "/Applications"
               }
             ]
-          }' > dmg.json  # Tạo file dmg.json trong thư mục hiện tại
+          }
+          EOF
           ls -l
           
       - name: Create DMG
