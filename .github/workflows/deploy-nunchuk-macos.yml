@@ -26,5 +26,46 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
           job_runs_id="14309372792"
           gh run download $job_runs_id -n "nunchuk-macos-built" --repo hadvluffy/macdeploynunchuk
+          unzip nunchuk-macos-built.zip
           echo "ls -l"
           ls -l 
+
+      - name: Create appdmg JSON configuration
+        working-directory: ${{runner.workspace}}
+        run: |
+          # Tạo file dmg.json với nội dung cấu hình appdmg
+          echo '{
+            "title": "nunchuk-macos",
+            "background": "path/to/background.png",  # Thay thế bằng đường dẫn đúng nếu cần
+            "window": {
+              "position": [200, 150],
+              "size": [800, 400]
+            },
+            "iconSize": 100,
+            "icon": {
+              "path": "Nunchuk.app",
+              "x": 200,
+              "y": 200
+            },
+            "hideExtension": "Nunchuk.app",
+            "contents": [
+              {
+                "x": 200,
+                "y": 200,
+                "type": "file",
+                "path": "build/Release/Nunchuk.app"
+              },
+              {
+                "x": 600,
+                "y": 200,
+                "type": "link",
+                "path": "/Applications"
+              }
+            ]
+          }' > dmg.json  # Tạo file dmg.json trong thư mục hiện tại
+          
+      - name: Create DMG
+        run: |
+          mkdir dist
+          appdmg dmg.json dist/Nunchuk.dmg
+          ls -l dist
