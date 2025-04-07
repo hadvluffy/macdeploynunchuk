@@ -69,3 +69,14 @@ jobs:
           mkdir dist
           appdmg dmg.json dist/Nunchuk.dmg
           ls -l dist
+
+      - name: Zip toàn bộ output dist
+        working-directory: ${{runner.workspace}}
+        run: |
+          zip -r dist.zip dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ${{runner.workspace}}/dist.zip
