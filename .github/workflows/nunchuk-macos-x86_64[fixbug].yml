@@ -64,6 +64,7 @@ jobs:
             git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
             cd nunchuk-qt
           fi
+          git fetch --all --tags
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "Latest tag  ----->>>>> $(git describe --tags --abbrev=0)"
