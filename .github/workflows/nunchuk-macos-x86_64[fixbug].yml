@@ -77,15 +77,6 @@ jobs:
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
           
-          # If the latest commit is not the one with the latest tag, re-apply the tag to the current commit
-          if [ "$CURRENT_COMMIT" != "$TAGGED_COMMIT" ]; then
-            echo "Current commit is not tagged. Re-tagging $LATEST_TAG to point to the latest commit."
-            git tag -fa "$LATEST_TAG" -m "Re-tagging $LATEST_TAG to latest commit"
-            git push -f origin "$LATEST_TAG"
-          else
-            echo "Current commit already has the latest tag."
-          fi
-          
           # Export LATEST_VERSION as an environment variable in GitHub Actions
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
