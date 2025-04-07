@@ -36,18 +36,25 @@ jobs:
           cat <<EOF > dmg.json
           {
             "title": "nunchuk-macos",
-            "background": "",
+            "icon": "icon.icns",
+            "background": "background.png",
             "icon-size": 100,
             "window": {
-              "size": [800, 400],
-              "position": [200, 150]
+              "position": {
+                "x": 200,
+                "y": 150
+              },
+              "size": {
+                "width": 800,
+                "height": 400
+              }
             },
             "contents": [
               {
                 "x": 200,
                 "y": 200,
                 "type": "file",
-                "path": "nunchuk-macos-x86_64/Nunchuk.app"
+                "path": "Nunchuk.app"
               },
               {
                 "x": 600,
