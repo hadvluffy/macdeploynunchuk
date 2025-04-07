@@ -66,7 +66,7 @@ jobs:
           fi
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
-          echo "Latest tag  ----->>>>> $(git describe --tags --abbrev=0)
+          echo "Latest tag  ----->>>>> $(git describe --tags --abbrev=0)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
           echo "LATEST_VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
 
