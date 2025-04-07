@@ -22,6 +22,7 @@ jobs:
           
       - name: Download build output
         working-directory: ${{runner.workspace}}
+        run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
           job_runs_id="14309372792"
           gh run download $job_runs_id -n "nunchuk-macos-built" --repo hadvluffy/macdeploynunchuk
