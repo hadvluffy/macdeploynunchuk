@@ -15,23 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Eject all disk images
-        run: |
-          echo "diskutil list"
-          diskutil list
-
-          echo "diskutil list - with volume nunchuk-macos"
-          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
-          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
-            sudo diskutil eject $disk
-            sleep 1
-            if ! diskutil list | grep -q $disk; then
-              echo "$disk already ejected"
-            else
-              echo "$disk ejected"
-            fi
-          done
-
       - name: Install AppDmg
         working-directory: ${{runner.workspace}}
         run: |
@@ -44,8 +27,8 @@ jobs:
           job_runs_id="14309372792"
           gh run download $job_runs_id -n "nunchuk-macos-built" --repo hadvluffy/macdeploynunchuk
           unzip nunchuk-macos-built.zip
-          echo "ls -l"
-          ls -l 
+          echo "ls -la"
+          ls -la 
 
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
@@ -80,16 +63,16 @@ jobs:
             ]
           }
           EOF
-          ls -l
+          ls -la
           
       - name: Create DMG
         working-directory: ${{runner.workspace}}
         run: |
+          rm -rf dist
           mkdir dist
           appdmg dmg.json Nunchuk.dmg
-          rsync -a --exclude='.background' Nunchuk.dmg dist/Nunchuk.dmg
           
-          ls -l dist
+          ls -la dist
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}
