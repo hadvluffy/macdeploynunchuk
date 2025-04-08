@@ -20,6 +20,9 @@ jobs:
         run: |
           npm install -g appdmg
           
+          echo "diskutil list"
+          diskutil list
+          
       - name: Download build output
         working-directory: ${{runner.workspace}}
         run: |
@@ -68,11 +71,12 @@ jobs:
       - name: Create DMG
         working-directory: ${{runner.workspace}}
         run: |
-          ls -la dist
-          rm -rf dist
-          mkdir dist
+          mkdir -p dist
           appdmg dmg.json dist/Nunchuk.dmg
           ls -la dist
+          
+          echo "diskutil list"
+          diskutil list
 
       - name: Zip toàn bộ output dist
         working-directory: ${{runner.workspace}}
