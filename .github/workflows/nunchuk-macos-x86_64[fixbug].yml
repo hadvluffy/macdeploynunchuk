@@ -337,13 +337,50 @@ jobs:
             fi
           done
 
-      - name: Install create-dmg
-        run: brew install create-dmg
+      - name: Install appdmg
+        run: npm install -g appdmg
         
-      - name: Wait before creating DMG
-        run: sleep 5
-  
-      - name: Create installer
+      - name: Create appdmg JSON configuration
+        working-directory: ${{runner.workspace}}
+        run: |
+          timestamp=${{ env.TIMESTAMP }}
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
+          mkdir -p "$final_dmg_dir"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          
+          cat <<EOF > dmg.json
+          {
+            "title": "Nunchuk",
+            "icon-size": 100,
+            "window": {
+              "position": {
+                "x": 200,
+                "y": 150
+              },
+              "size": {
+                "width": 800,
+                "height": 400
+              }
+            },
+            "contents": [
+              {
+                "x": 200,
+                "y": 200,
+                "type": "file",
+                "path": "$final_package_dir/Nunchuk.app"
+              },
+              {
+                "x": 600,
+                "y": 200,
+                "type": "link",
+                "path": "/Applications"
+              }
+            ]
+          }
+          EOF
+          ls -la
+          
+      - name: Create DMG
         working-directory: ${{runner.workspace}}
         run: |
           timestamp=${{ env.TIMESTAMP }}
@@ -353,28 +390,8 @@ jobs:
 
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
-          
-          echo "ls -l /tmp/"
-          ls -l /tmp/
-          
-          echo "Starting create dmg"
-          sudo create-dmg --volname "nunchuk-macos" \
-                          --window-pos 200 150 \
-                          --window-size 800 400 \
-                          --icon-size 100 \
-                          --icon "Nunchuk.app" 200 200 \
-                          --hide-extension "Nunchuk.app" \
-                          --app-drop-link 600 200 \
-                          --hdiutil-verbose \
-                          --no-internet-enable \
-                          --skip-jenkins \
-                          "$final_dmg_dir/Nunchuk.dmg" \
-                          "$final_package_dir/"
-          echo "Completed create dmg"
-          
-          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
-          ditto -c -k --keepParent "$final_dmg_dir" "$final_dmg_zip"
-          echo "Make dmg completed!"
+          appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
+          ls -la $final_dmg_dir
 
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
