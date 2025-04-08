@@ -39,6 +39,7 @@ jobs:
           cat <<EOF > dmg.json
           {
             "title": "nunchuk-macos",
+            "background": null,
             "icon-size": 100,
             "window": {
               "position": {
