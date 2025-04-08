@@ -32,6 +32,15 @@ jobs:
           unzip nunchuk-macos-built.zip
           echo "ls -la"
           ls -la 
+        
+      - name: Generate DMG background image
+        working-directory: ${{runner.workspace}}
+        run: |
+          convert -size 800x400 gradient:#ffffff-#eeeeee \
+            -font Helvetica -pointsize 36 -fill black -gravity center \
+            -annotate 0 "Welcome to Nunchuk!" \
+            background.png
+          ls -la background.png
 
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
@@ -39,7 +48,7 @@ jobs:
           cat <<EOF > dmg.json
           {
             "title": "nunchuk-macos",
-            "background": null,
+            "background": "background.png",
             "icon-size": 100,
             "window": {
               "position": {
