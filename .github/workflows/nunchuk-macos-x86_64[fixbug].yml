@@ -392,6 +392,9 @@ jobs:
           echo "Create DMG to directory: $final_dmg_dir"
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
           ls -la $final_dmg_dir
+          
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
+          ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
 
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
