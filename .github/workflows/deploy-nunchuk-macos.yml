@@ -78,37 +78,37 @@ jobs:
           echo "diskutil list"
           diskutil list
 
-      - name: Clean hidden folders from DMG
-        working-directory: ${{runner.workspace}}
-        run: |
-          echo "🧼 Convert to RW..."
-          hdiutil convert dist/Nunchuk.dmg -format UDRW -o dist/Nunchuk_rw.dmg
+      #- name: Clean hidden folders from DMG
+        #working-directory: ${{runner.workspace}}
+        #run: |
+          #echo "🧼 Convert to RW..."
+          #hdiutil convert dist/Nunchuk.dmg -format UDRW -o dist/Nunchuk_rw.dmg
       
-          echo "📦 Mount dmg..."
-          mount_output=$(hdiutil attach dist/Nunchuk_rw.dmg -mountpoint /Volumes/NunchukRW)
-          device=$(echo "$mount_output" | grep "/Volumes/NunchukRW" | awk '{print $1}')
-          echo "🔧 Mounted at device: $device"
+          #echo "📦 Mount dmg..."
+          #mount_output=$(hdiutil attach dist/Nunchuk_rw.dmg -mountpoint /Volumes/NunchukRW)
+          #device=$(echo "$mount_output" | grep "/Volumes/NunchukRW" | awk '{print $1}')
+          #echo "🔧 Mounted at device: $device"
       
-          echo "🔥 Deleting hidden folders..."
-          rm -rf /Volumes/NunchukRW/.background
-          rm -rf /Volumes/NunchukRW/.DS_Store
-          #rm -rf /Volumes/NunchukRW/.fseventsd
-          #rm -rf /Volumes/NunchukRW/.Spotlight-V100
-          #rm -rf /Volumes/NunchukRW/.Trashes
-          ls -la /Volumes/NunchukRW
+          #echo "🔥 Deleting hidden folders..."
+          #rm -rf /Volumes/NunchukRW/.background
+          #rm -rf /Volumes/NunchukRW/.DS_Store
+          ##rm -rf /Volumes/NunchukRW/.fseventsd
+          ##rm -rf /Volumes/NunchukRW/.Spotlight-V100
+          ##rm -rf /Volumes/NunchukRW/.Trashes
+          #ls -la /Volumes/NunchukRW
       
-          echo "💾 Syncing and detaching..."
-          sync
-          hdiutil detach "$device"
+          #echo "💾 Syncing and detaching..."
+          #sync
+          #hdiutil detach "$device"
       
-          echo "📦 Recompress to final Nunchuk.dmg..."
-          hdiutil convert dist/Nunchuk_rw.dmg -format UDZO -o dist/Nunchuk_clean.dmg
+          #echo "📦 Recompress to final Nunchuk.dmg..."
+          #hdiutil convert dist/Nunchuk_rw.dmg -format UDZO -o dist/Nunchuk_clean.dmg
       
-          echo "🧹 Replace original..."
-          mv dist/Nunchuk_clean.dmg dist/Nunchuk.dmg
-          rm -f dist/Nunchuk_rw.dmg
+          #echo "🧹 Replace original..."
+          #mv dist/Nunchuk_clean.dmg dist/Nunchuk.dmg
+          #rm -f dist/Nunchuk_rw.dmg
       
-          echo "✅ Done. Final output: dist/Nunchuk.dmg"
+          #echo "✅ Done. Final output: dist/Nunchuk.dmg"
 
 
       - name: Zip toàn bộ output dist
