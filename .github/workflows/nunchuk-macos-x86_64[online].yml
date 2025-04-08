@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64
+name: nunchuk-macos-x86_64[online]
 
 on:
   push:
@@ -45,9 +45,9 @@ jobs:
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
             cd nunchuk-qt
+            git fetch --all
             CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
             echo "Current branch: $CURRENT_BRANCH"
-      
             if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
               echo "Switching to branch $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
@@ -56,7 +56,6 @@ jobs:
               echo "Already on $TARGET_BRANCH"
               git fetch origin $TARGET_BRANCH
             fi
-      
             git reset --hard
             git clean -fdx
             git pull origin $TARGET_BRANCH
@@ -65,17 +64,21 @@ jobs:
             git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
             cd nunchuk-qt
           fi
+          git fetch --all --tags --force
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-      - name: Get latest tag of nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
-        run: |
-          git fetch --tags --force
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          # Get the latest tag based on the time it was tagged (taggerdate)
+          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
+          
+          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
+          echo "Current commit: $CURRENT_COMMIT"
+          
+          # Export LATEST_VERSION as an environment variable in GitHub Actions
+          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Generate build timestamp
         run: |
@@ -87,7 +90,7 @@ jobs:
         id: set-timestamp
         run: |
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
-          echo "Tag target build :>>> ${{ env.LATEST_TAG }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           
       - name: Set compiler
@@ -334,44 +337,64 @@ jobs:
             fi
           done
 
-      - name: Install create-dmg
-        run: brew install create-dmg
+      - name: Install appdmg
+        run: npm install -g appdmg
         
-      - name: Wait before creating DMG
-        run: sleep 5
-  
-      - name: Create installer
+      - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
         run: |
           timestamp=${{ env.TIMESTAMP }}
-          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}"
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
+          mkdir -p "$final_dmg_dir"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          
+          cat <<EOF > dmg.json
+          {
+            "title": "Nunchuk",
+            "icon-size": 100,
+            "window": {
+              "position": {
+                "x": 200,
+                "y": 150
+              },
+              "size": {
+                "width": 800,
+                "height": 400
+              }
+            },
+            "contents": [
+              {
+                "x": 200,
+                "y": 200,
+                "type": "file",
+                "path": "$final_package_dir/Nunchuk.app"
+              },
+              {
+                "x": 600,
+                "y": 200,
+                "type": "link",
+                "path": "/Applications"
+              }
+            ]
+          }
+          EOF
+          ls -la
+          
+      - name: Create DMG
+        working-directory: ${{runner.workspace}}
+        run: |
+          timestamp=${{ env.TIMESTAMP }}
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
 
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
+          appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
+          ls -la $final_dmg_dir
           
-          echo "ls -l /tmp/"
-          ls -l /tmp/
-          
-          echo "Starting create dmg"
-          sudo create-dmg --volname "nunchuk-macos" \
-                          --window-pos 200 150 \
-                          --window-size 800 400 \
-                          --icon-size 100 \
-                          --icon "Nunchuk.app" 200 200 \
-                          --hide-extension "Nunchuk.app" \
-                          --app-drop-link 600 200 \
-                          --hdiutil-verbose \
-                          --no-internet-enable \
-                          --skip-jenkins \
-                          "$final_dmg_dir/Nunchuk.dmg" \
-                          "$final_package_dir/"
-          echo "Completed create dmg"
-          
-          final_dmg_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_TAG }}.zip"
-          ditto -c -k --keepParent "$final_dmg_dir" "$final_dmg_zip"
-          echo "Make dmg completed!"
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
+          ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
 
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
@@ -382,5 +405,5 @@ jobs:
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_TAG }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_TAG }}.zip
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip
