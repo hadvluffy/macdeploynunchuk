@@ -90,10 +90,20 @@ jobs:
           echo "🔧 Mounted at device: $device"
       
           echo "🔥 Deleting hidden folders..."
+          ls -la 
           rm -rf /Volumes/NunchukRW/.background
+          echo "🔥 Deleting hidden folders..."
+          ls -la 
+          rm -rf /Volumes/NunchukRW/.DS_Store
           rm -rf /Volumes/NunchukRW/.fseventsd
+          echo "🔥 Deleting hidden folders..."
+          ls -la 
           rm -rf /Volumes/NunchukRW/.Spotlight-V100
+          echo "🔥 Deleting hidden folders..."
+          ls -la 
           rm -rf /Volumes/NunchukRW/.Trashes
+          echo "🔥 Deleting hidden folders..."
+          ls -la 
       
           echo "💾 Syncing and detaching..."
           sync
