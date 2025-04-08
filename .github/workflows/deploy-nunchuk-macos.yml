@@ -68,10 +68,10 @@ jobs:
       - name: Create DMG
         working-directory: ${{runner.workspace}}
         run: |
+          ls -la dist
           rm -rf dist
           mkdir dist
-          appdmg dmg.json Nunchuk.dmg
-          
+          appdmg dmg.json dist/Nunchuk.dmg
           ls -la dist
 
       - name: Zip toàn bộ output dist
