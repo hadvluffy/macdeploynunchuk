@@ -33,6 +33,10 @@ jobs:
           echo "ls -la"
           ls -la 
         
+      - name: Install ImageMagick
+        run: |
+          brew install imagemagick
+      
       - name: Generate DMG background image
         working-directory: ${{runner.workspace}}
         run: |
@@ -40,6 +44,7 @@ jobs:
             -font Helvetica -pointsize 36 -fill black -gravity center \
             -annotate 0 "Welcome to Nunchuk!" \
             background.png
+      
           ls -la background.png
 
       - name: Create appdmg JSON configuration
