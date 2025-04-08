@@ -95,10 +95,6 @@ jobs:
           rm -rf /Volumes/NunchukRW/.Spotlight-V100
           rm -rf /Volumes/NunchukRW/.Trashes
       
-          echo "🛡️ Prevent fseventsd from regenerating"
-          mkdir -p /Volumes/NunchukRW/.fseventsd
-          touch /Volumes/NunchukRW/.fseventsd/no_log
-      
           echo "💾 Syncing and detaching..."
           sync
           hdiutil detach "$device"
