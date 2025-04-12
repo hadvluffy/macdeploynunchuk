@@ -41,6 +41,7 @@ jobs:
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="dev"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
 
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
@@ -393,7 +394,7 @@ jobs:
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
           ls -la $final_dmg_dir
           
-          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
 
       - name: Upload Nunchuk BUILT
@@ -406,4 +407,4 @@ jobs:
         uses: 'actions/upload-artifact@v4'
         with:
           name: nunchuk-macos-v${{ env.LATEST_VERSION }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
