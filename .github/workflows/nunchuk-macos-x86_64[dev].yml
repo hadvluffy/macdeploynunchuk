@@ -93,6 +93,7 @@ jobs:
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
           echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
+          echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
           
       - name: Set compiler
         run: |
@@ -406,5 +407,5 @@ jobs:
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_VERSION }}
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
           path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
