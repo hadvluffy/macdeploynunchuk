@@ -66,6 +66,7 @@ jobs:
             cd nunchuk-qt
           fi
           git fetch --all --tags --force
+          git submodule sync --recursive
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
