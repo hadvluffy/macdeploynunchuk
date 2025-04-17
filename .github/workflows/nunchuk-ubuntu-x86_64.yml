@@ -197,7 +197,6 @@ jobs:
           export CPPFLAGS="$CPPFLAGS -I$OPENSSL_ROOT_DIR/include"
           export CXXFLAGS="$CXXFLAGS -O0 $CPPFLAGS"
           export CFLAGS="$CFLAGS -O0 $CPPFLAGS"
-      
           echo "Using CXX flags: $CXXFLAGS"
           echo "Using Linker flags: $LDFLAGS"
       
@@ -212,20 +211,12 @@ jobs:
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
                 -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR"
-
           make -j$(nproc)
-        
-      - name: Get latest tag of nunchuk-qt
-        working-directory: ${{runner.workspace}}/nunchuk-qt
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
           
       - name: Deploy nunchuk-qt
         working-directory: ${{ runner.workspace }}
         run: |
-          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
+          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir"
           EXECUTION_PATH="${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt"
           mkdir -p $OUTPUT_DIR
           
@@ -242,7 +233,7 @@ jobs:
       #  env:
       #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
         run: |
-          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir"
+          OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir"
           EXECUTION_PATH=$OUTPUT_DIR/bin/nunchuk-qt
           
           # Copy libraries (except Qt)
@@ -271,20 +262,20 @@ jobs:
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
           
       - name: Check linked libraries
-        working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}/Appdir/bin
+        working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin
         run: |
           ldd ./nunchuk-qt
           
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
         run: |
-          final_dir="nunchuk-linux-v${{ env.LATEST_TAG }}"
-          final_zip="nunchuk-linux-v${{ env.LATEST_TAG }}.zip"
+          final_dir="nunchuk-linux-v${{ env.LATEST_VERSION }}"
+          final_zip="nunchuk-linux-v${{ env.LATEST_VERSION }}.zip"
           zip -r "$final_zip" "$final_dir"
           echo "Release package created."
           
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nunchuk-linux-v${{ env.LATEST_TAG }}
-          path: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_TAG }}.zip
+          name: nunchuk-linux-v${{ env.LATEST_VERSION }}
+          path: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}.zip
