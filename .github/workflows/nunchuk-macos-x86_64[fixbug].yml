@@ -345,6 +345,10 @@ jobs:
         
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
+        env:
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
         run: |
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
@@ -378,7 +382,11 @@ jobs:
                 "type": "link",
                 "path": "/Applications"
               }
-            ]
+            ],
+            "code-sign": {
+              "signing-identity": "$PROD_MACOS_NOTARIZATION_TEAM_ID",
+              "identifier": "io.nunchuk.macos"
+            }
           }
           EOF
           ls -la
