@@ -41,6 +41,7 @@ jobs:
         run: |
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="online"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
 
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
@@ -93,6 +94,7 @@ jobs:
           echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
           echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
+          echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
           
       - name: Set compiler
         run: |
@@ -343,6 +345,10 @@ jobs:
         
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
+        env:
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
         run: |
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
@@ -376,7 +382,11 @@ jobs:
                 "type": "link",
                 "path": "/Applications"
               }
-            ]
+            ],
+            "code-sign": {
+              "signing-identity": "$PROD_MACOS_NOTARIZATION_TEAM_ID",
+              "identifier": "io.nunchuk.macos"
+            }
           }
           EOF
           ls -la
@@ -394,7 +404,7 @@ jobs:
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
           ls -la $final_dmg_dir
           
-          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip"
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
 
       - name: Upload Nunchuk BUILT
@@ -406,5 +416,5 @@ jobs:
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_VERSION }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}.zip
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
