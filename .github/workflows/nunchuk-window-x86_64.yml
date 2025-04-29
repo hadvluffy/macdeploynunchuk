@@ -14,11 +14,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         
-      #- name: Set CPU cores as env variable
-      #  run: |
-      #    echo "CORES=$(nproc --all)" >> $GITHUB_ENV
-      #    echo "Using $CORES cores for build"
-        
       - name: Check Windows Version
         shell: pwsh
         run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
