@@ -197,6 +197,15 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite -verbose=3
 
+          
+          echo "--UPDATE RPATH AND INSTALL NAME"
+          install_name_tool -add_rpath "@loader_path/../Frameworks" Nunchuk.app/Contents/MacOS/Nunchuk
+          find "$APP_PATH/Contents/Frameworks" -type f -name "*.dylib" | while read LIB; do
+              otool -L "$LIB" | grep "@rpath" | awk '{print $1}' | while read DEP; do
+                  install_name_tool -change "$DEP" "@loader_path/../Frameworks/$(basename $DEP)" "$LIB"
+              done
+          done
+
       - name: Setup certification
         env: 
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
