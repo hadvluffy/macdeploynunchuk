@@ -195,7 +195,7 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           find ${{runner.workspace}} -name "Nunchuk.app"
-          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
+          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite -verbose=3
 
       - name: Setup certification
         env: 
