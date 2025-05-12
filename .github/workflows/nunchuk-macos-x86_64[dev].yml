@@ -27,12 +27,12 @@ jobs:
           echo "ls -l hwi_macos"
           ls -l hwi_macos
           
-      - name: Cache nunchuk-qt source
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.workspace }}/nunchuk-qt
-          key: nunchuk-qt-dev-${{ runner.os }}
-          restore-keys: nunchuk-qt-dev-${{ runner.os }}
+      #- name: Cache nunchuk-qt source
+      #  uses: actions/cache@v4
+      #  with:
+      #    path: ${{ runner.workspace }}/nunchuk-qt
+      #    key: nunchuk-qt-dev-${{ runner.os }}
+      #    restore-keys: nunchuk-qt-dev-${{ runner.os }}
 
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
@@ -197,14 +197,8 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite -verbose=3
 
-          
           echo "--UPDATE RPATH AND INSTALL NAME"
           install_name_tool -add_rpath "@loader_path/../Frameworks" Nunchuk.app/Contents/MacOS/Nunchuk
-          find "$APP_PATH/Contents/Frameworks" -type f -name "*.dylib" | while read LIB; do
-              otool -L "$LIB" | grep "@rpath" | awk '{print $1}' | while read DEP; do
-                  install_name_tool -change "$DEP" "@loader_path/../Frameworks/$(basename $DEP)" "$LIB"
-              done
-          done
 
       - name: Setup certification
         env: 
