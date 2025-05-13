@@ -198,8 +198,8 @@ jobs:
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
 
           echo "-- PATCH RPATH AND INSTALL NAMES --"
-          BINARY="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
-          install_name_tool -add_rpath @executable_path/../../../../../../Frameworks "$BINARY"
+          BINARY="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
+          install_name_tool -add_rpath @executable_path/../../../../../../../Frameworks "$BINARY
           
           # Patch all Qt framework paths
           #for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
