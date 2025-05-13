@@ -198,7 +198,10 @@ jobs:
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite -verbose=3
 
           echo "--UPDATE RPATH AND INSTALL NAME"
-          install_name_tool -add_rpath "@loader_path/../Frameworks" Nunchuk.app/Contents/MacOS/Nunchuk
+          install_name_tool -add_rpath @executable_path/../../../../../../ "$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
+
+          echo "--OTOOL CHECK WEBENGINE"
+          otool -L "$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
 
       - name: Setup certification
         env: 
