@@ -195,20 +195,17 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           find ${{runner.workspace}} -name "Nunchuk.app"
-          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite -verbose=3
+          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
 
           echo "-- PATCH RPATH AND INSTALL NAMES --"
           BINARY="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
-          
-          # Add rpath back to the app bundle root
-          install_name_tool -add_rpath @executable_path/../../../../../../ "$BINARY"
+          install_name_tool -add_rpath @executable_path/../../../../../../Frameworks "$BINARY"
           
           # Patch all Qt framework paths
-          for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
-            echo "Patching $lib..."
-            install_name_tool -change "/usr/local/Cellar/qt@5/5.15.16_2/lib/${lib}.framework/Versions/5/${lib}" \
-            "@rpath/${lib}.framework/Versions/5/${lib}" "$BINARY"
-          done
+          #for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
+          #  echo "Patching $lib..."
+          #  install_name_tool -change "/usr/local/Cellar/qt@5/5.15.16_2/lib/${lib}.framework/Versions/5/${lib}" "@rpath/${lib}.framework/Versions/5/${lib}" "$BINARY"
+          #done
           
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
