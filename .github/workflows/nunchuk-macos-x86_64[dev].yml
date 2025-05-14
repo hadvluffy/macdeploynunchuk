@@ -210,7 +210,7 @@ jobs:
           otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework" | while read -r dep; do
             basename=$(basename "$dep")
             framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
-            new_path="@executable_path/../Frameworks/${framework}.framework/Versions/5/${framework}"
+            new_path="@executable_path/../../../../../../../Frameworks/${framework}.framework/Versions/5/${framework}"
             echo "🔧 Fixing: $dep → $new_path"
             install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
           done
