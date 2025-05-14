@@ -42,7 +42,6 @@ jobs:
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="dev"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
-
           if [ -d "nunchuk-qt/.git" ]; then
             echo "Using cached repository"
             cd nunchuk-qt
@@ -70,7 +69,6 @@ jobs:
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
           # Get the latest tag based on the time it was tagged (taggerdate)
           LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
           CURRENT_COMMIT=$(git rev-parse HEAD)
@@ -81,13 +79,11 @@ jobs:
           
           # Export LATEST_VERSION as an environment variable in GitHub Actions
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
-
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           echo "Timestamp: $TIMESTAMP"
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
-
       - name: Check environment variants
         id: set-timestamp
         run: |
@@ -111,7 +107,6 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
-
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -196,8 +191,7 @@ jobs:
           
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
-
-      - name: Copy all dependencies into QtWebEngineProcess Frameworks
+      - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
@@ -205,41 +199,21 @@ jobs:
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
-          
-          echo "🔍 Extracting dependencies from QtWebEngineProcess using otool"
+          echo "🔍 Patching hardcoded Qt paths in QtWebEngineProcess"
       
-          # Liệt kê tất cả các dependencies với otool -L và lọc ra những thư viện Qt và hệ thống
-          otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework|^/System/Library" | while read -r dep; do
-            # Lấy tên thư viện
+          otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework" | while read -r dep; do
             basename=$(basename "$dep")
-            
-            # Kiểm tra nếu thư viện không có đường dẫn hệ thống (để tránh lỗi)
-            if [[ "$dep" =~ ^/System/Library ]]; then
-              echo "🔧 Skipping system library: $dep"
-              continue
-            fi
-            
-            # Xây dựng đường dẫn mới cho thư viện trong thư mục Frameworks
-            new_path="$HELPER_FRAMEWORKS/${basename}"
-      
-            echo "🔧 Copying dependency: $dep → $new_path"
-            
-            # Sao chép thư viện vào thư mục Frameworks
-            cp -R "$dep" "$new_path"
-      
-            # Kiểm tra lỗi sau khi sao chép
-            if [ $? -ne 0 ]; then
-              echo "❌ Failed to copy $dep"
-              exit 1
-            fi
+            framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+            new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+            echo "🔧 Fixing: $dep → $new_path"
+            install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
           done
+          echo "✅ Done patching QtWebEngineProcess dependencies."
       
-          echo "✅ All dependencies copied successfully into QtWebEngineProcess Frameworks."
-          
-          # Kiểm tra kết quả sau khi sao chép
-          echo "🎯 Checking copied dependencies"
+          echo "🎯 QtWebEngineProcess DONE!"
+          # Check result
+          echo "-- CHECK OTOOL AGAIN --"
           otool -L "$HELPER_EXEC"
-
 
       - name: Setup certification
         env: 
@@ -371,7 +345,6 @@ jobs:
         run: |
           echo "diskutil list"
           diskutil list
-
           echo "diskutil list - with volume nunchuk-macos"
           diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
           for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
@@ -383,7 +356,6 @@ jobs:
               echo "$disk ejected"
             fi
           done
-
       - name: Install appdmg
         run: npm install -g appdmg
         
@@ -434,7 +406,6 @@ jobs:
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
-
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
@@ -442,7 +413,6 @@ jobs:
           
           final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
-
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
         with:
