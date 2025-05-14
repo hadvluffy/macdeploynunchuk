@@ -205,27 +205,16 @@ jobs:
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+          echo "🔍 Patching hardcoded Qt paths in QtWebEngineProcess"
       
-          echo "🔧 Patching QtWebEngineProcess dependencies..."
-          mkdir -p "$HELPER_FRAMEWORKS"
-          DEPS=$(otool -L "$HELPER_EXEC" | tail -n +2 | awk '{print $1}' | grep -E '\.dylib$')
-          for dep in $DEPS; do
-            if [[ "$dep" == @* ]]; then
-              echo "✅ ALREADY @rpath/@executable_path: $dep"
-              continue
-            fi
-            real_path=$(find /opt/homebrew /usr/local -name "$(basename "$dep")" 2>/dev/null | head -n 1 || true)
-            if [[ -z "$real_path" ]]; then
-              echo "⚠️ NOT FOUND: $dep"
-              continue
-            fi
-            echo "📦 Copy $(basename "$dep") từ $real_path"
-            cp -f "$real_path" "$HELPER_FRAMEWORKS/"
-      
-            new_dep="@executable_path/../Frameworks/$(basename "$dep")"
-            echo "🔧 install_name_tool -change $dep → $new_dep"
-            install_name_tool -change "$dep" "$new_dep" "$HELPER_EXEC"
+          otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework" | while read -r dep; do
+            basename=$(basename "$dep")
+            framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+            new_path="@executable_path/../Frameworks/${framework}.framework/Versions/5/${framework}"
+            echo "🔧 Fixing: $dep → $new_path"
+            install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
           done
+          echo "✅ Done patching QtWebEngineProcess dependencies."
       
           echo "🎯 QtWebEngineProcess DONE!"
           # Check result
