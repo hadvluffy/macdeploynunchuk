@@ -230,6 +230,7 @@ jobs:
           echo "🎯 QtWebEngineProcess DONE!"
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
+          BINARY="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
           otool -L "$BINARY"
 
       - name: Setup certification
