@@ -197,17 +197,37 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
 
-          echo "-- PATCH RPATH AND INSTALL NAMES --"
-          BINARY="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess"
-          install_name_tool -delete_rpath @executable_path/../Frameworks "$BINARY"
-          install_name_tool -add_rpath @executable_path/../../../../../../../../Frameworks "$BINARY"
-          
-          # Patch all Qt framework paths
-          for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
-            echo "Patching $lib..."
-            install_name_tool -change "/usr/local/Cellar/qt@5/5.15.16_2/lib/${lib}.framework/Versions/5/${lib}" "@rpath/${lib}.framework/Versions/5/${lib}" "$BINARY"
+      - name: Patch QtWebEngineProcess dependencies
+        working-directory: ${{runner.workspace}}/build
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
+          HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+      
+          echo "🔧 Patching QtWebEngineProcess dependencies..."
+          mkdir -p "$HELPER_FRAMEWORKS"
+          DEPS=$(otool -L "$HELPER_EXEC" | tail -n +2 | awk '{print $1}' | grep -E '\.dylib$')
+          for dep in $DEPS; do
+            if [[ "$dep" == @* ]]; then
+              echo "✅ ALREADY @rpath/@executable_path: $dep"
+              continue
+            fi
+            real_path=$(find /opt/homebrew /usr/local -name "$(basename "$dep")" 2>/dev/null | head -n 1 || true)
+            if [[ -z "$real_path" ]]; then
+              echo "⚠️ NOT FOUND: $dep"
+              continue
+            fi
+            echo "📦 Copy $(basename "$dep") từ $real_path"
+            cp -f "$real_path" "$HELPER_FRAMEWORKS/"
+      
+            new_dep="@executable_path/../Frameworks/$(basename "$dep")"
+            echo "🔧 install_name_tool -change $dep → $new_dep"
+            install_name_tool -change "$dep" "$new_dep" "$HELPER_EXEC"
           done
-          
+      
+          echo "🎯 QtWebEngineProcess DONE!"
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
           otool -L "$BINARY"
