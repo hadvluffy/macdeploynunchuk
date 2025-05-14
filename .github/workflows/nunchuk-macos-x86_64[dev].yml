@@ -202,10 +202,10 @@ jobs:
           install_name_tool -add_rpath @executable_path/../../../../../../../Frameworks "$BINARY"
           
           # Patch all Qt framework paths
-          #for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
-          #  echo "Patching $lib..."
-          #  install_name_tool -change "/usr/local/Cellar/qt@5/5.15.16_2/lib/${lib}.framework/Versions/5/${lib}" "@rpath/${lib}.framework/Versions/5/${lib}" "$BINARY"
-          #done
+          for lib in QtGui QtCore QtWebEngineCore QtQuick QtQmlModels QtWebChannel QtQml QtNetwork QtPositioning; do
+            echo "Patching $lib..."
+            install_name_tool -change "/usr/local/Cellar/qt@5/5.15.16_2/lib/${lib}.framework/Versions/5/${lib}" "@rpath/${lib}.framework/Versions/5/${lib}" "$BINARY"
+          done
           
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
