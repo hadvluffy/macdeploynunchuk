@@ -191,6 +191,7 @@ jobs:
           
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
+          
       - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
@@ -214,6 +215,16 @@ jobs:
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
           otool -L "$HELPER_EXEC"
+
+          echo "🚨 Overwriting all Qt dependencies for QtWebEngineProcess..."
+          HELPER_FRAMEWORKS="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app/Contents/Frameworks"
+          MAIN_FRAMEWORKS="$APP_PATH/Contents/Frameworks"
+          echo "🔄 Cleaning old helper frameworks (if any)..."
+          rm -rf "$HELPER_FRAMEWORKS"
+          mkdir -p "$HELPER_FRAMEWORKS"
+          echo "📦 Copying ALL frameworks and dylibs (overwrite mode)..."
+          cp -a "$MAIN_FRAMEWORKS/." "$HELPER_FRAMEWORKS/"
+          echo "✅ QtWebEngineProcess frameworks updated (force overwrite)."
 
       - name: Setup certification
         env: 
