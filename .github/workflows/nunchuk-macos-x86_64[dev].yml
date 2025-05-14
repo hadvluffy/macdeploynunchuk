@@ -197,7 +197,7 @@ jobs:
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt -always-overwrite
 
-      - name: Patch QtWebEngineProcess dependencies
+      - name: Copy all dependencies into QtWebEngineProcess Frameworks
         working-directory: ${{runner.workspace}}/build
         env:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
@@ -205,21 +205,41 @@ jobs:
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
-          echo "🔍 Patching hardcoded Qt paths in QtWebEngineProcess"
+          
+          echo "🔍 Extracting dependencies from QtWebEngineProcess using otool"
       
-          otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework" | while read -r dep; do
+          # Liệt kê tất cả các dependencies với otool -L và lọc ra những thư viện Qt và hệ thống
+          otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework|^/System/Library" | while read -r dep; do
+            # Lấy tên thư viện
             basename=$(basename "$dep")
-            framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
-            new_path="@executable_path/../../../../../../../Frameworks/${framework}.framework/Versions/5/${framework}"
-            echo "🔧 Fixing: $dep → $new_path"
-            install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
-          done
-          echo "✅ Done patching QtWebEngineProcess dependencies."
+            
+            # Kiểm tra nếu thư viện không có đường dẫn hệ thống (để tránh lỗi)
+            if [[ "$dep" =~ ^/System/Library ]]; then
+              echo "🔧 Skipping system library: $dep"
+              continue
+            fi
+            
+            # Xây dựng đường dẫn mới cho thư viện trong thư mục Frameworks
+            new_path="$HELPER_FRAMEWORKS/${basename}"
       
-          echo "🎯 QtWebEngineProcess DONE!"
-          # Check result
-          echo "-- CHECK OTOOL AGAIN --"
+            echo "🔧 Copying dependency: $dep → $new_path"
+            
+            # Sao chép thư viện vào thư mục Frameworks
+            cp -R "$dep" "$new_path"
+      
+            # Kiểm tra lỗi sau khi sao chép
+            if [ $? -ne 0 ]; then
+              echo "❌ Failed to copy $dep"
+              exit 1
+            fi
+          done
+      
+          echo "✅ All dependencies copied successfully into QtWebEngineProcess Frameworks."
+          
+          # Kiểm tra kết quả sau khi sao chép
+          echo "🎯 Checking copied dependencies"
           otool -L "$HELPER_EXEC"
+
 
       - name: Setup certification
         env: 
