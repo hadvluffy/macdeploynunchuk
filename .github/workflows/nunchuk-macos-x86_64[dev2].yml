@@ -205,41 +205,28 @@ jobs:
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
-          
+          mkdir -p "$HELPER_FRAMEWORKS"
           echo "🔍 Extracting dependencies from QtWebEngineProcess using otool"
-      
-          # Liệt kê tất cả các dependencies với otool -L và lọc ra những thư viện Qt và hệ thống
+    
           otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "^/usr/local/.*/Qt.*\.framework|^/System/Library" | while read -r dep; do
-            # Lấy tên thư viện
             basename=$(basename "$dep")
-            
-            # Kiểm tra nếu thư viện không có đường dẫn hệ thống (để tránh lỗi)
             if [[ "$dep" =~ ^/System/Library ]]; then
               echo "🔧 Skipping system library: $dep"
               continue
             fi
-            
-            # Xây dựng đường dẫn mới cho thư viện trong thư mục Frameworks
             new_path="$HELPER_FRAMEWORKS/${basename}"
-      
             echo "🔧 Copying dependency: $dep → $new_path"
-            
-            # Sao chép thư viện vào thư mục Frameworks
             cp -R "$dep" "$new_path"
-      
-            # Kiểm tra lỗi sau khi sao chép
             if [ $? -ne 0 ]; then
               echo "❌ Failed to copy $dep"
               exit 1
             fi
           done
-      
           echo "✅ All dependencies copied successfully into QtWebEngineProcess Frameworks."
           
           # Kiểm tra kết quả sau khi sao chép
           echo "🎯 Checking copied dependencies"
           otool -L "$HELPER_EXEC"
-
 
       - name: Setup certification
         env: 
