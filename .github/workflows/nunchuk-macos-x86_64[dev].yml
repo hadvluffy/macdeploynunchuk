@@ -204,6 +204,7 @@ jobs:
           echo "🔍 Patching hardcoded Qt paths in QtWebEngineProcess"
           
           # Thêm rpath đề phòng
+          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
           install_name_tool -add_rpath "@executable_path/../../../../../../../.." "$HELPER_EXEC"
           
           # Bắt mọi Qt*.framework dù ở đâu
