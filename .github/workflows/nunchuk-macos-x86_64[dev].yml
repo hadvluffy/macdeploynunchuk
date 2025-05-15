@@ -290,7 +290,12 @@ jobs:
           
           echo "Copy hwi"
           cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
-          
+
+          echo "Signing QWebengineProcess executables..."
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
+          codesign --force --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
+         
           echo "Signing main executables and app bundle..."
           codesign --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
     
