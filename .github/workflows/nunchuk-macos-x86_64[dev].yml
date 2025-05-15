@@ -206,6 +206,27 @@ jobs:
         run: |
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
+          HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+          
+          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
+          install_name_tool -add_rpath "@executable_path/../../../../../../../.." "$HELPER_EXEC"
+
+          # Bắt mọi Qt*.framework dù ở đâu
+          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
+          
+          if [ -z "$DEPS" ]; then
+            echo "⚠️ No Qt dependencies found needing patch."
+          else
+            echo "$DEPS" | while read -r dep; do
+              basename=$(basename "$dep")
+              framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+              echo "🔧 Fixing: $dep → $new_path"
+              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
+            done
+          fi
+          
+          echo "✅ Done patching QtWebEngineProcess dependencies."
           # Check result
           echo "-- CHECK OTOOL AGAIN --"
           otool -L "$HELPER_EXEC"
