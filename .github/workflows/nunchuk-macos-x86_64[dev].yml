@@ -209,7 +209,7 @@ jobs:
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
           
           install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
-          install_name_tool -add_rpath "@executable_path/../../../../../../../.." "$HELPER_EXEC"
+          install_name_tool -add_rpath "@executable_path/../../../../../../../../Frameworks" "$HELPER_EXEC"
 
           # Bắt mọi Qt*.framework dù ở đâu
           DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
