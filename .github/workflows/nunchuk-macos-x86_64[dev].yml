@@ -27,13 +27,6 @@ jobs:
           echo "ls -l hwi_macos"
           ls -l hwi_macos
           
-      #- name: Cache nunchuk-qt source
-      #  uses: actions/cache@v4
-      #  with:
-      #    path: ${{ runner.workspace }}/nunchuk-qt
-      #    key: nunchuk-qt-dev-${{ runner.os }}
-      #    restore-keys: nunchuk-qt-dev-${{ runner.os }}
-
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -42,28 +35,10 @@ jobs:
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="dev"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
-          if [ -d "nunchuk-qt/.git" ]; then
-            echo "Using cached repository"
-            cd nunchuk-qt
-            git fetch --all
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-            echo "Current branch: $CURRENT_BRANCH"
-            if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
-              echo "Switching to branch $TARGET_BRANCH"
-              git fetch origin $TARGET_BRANCH
-              git checkout $TARGET_BRANCH
-            else
-              echo "Already on $TARGET_BRANCH"
-              git fetch origin $TARGET_BRANCH
-            fi
-            git reset --hard
-            git clean -fdx
-            git pull origin $TARGET_BRANCH
-          else
-            echo "Cloning fresh repository"
-            git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
-            cd nunchuk-qt
-          fi
+          echo "Cloning fresh repository"
+          rm -rf nunchuk-qt
+          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
           git fetch --all --tags --force
           git submodule sync --recursive
           git submodule update --init --recursive
@@ -73,12 +48,10 @@ jobs:
           LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
           CURRENT_COMMIT=$(git rev-parse HEAD)
           TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
-          
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
-          
-          # Export LATEST_VERSION as an environment variable in GitHub Actions
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
+
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
