@@ -27,13 +27,6 @@ jobs:
           echo "ls -l hwi_macos"
           ls -l hwi_macos
           
-      - name: Cache nunchuk-qt source
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.workspace }}/nunchuk-qt
-          key: nunchuk-qt-online-${{ runner.os }}
-          restore-keys: nunchuk-qt-online-${{ runner.os }}
-
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -42,44 +35,21 @@ jobs:
           echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="online"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
-
-          if [ -d "nunchuk-qt/.git" ]; then
-            echo "Using cached repository"
-            cd nunchuk-qt
-            git fetch --all
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-            echo "Current branch: $CURRENT_BRANCH"
-            if [ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]; then
-              echo "Switching to branch $TARGET_BRANCH"
-              git fetch origin $TARGET_BRANCH
-              git checkout $TARGET_BRANCH
-            else
-              echo "Already on $TARGET_BRANCH"
-              git fetch origin $TARGET_BRANCH
-            fi
-            git reset --hard
-            git clean -fdx
-            git pull origin $TARGET_BRANCH
-          else
-            echo "Cloning fresh repository"
-            git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
-            cd nunchuk-qt
-          fi
+          echo "Cloning fresh repository"
+          rm -rf nunchuk-qt
+          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
           git fetch --all --tags --force
           git submodule sync --recursive
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
           # Get the latest tag based on the time it was tagged (taggerdate)
           LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
           CURRENT_COMMIT=$(git rev-parse HEAD)
           TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
-          
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
-          
-          # Export LATEST_VERSION as an environment variable in GitHub Actions
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
       - name: Generate build timestamp
@@ -87,7 +57,6 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           echo "Timestamp: $TIMESTAMP"
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
-
       - name: Check environment variants
         id: set-timestamp
         run: |
@@ -111,7 +80,6 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
-
       - name: Install dependencies
         run: |
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
@@ -195,7 +163,46 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           find ${{runner.workspace}} -name "Nunchuk.app"
-          macdeployqt $APP_PATH -qmldir=${{runner.workspace}}/nunchuk-qt
+          #macdeployqt $APP_PATH \
+          #            -qmldir=${{runner.workspace}}/nunchuk-qt \
+          #            -always-overwrite
+          macdeployqt $APP_PATH \
+                      -executable=$APP_PATH/Contents/MacOS/Nunchuk \
+                      -qmldir=${{runner.workspace}}/nunchuk-qt \
+                      -always-overwrite
+
+          
+      - name: Patch QtWebEngineProcess dependencies
+        working-directory: ${{runner.workspace}}/build
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
+          HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+          
+          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
+          install_name_tool -add_rpath "@executable_path/../../../../../../../../Frameworks" "$HELPER_EXEC"
+
+          # Bắt mọi Qt*.framework dù ở đâu
+          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
+          
+          if [ -z "$DEPS" ]; then
+            echo "⚠️ No Qt dependencies found needing patch."
+          else
+            echo "$DEPS" | while read -r dep; do
+              basename=$(basename "$dep")
+              framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+              echo "🔧 Fixing: $dep → $new_path"
+              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
+            done
+          fi
+          
+          echo "✅ Done patching QtWebEngineProcess dependencies."
+          # Check result
+          echo "-- CHECK OTOOL AGAIN --"
+          otool -L "$HELPER_EXEC"
 
       - name: Setup certification
         env: 
@@ -256,7 +263,12 @@ jobs:
           
           echo "Copy hwi"
           cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
-          
+
+          echo "Signing QWebengineProcess executables..."
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
+         
           echo "Signing main executables and app bundle..."
           codesign --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
     
@@ -327,7 +339,6 @@ jobs:
         run: |
           echo "diskutil list"
           diskutil list
-
           echo "diskutil list - with volume nunchuk-macos"
           diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
           for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
@@ -339,16 +350,11 @@ jobs:
               echo "$disk ejected"
             fi
           done
-
       - name: Install appdmg
         run: npm install -g appdmg
         
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
-        env:
-          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.IO_APPLE_ID }}
-          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
-          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
         run: |
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
@@ -382,11 +388,7 @@ jobs:
                 "type": "link",
                 "path": "/Applications"
               }
-            ],
-            "code-sign": {
-              "signing-identity": "$PROD_MACOS_NOTARIZATION_TEAM_ID",
-              "identifier": "io.nunchuk.macos"
-            }
+            ]
           }
           EOF
           ls -la
@@ -398,7 +400,6 @@ jobs:
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
-
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
@@ -406,7 +407,6 @@ jobs:
           
           final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
-
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
         with:
