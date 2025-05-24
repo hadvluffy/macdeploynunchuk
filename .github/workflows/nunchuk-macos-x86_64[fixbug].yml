@@ -128,7 +128,7 @@ jobs:
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I/usr/local/opt/libevent/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
