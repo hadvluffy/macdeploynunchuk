@@ -328,10 +328,6 @@ jobs:
 
       - name: Cleanup before appdmg
         run: |
-
-          # Clean temp dmg files if exist
-          find /var/folders -name '*.dmg' -exec rm -f {} + || true
-          
           echo "📌 Volume status *before* detach:"
           mount | grep "/Volumes/Nunchuk" || echo "⛔️ Not mounted."
         
@@ -348,9 +344,6 @@ jobs:
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
         run: |
-          find /var/folders -name '*.dmg' -exec rm -f {} +
-          diskutil list | grep Nunchuk && hdiutil detach "/Volumes/Nunchuk" || true
-        
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
