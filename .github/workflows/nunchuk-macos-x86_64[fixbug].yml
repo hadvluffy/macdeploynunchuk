@@ -153,7 +153,8 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+                -DAPPEND_CPPFLAGS="-I/usr/local/opt/libevent/include"
                 
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
