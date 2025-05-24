@@ -328,10 +328,19 @@ jobs:
 
       - name: Cleanup before appdmg
         run: |
+
           # Clean temp dmg files if exist
           find /var/folders -name '*.dmg' -exec rm -f {} + || true
+          
+          echo "📌 Volume status *before* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "⛔️ Not mounted."
+        
           # Unmount any mounted volume with same name
           (mount | grep -q "/Volumes/Nunchuk" && hdiutil detach "/Volumes/Nunchuk") || true          
+          
+          echo "📌 Volume status *after* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "✅ Successfully detached (not found in mount list)."
+          
           # Use custom temp dir to avoid /var/folders quirks
           export TMPDIR="${{runner.workspace}}/tmp"
           mkdir -p "$TMPDIR"
