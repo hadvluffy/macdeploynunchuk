@@ -119,7 +119,7 @@ jobs:
         env:
           OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
           OAUTH_CLIENT_SECRET: "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"
-          OAUTH_REDIRECT_URI: "http://localhost:3000/callback"
+          OAUTH_REDIRECT_URI: "http://localhost"
           OAUTH_CLIENT_ID: "712097058578-c2jlhg6778bjsgmdtfn6v4pidd4veja1.apps.googleusercontent.com"
         shell: bash
         run: |
