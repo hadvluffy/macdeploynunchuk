@@ -91,11 +91,10 @@ jobs:
             --push .
 
       - name: Build application
-        working-directory: ${{runner.workspace}}/nunchuk-qt
         run: |
           docker run --platform ${{ matrix.platform }} --rm \
-            -v ${{ github.workspace }}:/nunchuk-desktop \
-            -w /nunchuk-desktop \
+            -v ${{ github.workspace }}:/nunchuk-qt \
+            -w /nunchuk-qt \
             ghcr.io/${{ github.repository }}/${{ matrix.builder_tag }} \
             bash reproducible-builds/linux.sh
 
