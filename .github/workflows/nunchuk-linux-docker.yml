@@ -3,10 +3,9 @@ name: nunchuk-linux-docker
 on:
   push:
     tags:
-    - '*'
-
+      - '*'
   workflow_dispatch:
-  
+
 jobs:
   build-image-and-app:
     strategy:
@@ -31,37 +30,25 @@ jobs:
       packages: write
 
     steps:
-      #- name: Configure Git for private GitLab submodules
-      #  env:
-      #    GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
-      #  run: |
-      #    git config --global url."https://oauth2:${GITLAB_PAT}@gitlab.com/".insteadOf "https://gitlab.com/"
-      - name: Checkout nunchuk-qt
-        working-directory: ${{runner.workspace}}
+      - name: Checkout nunchuk-qt from GitLab
         env:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" > ~/.netrc
           TARGET_BRANCH="fixbug"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
-          echo "Cloning fresh repository"
+          cd $GITHUB_WORKSPACE
           rm -rf nunchuk-qt
           git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
           cd nunchuk-qt
           git fetch --all --tags --force
           git submodule sync --recursive
           git submodule update --init --recursive
-          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          # Get the latest tag based on the time it was tagged (taggerdate)
           LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
-          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
-          echo "Current commit: $CURRENT_COMMIT"
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
-      - name: Checkout repository
+      - name: Checkout this repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -77,9 +64,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Build & push builder image
-        working-directory: ${{runner.workspace}}/nunchuk-qt/reproducible-builds
+        working-directory: ${{ github.workspace }}/nunchuk-qt/reproducible-builds
         run: |
           docker buildx build \
             --platform ${{ matrix.platform }} \
@@ -90,10 +77,16 @@ jobs:
             --cache-to   type=registry,ref=ghcr.io/${{ github.repository }}/builder-cache,mode=max \
             --push .
 
+      - name: Debug build tree before run
+        run: |
+          echo "::group::Check build tree"
+          find ${{ github.workspace }}/nunchuk-qt -type f
+          echo "::endgroup::"
+
       - name: Build application
         run: |
           docker run --platform ${{ matrix.platform }} --rm \
-            -v ${{ github.workspace }}:/nunchuk-qt \
+            -v ${{ github.workspace }}/nunchuk-qt:/nunchuk-qt \
             -w /nunchuk-qt \
             ghcr.io/${{ github.repository }}/${{ matrix.builder_tag }} \
             bash reproducible-builds/linux.sh
@@ -102,5 +95,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifacts }}
-          path: build/artifacts
+          path: ${{ github.workspace }}/nunchuk-qt/build/artifacts
           compression-level: 0
