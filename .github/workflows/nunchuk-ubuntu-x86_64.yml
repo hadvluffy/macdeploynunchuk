@@ -33,6 +33,8 @@ jobs:
                               qttools5-dev \
                               qttools5-dev-tools \
                               qt5-qmake \
+                              qtwebengine5-dev \
+                              qtwebengine5-dev-tools \
                               qtchooser \
                               libqt5svg5-dev \
                               libqt5networkauth5-dev \
