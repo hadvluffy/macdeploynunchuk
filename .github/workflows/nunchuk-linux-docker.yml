@@ -1,0 +1,107 @@
+name: nunchuk-linux-docker
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+  
+jobs:
+  build-image-and-app:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+            arch: x86_64
+            builder_tag: nunchuk-builder-linux-amd64
+            artifacts: linux-x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: aarch64
+            builder_tag: nunchuk-builder-linux-aarch64
+            artifacts: linux-aarch64
+
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Configure Git for private GitLab submodules
+        env:
+          GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+        run: |
+          git config --global url."https://oauth2:${GITLAB_PAT}@gitlab.com/".insteadOf "https://gitlab.com/"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          TARGET_BRANCH="fixbug"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "Cloning fresh repository"
+          rm -rf nunchuk-qt
+          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
+          git fetch --all --tags --force
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          # Get the latest tag based on the time it was tagged (taggerdate)
+          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
+          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
+          echo "Current commit: $CURRENT_COMMIT"
+          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Build & push builder image
+        working-directory: reproducible-builds
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg ARCH=${{ matrix.arch }} \
+            -f linux.Dockerfile \
+            -t ghcr.io/${{ github.repository }}/${{ matrix.builder_tag }} \
+            --cache-from type=registry,ref=ghcr.io/${{ github.repository }}/builder-cache \
+            --cache-to   type=registry,ref=ghcr.io/${{ github.repository }}/builder-cache,mode=max \
+            --push .
+
+      - name: Build application
+        run: |
+          docker run --platform ${{ matrix.platform }} --rm \
+            -v ${{ github.workspace }}:/nunchuk-desktop \
+            -w /nunchuk-desktop \
+            ghcr.io/${{ github.repository }}/${{ matrix.builder_tag }} \
+            bash reproducible-builds/linux.sh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifacts }}
+          path: build/artifacts
+          compression-level: 0
