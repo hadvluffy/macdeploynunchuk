@@ -79,7 +79,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build & push builder image
-        working-directory: reproducible-builds
+        working-directory: ${{runner.workspace}}/nunchuk-qt/reproducible-builds
         run: |
           docker buildx build \
             --platform ${{ matrix.platform }} \
