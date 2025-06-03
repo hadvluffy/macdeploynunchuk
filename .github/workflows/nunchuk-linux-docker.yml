@@ -91,6 +91,7 @@ jobs:
             --push .
 
       - name: Build application
+        working-directory: ${{runner.workspace}}/nunchuk-qt
         run: |
           docker run --platform ${{ matrix.platform }} --rm \
             -v ${{ github.workspace }}:/nunchuk-desktop \
