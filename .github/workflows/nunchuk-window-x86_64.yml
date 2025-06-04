@@ -62,5 +62,13 @@ jobs:
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
+          
+      - name: Checkout Olm
+        working-directory: ${{ runner.workspace }}
+        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
 
-
+      - name: Build Olm
+        working-directory: ${{ runner.workspace }}/Olm
+        run: |
+          cmake . -B build
+          cmake --build build --config Release
