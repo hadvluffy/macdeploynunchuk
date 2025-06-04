@@ -57,7 +57,8 @@ jobs:
                                   qt5:x64-windows `
                                   qt5-graphicaleffects:x64-windows `
                                   qt5-quickcontrols:x64-windows `
-                                  qtKeychain:x64-windows
+                                  qtKeychain:x64-windows `
+                                  qt5-webengine:x64-windows
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
