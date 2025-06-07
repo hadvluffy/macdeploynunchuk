@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64[fixbug]
+name: nunchuk-macos-x86_64[dev]
 
 on:
   push:
