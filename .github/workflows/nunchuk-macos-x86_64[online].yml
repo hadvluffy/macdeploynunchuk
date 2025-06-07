@@ -118,9 +118,9 @@ jobs:
         working-directory: ${{runner.workspace}}
         env:
           OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
-          OAUTH_CLIENT_SECRET: "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"
-          OAUTH_REDIRECT_URI: "http://localhost"
-          OAUTH_CLIENT_ID: "712097058578-c2jlhg6778bjsgmdtfn6v4pidd4veja1.apps.googleusercontent.com"
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
         shell: bash
         run: |
           set -e
@@ -129,6 +129,7 @@ jobs:
           export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
           export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
           export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export CFLAGS="$CFLAGS -I/usr/local/opt/libevent/include"
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
@@ -152,7 +153,8 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
-                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS"
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+                -DAPPEND_CPPFLAGS="-I/usr/local/opt/libevent/include"
                 
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
@@ -174,7 +176,38 @@ jobs:
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
                       -qmldir=${{runner.workspace}}/nunchuk-qt \
                       -always-overwrite
-                      
+
+      - name: Patch QtWebEngineProcess dependencies
+        working-directory: ${{runner.workspace}}/build
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
+          HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+          
+          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
+          install_name_tool -add_rpath "@executable_path/../../../../../../../../Frameworks" "$HELPER_EXEC"
+          # Bắt mọi Qt*.framework dù ở đâu
+          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
+          
+          if [ -z "$DEPS" ]; then
+            echo "⚠️ No Qt dependencies found needing patch."
+          else
+            echo "$DEPS" | while read -r dep; do
+              basename=$(basename "$dep")
+              framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+              echo "🔧 Fixing: $dep → $new_path"
+              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
+            done
+          fi
+          
+          echo "✅ Done patching QtWebEngineProcess dependencies."
+          # Check result
+          echo "-- CHECK OTOOL AGAIN --"
+          otool -L "$HELPER_EXEC"
+        
       - name: Setup certification
         env: 
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
@@ -239,6 +272,11 @@ jobs:
           #HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
           #HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
           #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
+
+          echo "Signing QWebengineProcess executables..."
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
          
           echo "Signing main executables and app bundle..."
           codesign --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
@@ -323,7 +361,22 @@ jobs:
           done
       - name: Install appdmg
         run: npm install -g appdmg
+
+      - name: Cleanup before appdmg
+        run: |
+          echo "📌 Volume status *before* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "⛔️ Not mounted."
         
+          # Unmount any mounted volume with same name
+          (mount | grep -q "/Volumes/Nunchuk" && hdiutil detach "/Volumes/Nunchuk") || true          
+          
+          echo "📌 Volume status *after* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "✅ Successfully detached (not found in mount list)."
+          
+          # Use custom temp dir to avoid /var/folders quirks
+          export TMPDIR="${{runner.workspace}}/tmp"
+          mkdir -p "$TMPDIR"
+          
       - name: Create appdmg JSON configuration
         working-directory: ${{runner.workspace}}
         run: |
