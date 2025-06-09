@@ -41,7 +41,7 @@ jobs:
           aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt --archives
           aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 `
                       --outputdir C:\qt `
-                      -m 
+                      -m `
                       qtcharts `
                       qtdatavis3d `
                       qtlottie `
