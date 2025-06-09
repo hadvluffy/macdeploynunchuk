@@ -37,16 +37,15 @@ jobs:
   
       - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
-          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --archives -m qtcharts qtwebengine
-  
+          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt --archives -m qtcharts qtwebengine
+      
       - name: Print Qt installation path
         run: |
-          $qtPath = "C:\Users\runneradmin\aqt\windows\desktop\5.15.2\msvc2019_64"
-          echo "Qt installed at: $qtPath"
-          dir $qtPath
-          echo "Listing Qt bin:"
-          dir "$qtPath\bin"
-  
+          echo "Qt installed at: C:\qt\5.15.2\msvc2019_64"
+          dir C:\qt\5.15.2\msvc2019_64
+          dir C:\qt\5.15.2\msvc2019_64\bin
+      
       - name: Set Qt env
         run: |
-          echo "QT_DIR=C:\Users\runneradmin\aqt\windows\desktop\5.15.2\msvc2019_64" >> $GITHUB_ENV
+          echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
+
