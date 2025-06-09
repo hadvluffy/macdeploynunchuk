@@ -38,6 +38,7 @@ jobs:
       - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
           aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt --archives
+          Write-Host "Qt installed at: $qtPath\windows\desktop\$qtVersion\msvc2019_64"
       
       - name: Print Qt installation path
         run: |
@@ -48,4 +49,46 @@ jobs:
       - name: Set Qt env
         run: |
           echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
+
+      - name: List installed Qt modules
+        shell: pwsh
+        run: |
+          $qtModulesPath = "C:\qt\windows\desktop\5.15.2\msvc2019_64\lib\cmake"
+          if (Test-Path $qtModulesPath) {
+            Write-Host "📦 Installed Qt Modules:"
+            Get-ChildItem $qtModulesPath | Select-Object -ExpandProperty Name
+          } else {
+            Write-Error "❌ Module path not found: $qtModulesPath"
+            exit 1
+          }
+          
+      - name: Setup Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/vcpkg
+          key: vcpkg-full-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-full-${{ runner.os }}-
+      - name: Set up vcpkg
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          echo "Checkout version eb492805e92a2c14a230f5c3deb3e89f6771c321"
+          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
+          .\bootstrap-vcpkg.bat
+      - name: Install dependencies with vcpkg
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        run: |
+          vcpkg\vcpkg.exe install boost:x64-windows `
+                                  zeromq:x64-windows `
+                                  libevent:x64-windows `
+                                  berkeleydb:x64-windows `
+                                  sqlite3:x64-windows `
+                                  sqlcipher:x64-windows
+                        
+          vcpkg\vcpkg.exe integrate install
+          vcpkg\vcpkg.exe list
 
