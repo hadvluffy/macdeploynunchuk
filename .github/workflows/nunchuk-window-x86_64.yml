@@ -26,49 +26,27 @@ jobs:
       - name: Setup CMake
         uses: lukka/get-cmake@latest
 
-      - name: Setup Cache vcpkg packages
-        uses: actions/cache@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          path: ${{ runner.workspace }}/vcpkg
-          key: vcpkg-full-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
-          restore-keys: |
-            vcpkg-full-${{ runner.os }}-
+          python-version: '3.11'
 
-      - name: Set up vcpkg
-        working-directory: ${{ runner.workspace }}
-        shell: pwsh
+      - name: Install aqtinstall
         run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          echo "Checkout version eb492805e92a2c14a230f5c3deb3e89f6771c321"
-          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
-          .\bootstrap-vcpkg.bat
-
-      - name: Install dependencies with vcpkg
-        working-directory: ${{ runner.workspace }}
-        shell: pwsh
+          pip install aqtinstall
+  
+      - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
-          vcpkg\vcpkg.exe install boost:x64-windows `
-                                  zeromq:x64-windows `
-                                  libevent:x64-windows `
-                                  berkeleydb:x64-windows `
-                                  sqlite3:x64-windows `
-                                  sqlcipher:x64-windows `
-                                  qt5:x64-windows `
-                                  qt5-graphicaleffects:x64-windows `
-                                  qt5-quickcontrols:x64-windows `
-                                  qtKeychain:x64-windows `
-                                  qt5-webengine:x64-windows
-                        
-          vcpkg\vcpkg.exe integrate install
-          vcpkg\vcpkg.exe list
-          
-      - name: Checkout Olm
-        working-directory: ${{ runner.workspace }}
-        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
-
-      - name: Build Olm
-        working-directory: ${{ runner.workspace }}/Olm
+          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --archives -m qtcharts qtwebengine
+  
+      - name: Print Qt installation path
         run: |
-          cmake . -B build
-          cmake --build build --config Release
+          $qtPath = "C:\Users\runneradmin\aqt\windows\desktop\5.15.2\msvc2019_64"
+          echo "Qt installed at: $qtPath"
+          dir $qtPath
+          echo "Listing Qt bin:"
+          dir "$qtPath\bin"
+  
+      - name: Set Qt env
+        run: |
+          echo "QT_DIR=C:\Users\runneradmin\aqt\windows\desktop\5.15.2\msvc2019_64" >> $GITHUB_ENV
