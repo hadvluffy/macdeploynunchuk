@@ -37,6 +37,7 @@ jobs:
   
       - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
+          aqt list-qt windows desktop 5.15.2 --modules
           aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt --archives
           Write-Host "Qt installed at: $qtPath\windows\desktop\$qtVersion\msvc2019_64"
       
