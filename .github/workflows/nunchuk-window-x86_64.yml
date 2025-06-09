@@ -65,3 +65,52 @@ jobs:
       - name: Set Qt env
         run: |
           echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
+
+      - name: Setup Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.workspace }}/vcpkg
+            ${{ runner.workspace }}/vcpkg/installed
+          key: vcpkg-full-${{ runner.os }}-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-full-${{ runner.os }}-
+
+      - name: Set up vcpkg
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          echo "Checkout version eb492805e92a2c14a230f5c3deb3e89f6771c321"
+          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
+          .\bootstrap-vcpkg.bat
+          
+      - name: Install dependencies with vcpkg
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        run: |
+          vcpkg\vcpkg.exe install boost:x64-windows `
+                                  zeromq:x64-windows `
+                                  libevent:x64-windows `
+                                  berkeleydb:x64-windows `
+                                  sqlite3:x64-windows `
+                                  sqlcipher:x64-windows
+                        
+          vcpkg\vcpkg.exe integrate install
+          vcpkg\vcpkg.exe list
+
+      - name: Checkout Olm
+        working-directory: ${{ runner.workspace }}
+        run: git clone https://gitlab.matrix.org/matrix-org/olm.git
+      
+      - name: Check files in Olm
+        working-directory: ${{ runner.workspace }}/Olm
+        run: ls -l
+      
+      - name: Build Olm
+        working-directory: ${{ runner.workspace }}/Olm
+        run: |
+          rm -rf build
+          cmake . -B build
+          cmake --build build --config Release
