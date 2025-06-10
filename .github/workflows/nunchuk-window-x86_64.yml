@@ -181,9 +181,7 @@ jobs:
       - name: Build nunchuk-qt
         shell: pwsh
         env:
-          qtDir: C:\Qt\5.15.2\msvc2019_64\lib\cmake\Qt5
           toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
-          qtkeychain_path: C:\qtkeychainInstalled
           project_path: ${{ runner.workspace }}\nunchuk-qt
           build_mode: Release
         run: |
@@ -194,8 +192,7 @@ jobs:
               "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
               "-DVCPKG_TARGET_TRIPLET=x64-windows",
               "-DUR__DISABLE_TESTS=ON",
-              "-DQt5_DIR=$env:qtDir",
-              "-DCMAKE_PREFIX_PATH=$env:qtkeychain_path"
+              "-DCMAKE_PREFIX_PATH="${{ env.QTKEYCHAIN_PATH }};${{ env.QT_DIR }}"
           )
           Write-Host "--------> cmake $($cmakeConfigureCmd -join ' ')"
           cmake @cmakeConfigureCmd
