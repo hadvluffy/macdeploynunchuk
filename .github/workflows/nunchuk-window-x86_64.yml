@@ -123,3 +123,23 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
+          
+      - name: Checkout QtKeychain
+        working-directory: ${{ runner.workspace }}
+        run: |
+          git clone https://github.com/frankosterfeld/qtkeychain.git
+      
+      - name: Build QtKeychain
+        working-directory: ${{ runner.workspace }}/qtkeychain
+        run: |
+          cmake -B build -S . `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DCMAKE_INSTALL_PREFIX="C:/qtkeychainInstalled" `
+            -DQt5_DIR="C:/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5"
+            
+          cmake --build build --config Release
+          cmake --install build --config Release
+
+
