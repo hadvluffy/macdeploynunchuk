@@ -104,13 +104,8 @@ jobs:
         working-directory: ${{ runner.workspace }}
         run: git clone https://gitlab.matrix.org/matrix-org/olm.git
       
-      - name: Check files in Olm
-        working-directory: ${{ runner.workspace }}/Olm
-        run: ls -l
-      
       - name: Build Olm
-        working-directory: ${{ runner.workspace }}/Olm
+        working-directory: ${{ runner.workspace }}/olm
         run: |
-          rm -rf build
-          cmake . -B build
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
