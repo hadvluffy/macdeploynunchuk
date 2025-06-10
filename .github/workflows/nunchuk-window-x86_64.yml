@@ -75,11 +75,8 @@ jobs:
           echo "Qt installed at: C:\qt\5.15.2\msvc2019_64"
           dir C:\qt\5.15.2\msvc2019_64
           dir C:\qt\5.15.2\msvc2019_64\bin
-      
-      - name: Set Qt env
-        run: |
           echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
-
+      
       - name: Setup Cache vcpkg packages
         uses: actions/cache@v4
         with:
@@ -137,10 +134,11 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
             -DCMAKE_INSTALL_PREFIX="C:/qtkeychainInstalled" `
-            -DQt5_DIR="C:/Qt/5.15.2/msvc2019_64/lib/cmake/Qt5"
+            -DQt5_DIR="C:\Qt\5.15.2\msvc2019_64\lib\cmake\Qt5"
             
           cmake --build build --config Release
           cmake --install build --config Release
+          echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $GITHUB_ENV
           
       - name: Checkout nunchuk-qt
         working-directory: ${{runner.workspace}}
