@@ -146,33 +146,40 @@ jobs:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         shell: pwsh
         run: |
+          # Tạo ~/.netrc
           $netrcContent = "machine gitlab.com`n  login hadvluffy`n  password $env:GITLAB_PASS"
           $netrcPath = "$env:USERPROFILE\.netrc"
           $netrcContent | Out-File -FilePath $netrcPath -Encoding ASCII
-
-          TARGET_BRANCH="fixbug"
-          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+      
+          # Set biến môi trường
+          $env:TARGET_BRANCH = "fixbug"
+          echo "BUILD_BRANCH=$env:TARGET_BRANCH" >> $env:GITHUB_ENV
+      
           echo "Cloning fresh repository"
-          rm -rf nunchuk-qt
-          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
-          cd nunchuk-qt
+          if (Test-Path "nunchuk-qt") { Remove-Item -Recurse -Force "nunchuk-qt" }
+          git clone -b $env:TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          Set-Location nunchuk-qt
           git fetch --all --tags --force
           git submodule sync --recursive
           git submodule update --init --recursive
-          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
-          echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
-          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
-          echo "Current commit: $CURRENT_COMMIT"
-          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
-          
+      
+          $lastCommit = git rev-parse HEAD
+          echo "Latest commit ----->>>>> $lastCommit"
+          echo "LAST_COMMITID=$lastCommit" >> $env:GITHUB_ENV
+      
+          $latestTag = git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | Select-Object -First 1
+          $currentCommit = git rev-parse HEAD
+          $taggedCommit = git rev-list -n 1 $latestTag
+          echo "Latest tag found: $latestTag (commit $taggedCommit)"
+          echo "Current commit: $currentCommit"
+          echo "LATEST_VERSION=$latestTag" >> $env:GITHUB_ENV
+      
       - name: Generate build timestamp
+        shell: pwsh
         run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          echo "Timestamp: $TIMESTAMP"
-          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          $timestamp = Get-Date -Format "yyyyMMddHHmmss"
+          echo "Timestamp: $timestamp"
+          echo "TIMESTAMP=$timestamp" >> $env:GITHUB_ENV
 
       - name: Check environment variants
         id: set-timestamp
