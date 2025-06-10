@@ -141,11 +141,15 @@ jobs:
           echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $GITHUB_ENV
           
       - name: Checkout nunchuk-qt
-        working-directory: ${{runner.workspace}}
+        working-directory: ${{ runner.workspace }}
         env:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        shell: pwsh
         run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          $netrcContent = "machine gitlab.com`n  login hadvluffy`n  password $env:GITLAB_PASS"
+          $netrcPath = "$env:USERPROFILE\.netrc"
+          $netrcContent | Out-File -FilePath $netrcPath -Encoding ASCII
+
           TARGET_BRANCH="fixbug"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
           echo "Cloning fresh repository"
