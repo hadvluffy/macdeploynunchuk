@@ -141,5 +141,74 @@ jobs:
             
           cmake --build build --config Release
           cmake --install build --config Release
+          
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          TARGET_BRANCH="fixbug"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "Cloning fresh repository"
+          rm -rf nunchuk-qt
+          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
+          git fetch --all --tags --force
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
+          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
+          echo "Current commit: $CURRENT_COMMIT"
+          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
+          
+      - name: Generate build timestamp
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "Timestamp: $TIMESTAMP"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
-
+      - name: Check environment variants
+        id: set-timestamp
+        run: |
+          echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
+          echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
+          echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
+          
+      - name: Build nunchuk-qt
+        shell: pwsh
+        env:
+          qtDir: C:\Qt\5.15.2\msvc2019_64\lib\cmake\Qt5
+          toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
+          qtkeychain_path: C:\qtkeychainInstalled
+          project_path: ${{ runner.workspace }}\nunchuk-qt
+          build_mode: Release
+        run: |
+          $cmakeConfigureCmd = @(
+              "-B", "build",
+              "-S", "$env:project_path",
+              "-DCMAKE_BUILD_TYPE=$env:build_mode",
+              "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
+              "-DVCPKG_TARGET_TRIPLET=x64-windows",
+              "-DUR__DISABLE_TESTS=ON",
+              "-DQt5_DIR=$env:qtDir",
+              "-DCMAKE_PREFIX_PATH=$env:qtkeychain_path"
+          )
+          Write-Host "--------> cmake $($cmakeConfigureCmd -join ' ')"
+          cmake @cmakeConfigureCmd
+          
+          $cmakeBuildCmd = @(
+              "--build", 
+              "build", 
+              "--config", 
+              "$env:build_mode", 
+              "--",
+              "/m:$env:NUMBER_OF_PROCESSORS"
+          )
+          Write-Host "--------> cmake $($cmakeBuildCmd -join ' ')"
+          cmake @cmakeBuildCmd
