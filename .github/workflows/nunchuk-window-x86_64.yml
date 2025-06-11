@@ -205,7 +205,6 @@ jobs:
               "-DUR__DISABLE_TESTS=ON",
               "-DCMAKE_PREFIX_PATH="${{ env.QTKEYCHAIN_PATH }};${{ env.QT_DIR }}"
           )
-          echo "[INFO] cmake $($cmakeConfigureCmd -join ' ')"
           cmake @cmakeConfigureCmd
           
           $cmakeBuildCmd = @(
@@ -216,5 +215,4 @@ jobs:
               "--",
               "/m:$env:NUMBER_OF_PROCESSORS"
           )
-          echo "[INFO] cmake $($cmakeBuildCmd -join ' ')"
           cmake @cmakeBuildCmd
