@@ -189,7 +189,7 @@ jobs:
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
           
-      - name: Build nunchuk-qt
+      - name: Configuration nunchuk-qt
         shell: pwsh
         env:
           toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
@@ -209,11 +209,15 @@ jobs:
             "-DVCPKG_TARGET_TRIPLET=x64-windows",
             "-DUR__DISABLE_TESTS=ON",
             "-DQt5_DIR=C:\qt\5.15.2\msvc2019_64\lib\cmake\Qt5",
-            "-DCMAKE_PREFIX_PATH=C:\qtkeychainInstalled",
-            "-DCMAKE_CXX_FLAGS=-DBOOST_ASIO_NO_DEPRECATED=0"
+            "-DCMAKE_PREFIX_PATH=C:\qtkeychainInstalled"
           )
           cmake @cmakeConfigureCmd
-      
+          
+      - name: Configuration nunchuk-qt
+        shell: pwsh
+        env:
+          build_mode: Release
+        run: |
           $cmakeBuildCmd = @(
             "--build", 
             "build", 
