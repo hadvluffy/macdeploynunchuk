@@ -197,7 +197,10 @@ jobs:
           build_mode: Release
         run: |
           $qtDir = ${{ env.QT_DIR }}
-          $qtKeychain = ${{ env.QTKEYCHAIN_PATH }}          
+          $qtKeychain = ${{ env.QTKEYCHAIN_PATH }}
+          echo "Qt path :>>> $qtDir"
+          echo "Qt keychain path :>>> $qtKeychain"
+          
           $cmakeConfigureCmd = @(
             "-B", "build",
             "-S", "$env:project_path",
@@ -205,7 +208,7 @@ jobs:
             "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
             "-DVCPKG_TARGET_TRIPLET=x64-windows",
             "-DUR__DISABLE_TESTS=ON",
-            "-DQt5_DIR=$qtDir\lib\cmake\Qt5",
+            "-DQt5_DIR=C:\qt\5.15.2\msvc2019_64\lib\cmake\Qt5",
             "-DCMAKE_PREFIX_PATH=$qtKeychain"
           )
           cmake @cmakeConfigureCmd
