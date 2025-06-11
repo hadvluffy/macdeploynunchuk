@@ -213,6 +213,6 @@ jobs:
               "--config", 
               "$env:build_mode", 
               "--",
-              "/m:$env:NUMBER_OF_PROCESSORS"
+              "/m:4"
           )
           cmake @cmakeBuildCmd
