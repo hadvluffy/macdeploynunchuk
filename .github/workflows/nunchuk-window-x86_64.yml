@@ -209,7 +209,8 @@ jobs:
             "-DVCPKG_TARGET_TRIPLET=x64-windows",
             "-DUR__DISABLE_TESTS=ON",
             "-DQt5_DIR=C:\qt\5.15.2\msvc2019_64\lib\cmake\Qt5",
-            "-DCMAKE_PREFIX_PATH=C:\qtkeychainInstalled"
+            "-DCMAKE_PREFIX_PATH=C:\qtkeychainInstalled",
+            "-DCMAKE_CXX_FLAGS=-DBOOST_ASIO_NO_DEPRECATED=0"
           )
           cmake @cmakeConfigureCmd
       
