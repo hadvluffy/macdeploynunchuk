@@ -196,8 +196,8 @@ jobs:
           project_path: ${{ runner.workspace }}\nunchuk-qt
           build_mode: Release
         run: |
-          $qtDir = ${{ secrets.QT_DIR }}
-          $qtKeychain = ${{ secrets.QTKEYCHAIN_PATH }}          
+          $qtDir = ${{ env.QT_DIR }}
+          $qtKeychain = ${{ env.QTKEYCHAIN_PATH }}          
           $cmakeConfigureCmd = @(
             "-B", "build",
             "-S", "$env:project_path",
