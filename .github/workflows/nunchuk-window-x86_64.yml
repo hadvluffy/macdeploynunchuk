@@ -199,8 +199,10 @@ jobs:
           $toolchainFile = $env:toolchainFile
           $projectPath = $env:project_path
           $buildMode = $env:build_mode
-          $prefixPath = "${{ env.QTKEYCHAIN_PATH }};${{ env.QT_DIR }}"
-      
+          $qtPrefix = "${{ env.QT_DIR }}"  # vd: C:\Qt\5.15.2\msvc2019_64
+          $qtKeychainPath = "${{ env.QTKEYCHAIN_PATH }}"
+          $prefixPath = "$qtPrefix;$qtKeychainPath"
+
           echo "Configuring project..."
           cmake -B build -S "$projectPath" `
             -DCMAKE_BUILD_TYPE=$buildMode `
