@@ -196,23 +196,14 @@ jobs:
           project_path: ${{ runner.workspace }}\nunchuk-qt
           build_mode: Release
         run: |
-          $cmakeConfigureCmd = @(
-              "-B", "build",
-              "-S", "$env:project_path",
-              "-DCMAKE_BUILD_TYPE=$env:build_mode",
-              "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
-              "-DVCPKG_TARGET_TRIPLET=x64-windows",
-              "-DUR__DISABLE_TESTS=ON",
-              "-DCMAKE_PREFIX_PATH="${{ env.QTKEYCHAIN_PATH }};${{ env.QT_DIR }}"
-          )
-          cmake @cmakeConfigureCmd
-          
-          $cmakeBuildCmd = @(
-              "--build", 
-              "build", 
-              "--config", 
-              "$env:build_mode", 
-              "--",
-              "/m:4"
-          )
-          cmake @cmakeBuildCmd
+          echo "Configuring project..."
+          cmake -B build -S "$env:project_path" `
+            -DCMAKE_BUILD_TYPE=$env:build_mode `
+            -DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DUR__DISABLE_TESTS=ON `
+            -DCMAKE_PREFIX_PATH="${{ env.QTKEYCHAIN_PATH }};${{ env.QT_DIR }}"
+      
+          echo "Building project..."
+          cmake --build build --config $env:build_mode -- /m:4
+
