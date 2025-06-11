@@ -195,12 +195,9 @@ jobs:
           toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
           project_path: ${{ runner.workspace }}\nunchuk-qt
           build_mode: Release
-          QT_DIR: C:\Qt\5.15.2\msvc2019_64  # ví dụ
-          QTKEYCHAIN_PATH: C:\path\to\qtkeychain
         run: |
-          $qtDir = $env:QT_DIR
-          $qtKeychain = $env:QTKEYCHAIN_PATH
-      
+          $qtDir = ${{ secrets.QT_DIR }}
+          $qtKeychain = ${{ secrets.QTKEYCHAIN_PATH }}          
           $cmakeConfigureCmd = @(
             "-B", "build",
             "-S", "$env:project_path",
