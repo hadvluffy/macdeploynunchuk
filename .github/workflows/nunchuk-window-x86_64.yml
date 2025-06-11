@@ -195,23 +195,33 @@ jobs:
           toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
           project_path: ${{ runner.workspace }}\nunchuk-qt
           build_mode: Release
+          QT_DIR: C:\Qt\5.15.2\msvc2019_64  # ví dụ
+          QTKEYCHAIN_PATH: C:\path\to\qtkeychain
         run: |
-          $toolchainFile = $env:toolchainFile
-          $projectPath = $env:project_path
-          $buildMode = $env:build_mode
-          $qtPrefix = "${{ env.QT_DIR }}"  # vd: C:\Qt\5.15.2\msvc2019_64
-          $qtKeychainPath = "${{ env.QTKEYCHAIN_PATH }}"
-          $prefixPath = "$qtPrefix;$qtKeychainPath"
-
-          echo "Configuring project..."
-          cmake -B build -S "$projectPath" `
-            -DCMAKE_BUILD_TYPE=$buildMode `
-            -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows `
-            -DUR__DISABLE_TESTS=ON `
-            -DCMAKE_PREFIX_PATH="$prefixPath"
+          $qtDir = $env:QT_DIR
+          $qtKeychain = $env:QTKEYCHAIN_PATH
       
-          echo "Building project..."
-          cmake --build build --config $buildMode -- /m:4
+          $cmakeConfigureCmd = @(
+            "-B", "build",
+            "-S", "$env:project_path",
+            "-DCMAKE_BUILD_TYPE=$env:build_mode",
+            "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
+            "-DVCPKG_TARGET_TRIPLET=x64-windows",
+            "-DUR__DISABLE_TESTS=ON",
+            "-DQt5_DIR=$qtDir\lib\cmake\Qt5",
+            "-DCMAKE_PREFIX_PATH=$qtKeychain"
+          )
+          cmake @cmakeConfigureCmd
+      
+          $cmakeBuildCmd = @(
+            "--build", 
+            "build", 
+            "--config", 
+            "$env:build_mode", 
+            "--", 
+            "/m:4"
+          )
+          cmake @cmakeBuildCmd
+
 
 
