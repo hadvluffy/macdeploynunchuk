@@ -93,8 +93,8 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg.git
           cd vcpkg
-          echo "Checkout version eb492805e92a2c14a230f5c3deb3e89f6771c321"
-          git checkout eb492805e92a2c14a230f5c3deb3e89f6771c321
+          echo "Checkout version f523208df4ae467436dc2d2eeab594fed240d552"
+          git checkout f523208df4ae467436dc2d2eeab594fed240d552
           .\bootstrap-vcpkg.bat
           
       - name: Install dependencies with vcpkg
