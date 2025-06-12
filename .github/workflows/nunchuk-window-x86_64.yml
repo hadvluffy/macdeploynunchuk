@@ -213,7 +213,7 @@ jobs:
           )
           cmake @cmakeConfigureCmd
           
-      - name: Configuration nunchuk-qt
+      - name: Build nunchuk-qt
         shell: pwsh
         env:
           build_mode: Release
