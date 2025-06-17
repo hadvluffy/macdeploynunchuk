@@ -181,7 +181,7 @@ jobs:
       
           # Run CMake configuration
           cmake .. \
-                -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+                -DCMAKE_BUILD_TYPE=Release \
                 -DUR__DISABLE_TESTS=ON \
                 -DRANDLIB=$(which gcc-randlib-14) \
                 -DAR=$(which gcc-ar-14) \
