@@ -41,7 +41,15 @@ jobs:
         run: |
           QT_VERSION=5.15.5
           QT_INSTALL_DIR=$HOME/Qt
-          aqt install-qt linux desktop ${QT_VERSION} gcc_64 --archives --outputdir "$QT_INSTALL_DIR" --allmodules
+          aqt install-qt linux desktop $QT_VERSION gcc_64 --archives \
+                                                          --outputdir "$QT_INSTALL_DIR" \
+                                                          --modules qtdeclarative \
+                                                                    qtquickcontrols2 \
+                                                                    qtmultimedia \
+                                                                    qttools \
+                                                                    qtwebengine \
+                                                                    qtsvg \
+                                                                    qtnetworkauth
           
           echo "Qt installed at: $QT_INSTALL_DIR/$QT_VERSION/gcc_64"
           ls "$QT_INSTALL_DIR/$QT_VERSION/gcc_64/bin"
