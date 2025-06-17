@@ -42,7 +42,7 @@ jobs:
           aqt list-qt linux desktop
           QT_VERSION=5.15.2
           QT_INSTALL_DIR=$HOME/Qt
-          echo "aqt list-qt linux desktop 5.15.2 --modules gcc_64"
+          echo "aqt list-qt linux desktop --modules 5.15.2 gcc_64"
           aqt list-qt linux desktop 5.15.2 --modules gcc_64
           aqt install-qt linux desktop $QT_VERSION gcc_64 --archives \
                                                           --outputdir "$QT_INSTALL_DIR" \
