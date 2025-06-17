@@ -16,6 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
+          sudo apt upgrade
           sudo apt install -y cmake \
                               g++ \
                               make \
@@ -26,23 +27,25 @@ jobs:
                               libdb++-dev \
                               sqlite3 \
                               libsqlite3-dev \
-                              qtbase5-dev \
-                              qtdeclarative5-dev \
-                              qtquickcontrols2-5-dev \
-                              qtmultimedia5-dev \
-                              qttools5-dev \
-                              qttools5-dev-tools \
-                              qt5-qmake \
-                              qtwebengine5-dev \
-                              qtwebengine5-dev-tools \
-                              qtchooser \
-                              libqt5svg5-dev \
-                              libqt5networkauth5-dev \
                               libsecret-1-dev \
                               git \
                               dpkg-dev \
+                              python3-pip \
                               fuse
-                              
+      
+      - name: Install aqtinstall
+        run: |
+          pip install aqtinstall
+          
+      - name: Install Qt 5.15.2
+        run: |
+          QT_VERSION=5.15.5
+          QT_INSTALL_DIR=$HOME/Qt
+          aqt install-qt linux desktop ${QT_VERSION} gcc_64 --archives --outputdir "$QT_INSTALL_DIR" --allmodules
+          
+          echo "Qt installed at: $QT_INSTALL_DIR/$QT_VERSION/gcc_64"
+          ls "$QT_INSTALL_DIR/$QT_VERSION/gcc_64/bin"
+
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
