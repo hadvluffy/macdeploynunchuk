@@ -39,6 +39,7 @@ jobs:
           
       - name: Install Qt 5.15.2
         run: |
+          aqt list-qt linux desktop
           QT_VERSION=5.15.5
           QT_INSTALL_DIR=$HOME/Qt
           aqt install-qt linux desktop $QT_VERSION gcc_64 --archives \
