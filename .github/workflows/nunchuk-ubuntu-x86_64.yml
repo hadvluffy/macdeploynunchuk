@@ -46,14 +46,21 @@ jobs:
           aqt list-qt linux desktop --modules 5.15.2 gcc_64
           aqt install-qt linux desktop $QT_VERSION gcc_64 --archives \
                                                           --outputdir "$QT_INSTALL_DIR" \
-                                                          --modules qtdeclarative \
-                                                                    qtquickcontrols2 \
+                                                          --modules qtcharts \
+                                                                    qtdatavis3d \
                                                                     qtmultimedia \
-                                                                    qttools \
+                                                                    qtlottie \
+                                                                    qtnetworkauth \
+                                                                    qtpurchasing \
+                                                                    qtquick3d \
+                                                                    qtquicktimeline \
+                                                                    qtscript \
+                                                                    qtvirtualkeyboard \
+                                                                    qtwaylandcompositor \
                                                                     qtwebengine \
-                                                                    qtsvg \
-                                                                    qtnetworkauth
-          
+                                                                    qtwebglplugin \
+                                                                    debug_info            
+                                                                    
           echo "Qt installed at: $QT_INSTALL_DIR/$QT_VERSION/gcc_64"
           ls "$QT_INSTALL_DIR/$QT_VERSION/gcc_64/bin"
 
