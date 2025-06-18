@@ -68,6 +68,7 @@ jobs:
           
           echo "Exporting Qt5_DIR for CMake..."
           echo "QT5_DIR=$QT_INSTALL_DIR/$QT_VERSION/gcc_64/lib/cmake/Qt5" >> $GITHUB_ENV
+          echo "QT_INSTALLED_PREFIX=$QT_INSTALL_DIR/$QT_VERSION/gcc_64" >> $GITHUB_ENV
 
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
@@ -216,7 +217,7 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-                -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR" \
+                -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR;$QT_INSTALLED_PREFIX" \
                 -DQt5_DIR=${{ env.QT5_DIR }}
           make -j$(nproc)
           
