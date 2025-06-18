@@ -47,7 +47,7 @@ jobs:
           QT_INSTALL_DIR=$HOME/Qt
           echo "aqt list-qt linux desktop --modules 5.15.2 gcc_64"
           aqt list-qt linux desktop --modules 5.15.2 gcc_64
-          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir "$QT_INSTALL_DIR" --archives
+          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir "$QT_INSTALL_DIR"
           aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir "$QT_INSTALL_DIR" \
                                                           --modules qtcharts \
                                                                     qtdatavis3d \
