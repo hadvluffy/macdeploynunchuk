@@ -44,8 +44,8 @@ jobs:
           QT_INSTALL_DIR=$HOME/Qt
           echo "aqt list-qt linux desktop --modules 5.15.2 gcc_64"
           aqt list-qt linux desktop --modules 5.15.2 gcc_64
-          aqt install-qt linux desktop $QT_VERSION gcc_64 --archives \
-                                                          --outputdir "$QT_INSTALL_DIR" \
+          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir "$QT_INSTALL_DIR" --archives
+          aqt install-qt linux desktop $QT_VERSION gcc_64 --outputdir "$QT_INSTALL_DIR" \
                                                           --modules qtcharts \
                                                                     qtdatavis3d \
                                                                     qtlottie \
@@ -60,7 +60,9 @@ jobs:
                                                                     qtwebglplugin \
                                                                     debug_info            
                                                                     
-          echo "Qt installed at: $QT_INSTALL_DIR/$QT_VERSION/gcc_64"
+          echo "ls $QT_INSTALL_DIR/5.15.2/gcc_64/lib/cmake/"
+          ls $QT_INSTALL_DIR/5.15.2/gcc_64/lib/cmake/
+          
           echo "Exporting Qt5_DIR for CMake..."
           echo "QT5_DIR=$QT_INSTALL_DIR/$QT_VERSION/gcc_64/lib/cmake/Qt5" >> $GITHUB_ENV
 
