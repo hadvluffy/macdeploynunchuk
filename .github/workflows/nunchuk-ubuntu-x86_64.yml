@@ -48,7 +48,6 @@ jobs:
                                                           --outputdir "$QT_INSTALL_DIR" \
                                                           --modules qtcharts \
                                                                     qtdatavis3d \
-                                                                    qtmultimedia \
                                                                     qtlottie \
                                                                     qtnetworkauth \
                                                                     qtpurchasing \
