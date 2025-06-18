@@ -61,7 +61,8 @@ jobs:
                                                                     debug_info            
                                                                     
           echo "Qt installed at: $QT_INSTALL_DIR/$QT_VERSION/gcc_64"
-          ls "$QT_INSTALL_DIR/$QT_VERSION/gcc_64/bin"
+          echo "Exporting Qt5_DIR for CMake..."
+          echo "QT5_DIR=$QT_INSTALL_DIR/$QT_VERSION/gcc_64/lib/cmake/Qt5" >> $GITHUB_ENV
 
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
@@ -71,7 +72,7 @@ jobs:
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           rm -rf build
           mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DQt5_DIR=${{ env.QT5_DIR }}
           make -j$(nproc)
           sudo make install
           sudo ldconfig
