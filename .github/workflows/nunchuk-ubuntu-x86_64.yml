@@ -70,6 +70,7 @@ jobs:
           git clone https://github.com/frankosterfeld/qtkeychain.git
           cd qtkeychain
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "Qt5 DIR ----->>>>> ${{ env.QT5_DIR }}"
           rm -rf build
           mkdir build && cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DQt5_DIR=${{ env.QT5_DIR }}
