@@ -31,7 +31,10 @@ jobs:
                               git \
                               dpkg-dev \
                               python3-pip \
-                              fuse
+                              fuse \
+                              libgl-dev \
+                              libglu-dev \
+                              mesa-common-dev
       
       - name: Install aqtinstall
         run: |
