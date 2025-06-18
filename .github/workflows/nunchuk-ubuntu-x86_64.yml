@@ -218,7 +218,7 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
-                -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR;$QT_INSTALLED_PREFIX" \
+                -DCMAKE_PREFIX_PATH="$OPENSSL_ROOT_DIR;${{ env.QT_INSTALLED_PREFIX }}" \
                 -DQt5_DIR=${{ env.QT5_DIR }}
           make -j$(nproc)
           
@@ -230,7 +230,7 @@ jobs:
           mkdir -p $OUTPUT_DIR
           
           cqtdeployer -bin $EXECUTION_PATH \
-                      -qmake /usr/lib/qt5/bin/qmake \
+                      -qmake "${{ env.QT_INSTALLED_PREFIX }}/bin/qmake" \
                       -qmlDir nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
                       -noTranslation true \
