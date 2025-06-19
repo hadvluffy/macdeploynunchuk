@@ -12,6 +12,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        
+      - name: Download logo
+        working-directory: ${{runner.workspace}}
+        run: |
+          curl -L -o nunchuk-qt.png https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+          ls -l
                     
       - name: Install dependencies
         run: |
@@ -225,6 +231,8 @@ jobs:
           
       - name: Deploy nunchuk-qt
         working-directory: ${{ runner.workspace }}
+        env:
+          NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir"
           EXECUTION_PATH="${{ runner.workspace }}/nunchuk-qt/build/nunchuk-qt"
@@ -234,13 +242,12 @@ jobs:
                       -qmake "${{ env.QT_INSTALLED_PREFIX }}/bin/qmake" \
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
+                      -icon $NUNCHUK_LOGO
                       noTranslation \
                       noStrip
       
       - name: Collect other dependences
         working-directory: ${{ runner.workspace }}
-      #  env:
-      #    NUNCHUK_LOGO: ${{runner.workspace}}/nunchuk-qt.png
         run: |
           OUTPUT_DIR="nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir"
           EXECUTION_PATH=$OUTPUT_DIR/bin/nunchuk-qt
@@ -266,14 +273,46 @@ jobs:
                 chmod 775 "$OUTPUT_DIR/lib/$(basename "$lib_ssl")"
             fi
           done
+
+          cp $(find ${{ env.QT_INSTALLED_PREFIX }} -name "libssl.so*" -o -name "libcrypto.so*") "$OUTPUT_DIR/lib"
           
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
+
+      - name: Download and install HWI
+        run: |
+          set -e
+          BINDIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin"
+          HWI_VERSION="3.1.0"
+          HWI_TAR="hwi-${HWI_VERSION}-linux-x86_64.tar.gz"
+          HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/${HWI_VERSION}/${HWI_TAR}"
+      
+          echo "Downloading HWI..."
+          wget -c "$HWI_URL" -O "$HWI_TAR"
+          echo "Extracting HWI..."
+          tar -xzf "$HWI_TAR"
+          echo "Copying HWI binary to $BINDIR..."
+          mkdir -p "$BINDIR"
+          cp "hwi-${HWI_VERSION}-linux-x86_64/hwi" "$BINDIR/"
+          chmod +x "$BINDIR/hwi"
+          echo "HWI installed to $BINDIR"
+          ls -l $BINDIR
           
       - name: Check linked libraries
         working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin
         run: |
           ldd ./nunchuk-qt
+      - name: Create .desktop file
+        working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}
+        run: |
+          cat <<EOF > Appdir/nunchuk.desktop
+          [Desktop Entry]
+          Type=Application
+          Name=Nunchuk
+          Exec=./nunchuk-qt.sh
+          Icon=nunchuk-qt.png
+          Categories=Utility;
+          EOF
           
       - name: Zip release package
         working-directory: ${{ runner.workspace }}
