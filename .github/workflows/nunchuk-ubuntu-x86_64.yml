@@ -35,7 +35,8 @@ jobs:
                               libgl-dev \
                               libglu-dev \
                               mesa-common-dev \
-                              libpulse-dev
+                              libpulse-dev \
+                              libxcb-xinerama0
       
       - name: Install aqtinstall
         run: |
