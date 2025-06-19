@@ -231,11 +231,10 @@ jobs:
           
           cqtdeployer -bin $EXECUTION_PATH \
                       -qmake "${{ env.QT_INSTALLED_PREFIX }}/bin/qmake" \
-                      -qmlDir nunchuk-qt \
+                      -qml nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
-                      -noTranslation true \
-                      -noSystemLibraries true \
-                      -noStrip true
+                      noTranslation \
+                      noStrip
       
       - name: Collect other dependences
         working-directory: ${{ runner.workspace }}
