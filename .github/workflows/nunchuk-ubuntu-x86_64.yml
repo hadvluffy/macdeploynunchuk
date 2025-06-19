@@ -232,7 +232,7 @@ jobs:
           
           cqtdeployer -bin $EXECUTION_PATH \
                       -qmake "${{ env.QT_INSTALLED_PREFIX }}/bin/qmake" \
-                      -qml nunchuk-qt \
+                      -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
                       noTranslation \
                       noStrip
