@@ -242,7 +242,7 @@ jobs:
                       -qmake "${{ env.QT_INSTALLED_PREFIX }}/bin/qmake" \
                       -qmlDir ${{ runner.workspace }}/nunchuk-qt \
                       -targetDir $OUTPUT_DIR \
-                      -icon $NUNCHUK_LOGO
+                      -icon $NUNCHUK_LOGO \
                       noTranslation \
                       noStrip
       
