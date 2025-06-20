@@ -274,8 +274,23 @@ jobs:
             fi
           done
 
-          cp $(find ${{ env.QT_INSTALLED_PREFIX }} -name "libssl.so*" -o -name "libcrypto.so*") "$OUTPUT_DIR/lib"
+          for lib in libcrypto libssl libmd4c libpcre2-16 libdouble-conversion; do
+              echo "🔍 Copying $lib..."
+              for f in "$QT_ROOT"/${lib}.so*; do
+                if [ -f "$f" ]; then
+                  echo "📄 Found $f"
+                  cp "$f" "$OUTPUT_DIR/"
+                  chmod 775 "$OUTPUT_DIR/$(basename "$f")"
+                else
+                  echo "⚠️ Not found: $f"
+                fi
+              done
+          done
           
+          for f in $(find ${{ env.QT_INSTALLED_PREFIX }} -name "libssl.so*" -o -name "libcrypto.so*"); do
+            cp "$f" "$OUTPUT_DIR/lib/"
+          done
+      
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
 
