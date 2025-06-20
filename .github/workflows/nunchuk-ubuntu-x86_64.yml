@@ -296,27 +296,33 @@ jobs:
 
       - name: Download and install HWI
         run: |
-          set -e
           BINDIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin"
-          HWI_VERSION="3.1.0"
-          HWI_TAR="hwi-${HWI_VERSION}-linux-x86_64.tar.gz"
-          HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/${HWI_VERSION}/${HWI_TAR}"
+          HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-linux-x86_64.tar.gz"
+          HWI_ARCHIVE="hwi.tar.gz"
       
-          echo "Downloading HWI..."
-          wget -c "$HWI_URL" -O "$HWI_TAR"
-          echo "Extracting HWI..."
-          tar -xzf "$HWI_TAR"
+          echo "Downloading HWI from $HWI_URL"
+          wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
+      
+          echo "Extracting HWI archive..."
+          mkdir -p hwi-extracted
+          tar -xzf "$HWI_ARCHIVE" -C hwi-extracted
+      
+          echo "Listing extracted files:"
+          ls -l hwi-extracted
+      
           echo "Copying HWI binary to $BINDIR..."
           mkdir -p "$BINDIR"
-          cp "hwi-${HWI_VERSION}-linux-x86_64/hwi" "$BINDIR/"
+          cp hwi-extracted/hwi "$BINDIR/"
           chmod +x "$BINDIR/hwi"
+      
           echo "HWI installed to $BINDIR"
-          ls -l $BINDIR
-          
+          ls -l "$BINDIR"
+
       - name: Check linked libraries
         working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin
         run: |
           ldd ./nunchuk-qt
+          
       - name: Create .desktop file
         working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}
         run: |
