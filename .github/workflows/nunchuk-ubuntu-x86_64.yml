@@ -42,7 +42,8 @@ jobs:
                               libglu-dev \
                               mesa-common-dev \
                               libpulse-dev \
-                              libxcb-xinerama0
+                              libxcb-xinerama0 \
+                              plocate
       
       - name: Install aqtinstall
         run: |
@@ -77,6 +78,11 @@ jobs:
           echo "Exporting Qt5_DIR for CMake..."
           echo "QT5_DIR=$QT_INSTALL_DIR/$QT_VERSION/gcc_64/lib/cmake/Qt5" >> $GITHUB_ENV
           echo "QT_INSTALLED_PREFIX=$QT_INSTALL_DIR/$QT_VERSION/gcc_64" >> $GITHUB_ENV
+
+          echo "Check SSL >>>> locate libssl "
+          locate libssl
+          echo "Check SSL >>>> locate libcrypto "
+          locate libcypto
 
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
@@ -278,7 +284,7 @@ jobs:
               echo "🔍 Copying $lib..."
               for f in "$QT_ROOT"/${lib}.so*; do
                 if [ -f "$f" ]; then
-                  echo "📄 Found $f"
+                  echo "Found $f"
                   cp "$f" "$OUTPUT_DIR/"
                   chmod 775 "$OUTPUT_DIR/$(basename "$f")"
                 else
@@ -288,6 +294,7 @@ jobs:
           done
           
           for f in $(find ${{ env.QT_INSTALLED_PREFIX }} -name "libssl.so*" -o -name "libcrypto.so*"); do
+            echo "Found -->>> $f"
             cp "$f" "$OUTPUT_DIR/lib/"
           done
       
