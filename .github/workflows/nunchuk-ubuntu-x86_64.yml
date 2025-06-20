@@ -42,8 +42,7 @@ jobs:
                               libglu-dev \
                               mesa-common-dev \
                               libpulse-dev \
-                              libxcb-xinerama0 \
-                              plocate
+                              libxcb-xinerama0
       
       - name: Install aqtinstall
         run: |
@@ -78,11 +77,6 @@ jobs:
           echo "Exporting Qt5_DIR for CMake..."
           echo "QT5_DIR=$QT_INSTALL_DIR/$QT_VERSION/gcc_64/lib/cmake/Qt5" >> $GITHUB_ENV
           echo "QT_INSTALLED_PREFIX=$QT_INSTALL_DIR/$QT_VERSION/gcc_64" >> $GITHUB_ENV
-
-          echo "Check SSL >>>> locate libssl "
-          locate libssl
-          echo "Check SSL >>>> locate libcrypto "
-          locate libcypto
 
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
@@ -300,6 +294,22 @@ jobs:
       
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
+          
+      - name: Find all libssl and libcrypto versions
+        run: |
+          echo "🔍 Searching for libssl and libcrypto..."
+          
+          echo "📂 From /usr/lib and subdirs:"
+          find /usr/lib /lib /lib64 /usr/local/lib -type f \( -name "libssl.so*" -o -name "libcrypto.so*" \) 2>/dev/null | while read f; do
+            echo "➡️ $f"
+            if file "$f" | grep -q ELF; then
+              echo "    └── $(basename "$f"): $(readelf -h "$f" | grep 'OS/ABI\|Type' || true)"
+            fi
+          done
+      
+          echo ""
+          echo "📂 From Qt installation (if present):"
+          find $HOME/Qt -type f \( -name "libssl.so*" -o -name "libcrypto.so*" \) 2>/dev/null || echo "No Qt-based libssl/libcrypto found"
 
       - name: Download and install HWI
         run: |
