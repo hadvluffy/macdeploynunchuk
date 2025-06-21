@@ -291,6 +291,9 @@ jobs:
             echo "Found -->>> $f"
             cp "$f" "$OUTPUT_DIR/lib/"
           done
+
+          echo "Find libssl libcryto"
+          sudo find / -type f \( -name "libssl*" -o -name "libcrypto*" \) 2>/dev/null
       
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
