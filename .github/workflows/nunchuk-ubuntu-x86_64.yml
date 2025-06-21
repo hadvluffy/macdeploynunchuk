@@ -196,7 +196,7 @@ jobs:
       - name: Configure and build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt
         env:
-          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/openssl-1.1.1g
+          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/openssl-1.1.1g/lib
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
@@ -268,7 +268,6 @@ jobs:
               fi
           done
 
-          #OPENSSL_LIB_DIR="${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib"
           OPENSSL_LIB_DIR="${{ runner.workspace }}/openssl-1.1.1g/lib/lib"
           ls -l "$OPENSSL_LIB_DIR"
           
@@ -278,19 +277,6 @@ jobs:
                 cp -L "$lib_ssl" "$OUTPUT_DIR/lib/"
                 chmod 775 "$OUTPUT_DIR/lib/$(basename "$lib_ssl")"
             fi
-          done
-
-          for lib in libmd4c libpcre2-16 libdouble-conversion; do
-              echo "🔍 Copying $lib..."
-              for f in "$QT_ROOT"/${lib}.so*; do
-                if [ -f "$f" ]; then
-                  echo "Found $f"
-                  cp "$f" "$OUTPUT_DIR/"
-                  chmod 775 "$OUTPUT_DIR/$(basename "$f")"
-                else
-                  echo "⚠️ Not found: $f"
-                fi
-              done
           done
       
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
