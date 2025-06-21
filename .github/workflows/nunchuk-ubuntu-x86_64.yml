@@ -43,16 +43,6 @@ jobs:
                               mesa-common-dev \
                               libpulse-dev \
                               libxcb-xinerama0
-
-      - name: Download and build OpenSSL 1.1.1g
-        working-directory: ${{ runner.workspace }}
-        run: |
-          wget https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1g/openssl-1.1.1g.tar.gz
-          tar xzf openssl-1.1.1g.tar.gz
-          cd openssl-1.1.1g
-          ./config --prefix="$PWD/lib"
-          make -j$(nproc)
-          make install_dev
       
       - name: Install aqtinstall
         run: |
@@ -146,6 +136,16 @@ jobs:
       
       - name: Verify G++ version
         run: g++ --version
+
+      - name: Download and build OpenSSL 1.1.1g
+        working-directory: ${{ runner.workspace }}
+        run: |
+          wget https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1g/openssl-1.1.1g.tar.gz
+          tar xzf openssl-1.1.1g.tar.gz
+          cd openssl-1.1.1g
+          ./config --prefix="$PWD/lib"
+          make -j$(nproc)
+          make install_dev
           
       - name: Cache nunchuk-qt source
         uses: actions/cache@v4
