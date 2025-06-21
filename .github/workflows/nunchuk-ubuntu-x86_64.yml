@@ -137,7 +137,7 @@ jobs:
       - name: Verify G++ version
         run: g++ --version
 
-      - name: Download and build OpenSSL 1.1.1g
+      - name: Install OpenSSL 1.1.1g
         working-directory: ${{ runner.workspace }}
         run: |
           wget https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1g/openssl-1.1.1g.tar.gz
@@ -275,7 +275,7 @@ jobs:
           done
 
           #OPENSSL_LIB_DIR="${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib"
-          OPENSSL_LIB_DIR="${{ runner.workspace }}/openssl-1.1.1g/lib"
+          OPENSSL_LIB_DIR="${{ runner.workspace }}/openssl-1.1.1g/lib/lib"
           ls -l "$OPENSSL_LIB_DIR"
           
           for lib_ssl in "$OPENSSL_LIB_DIR"/libssl.so* "$OPENSSL_LIB_DIR"/libcrypto.so*; do
@@ -286,7 +286,7 @@ jobs:
             fi
           done
 
-          for lib in libcrypto libssl libmd4c libpcre2-16 libdouble-conversion; do
+          for lib in libmd4c libpcre2-16 libdouble-conversion; do
               echo "🔍 Copying $lib..."
               for f in "$QT_ROOT"/${lib}.so*; do
                 if [ -f "$f" ]; then
@@ -302,22 +302,6 @@ jobs:
           patchelf --set-rpath '$ORIGIN/../lib' $OUTPUT_DIR/bin/nunchuk-qt
           echo "RPATH set to: $(patchelf --print-rpath $OUTPUT_DIR/bin/nunchuk-qt)"
           
-      - name: Find all libssl and libcrypto versions
-        run: |
-          echo "🔍 Searching for libssl and libcrypto..."
-          
-          echo "📂 From /usr/lib and subdirs:"
-          find /usr/lib /lib /lib64 /usr/local/lib -type f \( -name "libssl.so*" -o -name "libcrypto.so*" \) 2>/dev/null | while read f; do
-            echo "➡️ $f"
-            if file "$f" | grep -q ELF; then
-              echo "    └── $(basename "$f"): $(readelf -h "$f" | grep 'OS/ABI\|Type' || true)"
-            fi
-          done
-      
-          echo ""
-          echo "📂 From Qt installation (if present):"
-          find $HOME/Qt -type f \( -name "libssl.so*" -o -name "libcrypto.so*" \) 2>/dev/null || echo "No Qt-based libssl/libcrypto found"
-
       - name: Download and install HWI
         run: |
           BINDIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin"
