@@ -43,6 +43,16 @@ jobs:
                               mesa-common-dev \
                               libpulse-dev \
                               libxcb-xinerama0
+
+      - name: Download and build OpenSSL 1.1.1g
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib
+        run: |
+          wget https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1g/openssl-1.1.1g.tar.gz
+          tar xzf openssl-1.1.1g.tar.gz
+          cd openssl-1.1.1g
+          ./config --prefix="$PWD/lib"
+          make -j$(nproc)
+          make install_dev
       
       - name: Install aqtinstall
         run: |
@@ -183,22 +193,23 @@ jobs:
           echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
           echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
           
-      - name: Remove default openssl
-        run: |
-          sudo mv /usr/include/x86_64-linux-gnu/openssl /usr/include/x86_64-linux-gnu/openssl_bak
+      #- name: Remove default openssl
+      #  run: |
+      #    sudo mv /usr/include/x86_64-linux-gnu/openssl /usr/include/x86_64-linux-gnu/openssl_bak
           
-      - name: Build openssl
-        working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
-        run: |
-          source ~/.bashrc
-          ./config --prefix="$PWD/lib"
-          make -j$(nproc)
-          make install_dev
+      #- name: Build openssl
+      #  working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+      #  run: |
+      #    source ~/.bashrc
+      #    ./config --prefix="$PWD/lib"
+      #    make -j$(nproc)
+      #    make install_dev
           
       - name: Configure and build nunchuk-qt
         working-directory: ${{ runner.workspace }}/nunchuk-qt
         env:
-          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+          #OPENSSL_ROOT_DIR: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/openssl-1.1.1g
         run: |
           mkdir -p build
           cd build
