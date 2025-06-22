@@ -346,7 +346,7 @@ jobs:
       - name: Create AppImage file
         working-directory: ${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}
         run: |
-          APP_IMAGE_TOOL="${{ runner.workspace }}/appimagetool-x86_64.AppImage
+          APP_IMAGE_TOOL="${{ runner.workspace }}/appimagetool-x86_64.AppImage"
           ARCH=x86_64 "$APP_IMAGE_TOOL" Appdir "nunchuk-linux-v${{ env.LATEST_VERSION }}.AppImage"
 
       - name: Zip release package
