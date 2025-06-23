@@ -53,7 +53,7 @@ jobs:
         run: |
           aqt list-qt windows desktop --modules 5.15.2 win64_msvc2019_64
           aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt
-          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt -m 
+          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt -m `
                                                                                       qtcharts `
                                                                                       qtdatavis3d `
                                                                                       qtlottie `
