@@ -52,22 +52,22 @@ jobs:
       - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
           aqt list-qt windows desktop --modules 5.15.2 win64_msvc2019_64
-          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt --archives
-          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 `
-                      --outputdir C:\qt `
-                      -m `
-                      qtcharts `
-                      qtdatavis3d `
-                      qtlottie `
-                      qtnetworkauth `
-                      qtpurchasing `
-                      qtquick3d `
-                      qtquicktimeline `
-                      qtscript `
-                      qtvirtualkeyboard `
-                      qtwebengine `
-                      qtwebglplugin `
-                      debug_info
+          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt
+          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 --outputdir C:\qt `
+                                                                  -modules `
+                                                                  qtcharts `
+                                                                  qtdatavis3d `
+                                                                  qtlottie `
+                                                                  qtnetworkauth `
+                                                                  qtpurchasing `
+                                                                  qtquick3d `
+                                                                  qtquicktimeline `
+                                                                  qtscript `
+                                                                  qtvirtualkeyboard `
+                                                                  qtwebengine `
+                                                                  qtwebglplugin `
+                                                                  debug_info
+                                                                  
           Write-Host "Qt installed at: $qtPath\windows\desktop\$qtVersion\msvc2019_64"
       
       - name: Print Qt installation path
@@ -202,6 +202,8 @@ jobs:
           echo "Qt keychain path :>>> $qtKeychain"
           
           $cmakeConfigureCmd = @(
+            "-G", "Visual Studio 16 2019",
+            "-A", "x64",
             "-B", "build",
             "-S", "$env:project_path",
             "-DCMAKE_BUILD_TYPE=$env:build_mode",
