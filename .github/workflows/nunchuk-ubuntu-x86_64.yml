@@ -361,7 +361,7 @@ jobs:
       - name: Upload Nunchuk AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          name: nunchuk-linux-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
           path: "${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}.AppImage"
           
       - name: Upload Nunchuk Built
