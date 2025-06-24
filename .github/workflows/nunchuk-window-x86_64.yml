@@ -190,7 +190,7 @@ jobs:
       - name: Configuration nunchuk-qt
         shell: pwsh
         env:
-          toolchainFile: D:/a/macdeploynunchuk/vcpkg/scripts/buildsystems/vcpkg.cmake
+          toolchainFile: ${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
           project_path: ${{ runner.workspace }}/nunchuk-qt
           qt_installed: C:/qt/5.15.2/msvc2019_64/lib/cmake/Qt5
           qt_keychain_installed: C:/qtkeychainInstalled
