@@ -238,11 +238,11 @@ jobs:
         shell: pwsh
         env:
           project_path: ${{ runner.workspace }}/nunchuk-qt
-          nunchuk_qt_exe: build\Release\nunchuk-qt.exe
+          nunchuk_qt_exe: build/Release/nunchuk-qt.exe
           windeployqt_exe: C:/qt/5.15.2/msvc2019_64/bin/windeployqt.exe
         run: |
           $windeployqt = "$env:windeployqt_exe"
-          $nunchuk_qt = "$env:exenunchuk_qt_exe_path"
+          $nunchuk_qt = "$env:nunchuk_qt_exe"
       
           if (!(Test-Path $windeployqt)) {
             Write-Error "❌ windeployqt not found at $windeployqt"
