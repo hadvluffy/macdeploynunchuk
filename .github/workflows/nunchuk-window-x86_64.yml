@@ -249,8 +249,8 @@ jobs:
             exit 1
           }
       
-          if (!(Test-Path $exe)) {
-            Write-Error "❌ Executable not found at $exe"
+          if (!(Test-Path $nunchuk_qt)) {
+            Write-Error "❌ Executable not found at $nunchuk_qt"
             exit 1
           }
       
