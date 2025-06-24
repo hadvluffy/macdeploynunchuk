@@ -237,9 +237,9 @@ jobs:
         working-directory: ${{ runner.workspace }}
         shell: pwsh
         env:
-          project_path: ${{ runner.workspace }}/nunchuk-qt
-          nunchuk_qt_exe: ${{ runner.workspace }}/build/Release/nunchuk-qt.exe
-          windeployqt_exe: C:/qt/5.15.2/msvc2019_64/bin/windeployqt.exe
+          project_path: ${{ runner.workspace }}\nunchuk-qt
+          nunchuk_qt_exe: ${{ runner.workspace }}\build\Release\nunchuk-qt.exe
+          windeployqt_exe: C:\qt\5.15.2\msvc2019_64\bin\windeployqt.exe
         run: |
           $windeployqt = "$env:windeployqt_exe"
           $nunchuk_qt = "$env:nunchuk_qt_exe"
