@@ -233,5 +233,53 @@ jobs:
           )
           cmake @cmakeBuildCmd
 
+      - name: Deploy with windeployqt
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        env:
+          project_path: ${{ runner.workspace }}/nunchuk-qt
+          nunchuk_qt_exe: build\Release\nunchuk-qt.exe
+          windeployqt_exe: C:/qt/5.15.2/msvc2019_64/bin/windeployqt.exe
+        run: |
+          $windeployqt = "$env:windeployqt_exe"
+          $nunchuk_qt = "$env:exenunchuk_qt_exe_path"
+      
+          if (!(Test-Path $windeployqt)) {
+            Write-Error "❌ windeployqt not found at $windeployqt"
+            exit 1
+          }
+      
+          if (!(Test-Path $exe)) {
+            Write-Error "❌ Executable not found at $exe"
+            exit 1
+          }
+      
+          & $windeployqt `
+            "--release" `
+            "--no-translations" `
+            "--verbose=2" `
+            $nunchuk_qt `
+            "--qmldir" $env:project_path
+
+      - name: Zip deployed release folder
+        shell: pwsh
+        run: |
+          $src = "build\Release"
+          $dst = "nunchuk-qt-win.zip"
+          if (!(Test-Path $src)) {
+            Write-Error "❌ Cannot zip: Folder $src does not exist"
+            exit 1
+          }
+          Compress-Archive -Path "$src\*" -DestinationPath $dst -Force
+          Write-Host "✅ Zipped $src to $dst"
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-qt-win
+          path: nunchuk-qt-win.zip
+
+
+
 
 
