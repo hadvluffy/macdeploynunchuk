@@ -190,8 +190,10 @@ jobs:
       - name: Configuration nunchuk-qt
         shell: pwsh
         env:
-          toolchainFile: C:\a\macdeploynunchuk\vcpkg\scripts\buildsystems\vcpkg.cmake
-          project_path: ${{ runner.workspace }}\nunchuk-qt
+          toolchainFile: D:/a/macdeploynunchuk/vcpkg/scripts/buildsystems/vcpkg.cmake
+          project_path: ${{ runner.workspace }}/nunchuk-qt
+          qt_installed: C:/qt/5.15.2/msvc2019_64/lib/cmake/Qt5
+          qt_keychain_installed: C:/qtkeychainInstalled
           build_mode: Release
         run: |
           $qtDir = ${{ env.QT_DIR }}
@@ -207,8 +209,8 @@ jobs:
             "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
             "-DVCPKG_TARGET_TRIPLET=x64-windows",
             "-DUR__DISABLE_TESTS=ON",
-            "-DQt5_DIR=C:\qt\5.15.2\msvc2019_64\lib\cmake\Qt5",
-            "-DCMAKE_PREFIX_PATH=C:\qtkeychainInstalled",
+            "-DQt5_DIR=$env:qt_installed",
+            "-DCMAKE_PREFIX_PATH=$env:qt_keychain_installed",
             "-D_WIN32_WINNT=0x0601"
           )
           cmake @cmakeConfigureCmd
