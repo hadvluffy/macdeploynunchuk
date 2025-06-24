@@ -133,8 +133,8 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
-          export CXXFLAGS="$CXXFLAGS -O0"
-          export CFLAGS="$CFLAGS -O0"
+          #export CXXFLAGS="$CXXFLAGS -O0"
+          #export CFLAGS="$CFLAGS -O0"
 
           echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
           echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
