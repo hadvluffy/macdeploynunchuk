@@ -1,0 +1,438 @@
+name: nunchuk-macos-x86_64[privated]
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout HWI
+        working-directory: ${{runner.workspace}}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          job_runs_id="15855215787"
+          gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
+          unzip hwi_macos.zip
+          echo "ls -l"
+          ls -l 
+          echo "ls -l hwi_macos"
+          ls -l hwi_macos
+          
+      - name: Checkout nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          TARGET_BRANCH="fixbug"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "Cloning fresh repository"
+          rm -rf nunchuk-qt
+          git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
+          git fetch --all --tags --force
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
+          echo "LAST_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          # Get the latest tag based on the time it was tagged (taggerdate)
+          LATEST_TAG=$(git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | head -n 1)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAGGED_COMMIT=$(git rev-list -n 1 $LATEST_TAG)
+          echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
+          echo "Current commit: $CURRENT_COMMIT"
+          echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Generate build timestamp
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "Timestamp: $TIMESTAMP"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+      - name: Check environment variants
+        id: set-timestamp
+        run: |
+          echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
+          echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
+          echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
+          
+      - name: Set compiler
+        run: |
+          #set -e
+          sudo xcode-select --switch /Applications/Xcode_14.3.1.app
+          echo "export CC=gcc-14" >> ~/.bashrc
+          echo "export CXX=g++-14" >> ~/.bashrc
+          source ~/.bashrc
+          
+      - name: Remove default openssl
+        run: |
+          rm -rf /usr/local/opt/openssl
+          rm -rf /usr/local/include/openssl
+      - name: Install dependencies
+        run: |
+          wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
+          tar -xvzf boost_1_81_0.tar.gz
+          cd boost_1_81_0
+          ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
+          ./b2 install
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install libolm qt@5
+          
+      - name: Install qtkeychain
+        working-directory: ${{runner.workspace}}
+        run: |
+          git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
+          cd qtkeychain
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
+          CORES=$(sysctl -n hw.ncpu)
+          cmake --build . -j$CORES
+          sudo cmake --install . --prefix "/usr/local"
+          
+      - name: Build openssl
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
+        working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+        run: |
+          set -e
+          source ~/.bashrc
+          ./config --prefix="$PWD/lib"
+          CORES=$(sysctl -n hw.ncpu)
+          make -j$CORES
+          make install_dev
+          
+      - name: Build nunchuk-qt
+        working-directory: ${{runner.workspace}}
+        env:
+          OPENSSL_ROOT_DIR: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+        shell: bash
+        run: |
+          set -e
+          source ~/.bashrc
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export CFLAGS="$CFLAGS -I/usr/local/opt/libevent/include"
+          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          
+          # No optimize, add debug info
+          #export CXXFLAGS="$CXXFLAGS -O0"
+          #export CFLAGS="$CFLAGS -O0"
+
+          echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
+          echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
+          echo "OAUTH_CLIENT_ID     >>>>> $OAUTH_CLIENT_ID"
+          
+          cmake -E make_directory ${{runner.workspace}}/build
+          cd build
+          cmake ${{runner.workspace}}/nunchuk-qt \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
+                -DUR__DISABLE_TESTS=ON \
+                -DBOOST_ROOT=/usr/local/opt/boost@1.81 \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+                -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
+                -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+                -DAPPEND_CPPFLAGS="-I/usr/local/opt/libevent/include"
+                
+          CORES=$(sysctl -n hw.ncpu)
+          cmake --build . --config Release -j$CORES
+          
+      - name: Deploy Nunchuk
+        working-directory: ${{runner.workspace}}/build
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          set -e
+          source ~/.bashrc
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          
+          find ${{runner.workspace}} -name "Nunchuk.app"
+          macdeployqt $APP_PATH \
+                      -executable=$APP_PATH/Contents/MacOS/Nunchuk \
+                      -qmldir=${{runner.workspace}}/nunchuk-qt \
+                      -always-overwrite
+
+      - name: Patch QtWebEngineProcess dependencies
+        working-directory: ${{runner.workspace}}/build
+        env:
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
+          HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
+          
+          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
+          install_name_tool -add_rpath "@executable_path/../../../../../../../../Frameworks" "$HELPER_EXEC"
+          # Bắt mọi Qt*.framework dù ở đâu
+          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
+          
+          if [ -z "$DEPS" ]; then
+            echo "⚠️ No Qt dependencies found needing patch."
+          else
+            echo "$DEPS" | while read -r dep; do
+              basename=$(basename "$dep")
+              framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
+              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+              echo "🔧 Fixing: $dep → $new_path"
+              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
+            done
+          fi
+          
+          echo "✅ Done patching QtWebEngineProcess dependencies."
+          # Check result
+          echo "-- CHECK OTOOL AGAIN --"
+          otool -L "$HELPER_EXEC"
+        
+      - name: Setup certification
+        env: 
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          BUNDLE_IDENTIFIER: ${{ secrets.IO_BUNDLE_IDENTIFIER }}
+          TEAMID_BUNDLE_IDENTIFIER: ${{ secrets.IO_TEAMID_BUNDLE_IDENTIFIER }}
+          
+        run: |
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain 
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security find-identity -v -p codesigning
+          xcrun --find altool
+          xcrun --find notarytool
+          
+      - name: Codesign app bundle
+        working-directory: ${{runner.workspace}}/build
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          APP: "Nunchuk"
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+          ENTITLEMENTS: ${{runner.workspace}}/nunchuk-qt/entitlements.plist
+          ENTITLEMENTS_HWI: ${{runner.workspace}}/nunchuk-qt/entitlements_hwi.plist
+        run: |
+          set -euo pipefail # Dừng script nếu lỗi, bảo vệ biến chưa khai báo
+          echo "Checking Developer ID"
+          security find-identity -v -p codesigning
+          echo "$MACOS_CERTIFICATE_NAME"
+          
+          echo "Signing internal components..."
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.bundle" -o -name "*.plugin" \) -print0 | \
+           while IFS= read -r -d '' file; do
+             echo "$file" | tee /dev/stderr
+             codesign --remove-signature "$file"
+             codesign --deep --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
+           done
+          
+          echo "Signing frameworks and Qt components..."
+          find "$APP_PATH" -name "Qt*" -type f -print0 | \
+           while IFS= read -r -d '' file; do
+             echo "$file" | tee /dev/stderr
+             codesign --remove-signature "$file"
+             codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$file" -vvv
+           done
+  
+          echo "Signing Nunchuk"
+          codesign --remove-signature "$APP_PATH/Contents/MacOS/Nunchuk"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH/Contents/MacOS/Nunchuk" -vvv
+          
+          echo "Copy hwi"
+          cp "${{runner.workspace}}/hwi_macos/hwi" "$APP_PATH/Contents/MacOS/hwi"
+
+          #echo "Signing QWebengineProcess executables..."
+          #HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          #HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
+          #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
+
+          echo "Signing QWebengineProcess executables..."
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
+          codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
+         
+          echo "Signing main executables and app bundle..."
+          codesign --force --verify --options=runtime --verbose --timestamp --entitlements "$ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$APP_PATH" -vvv
+    
+          echo "Verifying codesigning $APP_PATH"
+          codesign -vvvv --deep --strict "$APP_PATH"
+          
+          echo "Verifying codesigning integrity -dvvvvv ..."
+          codesign -dvvvvv "$APP_PATH"
+          
+          echo "Verifying codesigning integrity... -vvvv --deep --strict "
+          codesign -vvvv --deep --strict "$APP_PATH"
+
+          echo "Verifying codesigning entitlements... d --entitlements "
+          codesign -dvvvv --entitlements :- "$APP_PATH"
+
+          echo "Check otool..."
+          otool -L "$APP_PATH/Contents/MacOS/Nunchuk"
+        
+          echo "Cleaning up temporary files..."
+          rm -f certificate.p12
+ 
+      - name: Notarize app bundle
+        working-directory: ${{runner.workspace}}/build
+        env:
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.IO_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.IO_APPLE_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.IO_APPLE_APP_PASSWORD }}
+          APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
+        run: |
+          set -euo pipefail # Dừng script nếu lỗi
+      
+          echo "Creating notarization profile..."
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+                                                                  --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+                                                                  --password "$PROD_MACOS_NOTARIZATION_PWD"
+      
+          echo "Packaging the app bundle..."
+          zip_file="${{runner.workspace}}/build/notarization.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$zip_file"
+      
+          echo "Submitting app bundle for notarization..."
+          xcrun notarytool submit "$zip_file" --keychain-profile "notarytool-profile" --wait --verbose
+      
+          echo "Stapling notarization ticket to the app bundle..."
+          xcrun stapler staple "$APP_PATH"
+      
+          echo "Validating the stapling..."
+          xcrun stapler validate "$APP_PATH"
+      
+          echo "Performing Gatekeeper verification..."
+          spctl -a -vvvv "$APP_PATH"
+          spctl --assess --type exec --verbose=4 "$APP_PATH"
+
+          timestamp=${{ env.TIMESTAMP }}
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          mkdir -p "$final_package_dir"
+          echo "Repackaging the notarized app bundle to $final_package_dir"
+          cp -R "$APP_PATH" "$final_package_dir/"
+
+          echo "Packaging built folder..."
+          final_built_zip="/tmp/$timestamp/nunchuk-macos-built.zip"
+          ditto -c -k --keepParent "$final_package_dir" "$final_built_zip"
+
+      - name: Debug running processes
+        run: lsof | grep "Nunchuk.dmg" || echo "No active processes using .dmg"
+
+      - name: Eject all disk images
+        run: |
+          echo "diskutil list"
+          diskutil list
+          echo "diskutil list - with volume nunchuk-macos"
+          diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | head -n 1 | sed 's/^/\/dev\//'
+          for disk in $(diskutil list | grep -B 1 "nunchuk-macos" | grep -o "disk[0-9]*" | sed 's/^/\/dev\//'); do
+            sudo diskutil eject $disk
+            sleep 1
+            if ! diskutil list | grep -q $disk; then
+              echo "$disk already ejected"
+            else
+              echo "$disk ejected"
+            fi
+          done
+      - name: Install appdmg
+        run: npm install -g appdmg
+
+      - name: Cleanup before appdmg
+        run: |
+          echo "📌 Volume status *before* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "⛔️ Not mounted."
+        
+          # Unmount any mounted volume with same name
+          (mount | grep -q "/Volumes/Nunchuk" && hdiutil detach "/Volumes/Nunchuk") || true          
+          
+          echo "📌 Volume status *after* detach:"
+          mount | grep "/Volumes/Nunchuk" || echo "✅ Successfully detached (not found in mount list)."
+          
+          # Use custom temp dir to avoid /var/folders quirks
+          export TMPDIR="${{runner.workspace}}/tmp"
+          mkdir -p "$TMPDIR"
+          
+      - name: Create appdmg JSON configuration
+        working-directory: ${{runner.workspace}}
+        run: |
+          timestamp=${{ env.TIMESTAMP }}
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
+          mkdir -p "$final_dmg_dir"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          
+          cat <<EOF > dmg.json
+          {
+            "title": "Nunchuk",
+            "icon-size": 100,
+            "window": {
+              "position": {
+                "x": 200,
+                "y": 150
+              },
+              "size": {
+                "width": 800,
+                "height": 400
+              }
+            },
+            "contents": [
+              {
+                "x": 200,
+                "y": 200,
+                "type": "file",
+                "path": "$final_package_dir/Nunchuk.app"
+              },
+              {
+                "x": 600,
+                "y": 200,
+                "type": "link",
+                "path": "/Applications"
+              }
+            ]
+          }
+          EOF
+          ls -la
+          
+      - name: Create DMG
+        working-directory: ${{runner.workspace}}
+        run: |
+          timestamp=${{ env.TIMESTAMP }}
+          final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
+          mkdir -p "$final_dmg_dir"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          echo "Create DMG from source : $final_package_dir"
+          echo "Create DMG to directory: $final_dmg_dir"
+          appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
+          ls -la $final_dmg_dir
+          
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
+          ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
+      - name: Upload Nunchuk BUILT
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-macos-built
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-built.zip
+      
+      - name: Upload Nunchuk DMG
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
