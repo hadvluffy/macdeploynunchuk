@@ -141,6 +141,17 @@ jobs:
           cmake --install build --config Release
           echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $GITHUB_ENV
           
+          # ✅ Copy DLL vào Qt bin
+          $src = "C:/qtkeychainInstalled/bin/qt5keychain.dll"
+          $dst = "C:/Qt/5.15.2/msvc2019_64/bin/qt5keychain.dll"
+          if (Test-Path $src) {
+            Copy-Item $src -Destination $dst -Force
+            Write-Host "✅ Copied qt5keychain.dll to Qt bin folder"
+          } else {
+            Write-Error "❌ qt5keychain.dll not found at $src"
+            exit 1
+          }
+          
       - name: Checkout nunchuk-qt
         working-directory: ${{ runner.workspace }}
         env:
