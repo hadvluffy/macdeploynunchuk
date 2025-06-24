@@ -234,15 +234,14 @@ jobs:
           cmake @cmakeBuildCmd
 
       - name: Deploy with windeployqt
-        working-directory: ${{ runner.workspace }}
         shell: pwsh
         env:
           project_path: ${{ runner.workspace }}\nunchuk-qt
-          nunchuk_qt_exe: ${{ runner.workspace }}\build\Release\nunchuk-qt.exe
           windeployqt_exe: C:\qt\5.15.2\msvc2019_64\bin\windeployqt.exe
         run: |
+          Get-ChildItem "${{ runner.workspace }}"
           $windeployqt = "$env:windeployqt_exe"
-          $nunchuk_qt = "$env:nunchuk_qt_exe"
+          $nunchuk_qt = "build\Release\nunchuk-qt.exe"
       
           if (!(Test-Path $windeployqt)) {
             Write-Error "❌ windeployqt not found at $windeployqt"
