@@ -233,33 +233,33 @@ jobs:
           )
           cmake @cmakeBuildCmd
 
-      #- name: Deploy with windeployqt
-      #  working-directory: ${{ runner.workspace }}
-      #  shell: pwsh
-      #  env:
-      #    project_path: ${{ runner.workspace }}/nunchuk-qt
-      #    nunchuk_qt_exe: build/Release/nunchuk-qt.exe
-      #    windeployqt_exe: C:/qt/5.15.2/msvc2019_64/bin/windeployqt.exe
-      #  run: |
-      #    $windeployqt = "$env:windeployqt_exe"
-      #    $nunchuk_qt = "$env:nunchuk_qt_exe"
+      - name: Deploy with windeployqt
+        working-directory: ${{ runner.workspace }}
+        shell: pwsh
+        env:
+          project_path: ${{ runner.workspace }}/nunchuk-qt
+          nunchuk_qt_exe: ${{ runner.workspace }}/build/Release/nunchuk-qt.exe
+          windeployqt_exe: C:/qt/5.15.2/msvc2019_64/bin/windeployqt.exe
+        run: |
+          $windeployqt = "$env:windeployqt_exe"
+          $nunchuk_qt = "$env:nunchuk_qt_exe"
       
-      #    if (!(Test-Path $windeployqt)) {
-      #      Write-Error "❌ windeployqt not found at $windeployqt"
-      #      exit 1
-      #    }
+          if (!(Test-Path $windeployqt)) {
+            Write-Error "❌ windeployqt not found at $windeployqt"
+            exit 1
+          }
       
-      #    if (!(Test-Path $nunchuk_qt)) {
-      #      Write-Error "❌ Executable not found at $nunchuk_qt"
-      #      exit 1
-      #    }
+          if (!(Test-Path $nunchuk_qt)) {
+            Write-Error "❌ Executable not found at $nunchuk_qt"
+            exit 1
+          }
       
-      #    & $windeployqt `
-      #      "--release" `
-      #      "--no-translations" `
-      #      "--verbose=2" `
-      #      $nunchuk_qt `
-      #      "--qmldir" $env:project_path
+          & $windeployqt `
+            "--release" `
+            "--no-translations" `
+            "--verbose=2" `
+            $nunchuk_qt `
+            "--qmldir" $env:project_path
 
       - name: Zip deployed release folder
         shell: pwsh
