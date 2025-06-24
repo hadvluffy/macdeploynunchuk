@@ -74,6 +74,9 @@ jobs:
           dir C:\qt\5.15.2\msvc2019_64
           dir C:\qt\5.15.2\msvc2019_64\bin
           echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
+
+          echo "Check bin"
+          Get-ChildItem "C:\qt\5.15.2\msvc2019_64\bin"
       
       - name: Setup Cache vcpkg packages
         uses: actions/cache@v4
