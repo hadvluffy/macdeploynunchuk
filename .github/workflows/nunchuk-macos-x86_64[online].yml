@@ -51,7 +51,6 @@ jobs:
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
-
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -71,9 +70,6 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           echo "export CC=gcc-14" >> ~/.bashrc
           echo "export CXX=g++-14" >> ~/.bashrc
-          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
-          echo "export AR=gcc-ar-14" >> ~/.bashrc
-          echo "export NM=gcc-nm-14" >> ~/.bashrc
           source ~/.bashrc
           
       - name: Remove default openssl
@@ -135,7 +131,6 @@ jobs:
           # No optimize, add debug info
           export CXXFLAGS="$CXXFLAGS -O0"
           export CFLAGS="$CFLAGS -O0"
-
           echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
           echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
           echo "OAUTH_CLIENT_ID     >>>>> $OAUTH_CLIENT_ID"
@@ -143,9 +138,6 @@ jobs:
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt \
-                -DRANDLIB=$(which gcc-randlib-14) \
-                -DAR=$(which gcc-ar-14) \
-                -DNM=$(which gcc-nm-14) \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
                 -DUR__DISABLE_TESTS=ON \
@@ -176,7 +168,6 @@ jobs:
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
                       -qmldir=${{runner.workspace}}/nunchuk-qt \
                       -always-overwrite
-
       - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
