@@ -71,9 +71,6 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_14.3.1.app
           echo "export CC=gcc-14" >> ~/.bashrc
           echo "export CXX=g++-14" >> ~/.bashrc
-          echo "export RANLIB=gcc-ranlib-14" >> ~/.bashrc
-          echo "export AR=gcc-ar-14" >> ~/.bashrc
-          echo "export NM=gcc-nm-14" >> ~/.bashrc
           source ~/.bashrc
           
       - name: Remove default openssl
@@ -133,8 +130,8 @@ jobs:
           export BOOST_ROOT="/usr/local/opt/boost@1.81"
           
           # No optimize, add debug info
-          #export CXXFLAGS="$CXXFLAGS -O0"
-          #export CFLAGS="$CFLAGS -O0"
+          export CXXFLAGS="$CXXFLAGS -O0"
+          export CFLAGS="$CFLAGS -O0"
 
           echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
           echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
@@ -143,9 +140,6 @@ jobs:
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt \
-                -DRANDLIB=$(which gcc-randlib-14) \
-                -DAR=$(which gcc-ar-14) \
-                -DNM=$(which gcc-nm-14) \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
                 -DUR__DISABLE_TESTS=ON \
