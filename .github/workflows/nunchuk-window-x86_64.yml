@@ -151,6 +151,22 @@ jobs:
             Write-Error "❌ qt5keychain.dll not found at $src"
             exit 1
           }
+
+      - name: Locate all libssl and libcrypto files
+        shell: pwsh
+        run: |
+          $patterns = @("libssl*", "libcrypto*")
+          $roots = @("C:\", "D:\")
+          foreach ($pattern in $patterns) {
+            foreach ($root in $roots) {
+              Write-Host "🔍 Searching for $pattern under $root..."
+              Get-ChildItem -Path $root -Recurse -ErrorAction SilentlyContinue -Include "$pattern.*" |
+                Where-Object { -not $_.PSIsContainer } |
+                ForEach-Object {
+                  Write-Host "📄 $($_.FullName)"
+                }
+            }
+          }
           
       - name: Checkout nunchuk-qt
         working-directory: ${{ runner.workspace }}
