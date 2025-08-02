@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64[dev]
+name: nunchuk-macos-x86_64[fixbug]
 
 on:
   push:
@@ -51,6 +51,7 @@ jobs:
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
+
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -131,6 +132,7 @@ jobs:
           # No optimize, add debug info
           export CXXFLAGS="$CXXFLAGS -O0"
           export CFLAGS="$CFLAGS -O0"
+
           echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
           echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
           echo "OAUTH_CLIENT_ID     >>>>> $OAUTH_CLIENT_ID"
@@ -168,6 +170,7 @@ jobs:
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
                       -qmldir=${{runner.workspace}}/nunchuk-qt \
                       -always-overwrite
+
       - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
