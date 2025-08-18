@@ -39,7 +39,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           mkdir -p hwi_macos && wget -c -q "https://github.com/giahuy98/HWI/releases/download/3.1.0/hwi-3.1.0-mac-x86_64.tar.gz" -O - | tar -xz -C hwi_macos
-          mv hwi-3.1.0-mac-x86_64.tar.gz.dir/hwi_macos/hwi hwi_macos/
+          mv hwi_macos/hwi-3.1.0-mac-x86_64.tar.gz.dir/hwi hwi_macos/
           ls -l hwi_macos
           
       - name: Download entitlements_hwi.plist
