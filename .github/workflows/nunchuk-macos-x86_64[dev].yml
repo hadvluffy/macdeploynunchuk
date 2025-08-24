@@ -19,7 +19,7 @@ jobs:
         working-directory: ${{runner.workspace}}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          job_runs_id="17044587935"
+          job_runs_id="17185707955"
           gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
           unzip hwi_macos.zip
           echo "ls -l"
