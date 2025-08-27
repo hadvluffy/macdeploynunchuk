@@ -285,7 +285,8 @@ jobs:
       - name: Download and install HWI
         run: |
           BINDIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin"
-          HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-linux-x86_64.tar.gz"
+          #HWI_URL="https://github.com/bitcoin-core/HWI/releases/download/3.1.0/hwi-3.1.0-linux-x86_64.tar.gz"
+          HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0/hwi-3.1.0-linux-x86_64.tar.gz"
           HWI_ARCHIVE="hwi.tar.gz"
       
           echo "Downloading HWI from $HWI_URL"
