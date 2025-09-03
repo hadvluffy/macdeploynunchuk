@@ -87,7 +87,7 @@ jobs:
           echo "Qt5 DIR ----->>>>> ${{ env.QT5_DIR }}"
           rm -rf build
           mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DQt5_DIR=${{ env.QT5_DIR }}
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DQt5_DIR=${{ env.QT5_DIR }}
           make -j$(nproc)
           sudo make install
           sudo ldconfig
@@ -259,6 +259,12 @@ jobs:
           
           # Copy libraries (except Qt)
           ldd $OUTPUT_DIR/bin/nunchuk-qt | awk '{print $3}' | grep -v '^(' | while read lib; do
+              # If lib in /usr/lib or /lib => skip
+              if [[ "$lib" == /usr/lib/* || "$lib" == /lib/* ]]; then
+                  echo "⏩ Skipping system lib: $base ($lib)"
+                  continue
+              fi
+          
               if [[ "$lib" != *"/libQt"* && "$lib" != *"/Qt"* ]]; then
                   if [ -f "$lib" ]; then
                       echo "📌 Copying $(basename "$lib") from $lib to $OUTPUT_DIR/lib/"
