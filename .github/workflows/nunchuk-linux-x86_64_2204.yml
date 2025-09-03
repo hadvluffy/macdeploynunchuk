@@ -1,4 +1,4 @@
-name: nunchuk-linux-x86_64
+name: nunchuk-linux-x86_64_2204
 on:
   push:
     tags:
