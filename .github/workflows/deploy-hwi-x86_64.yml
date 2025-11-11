@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -22,6 +22,9 @@ jobs:
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
           MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
         run: |
+          xcode-select -p
+          xcodebuild -version
+          
           echo "Setting up keychain and certificate..."
           # Get certification and create keychain
           echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
