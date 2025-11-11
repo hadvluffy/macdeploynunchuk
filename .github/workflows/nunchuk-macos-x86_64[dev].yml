@@ -22,7 +22,7 @@ jobs:
           xcodebuild -version
 
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          job_runs_id="19219151224"
+          job_runs_id="19273506565"
           gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
           unzip hwi_macos.zip
           echo "ls -l"
