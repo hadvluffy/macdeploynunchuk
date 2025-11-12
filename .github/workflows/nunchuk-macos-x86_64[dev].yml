@@ -96,26 +96,28 @@ jobs:
           echo "Uploading boost_install.log"
           ls -la $RUNNER_TEMP/boost_install.log
           
-      - name: Upload Boost log
-        uses: actions/upload-artifact@v4
-        with:
-          name: boost_install_log
-          path: $RUNNER_TEMP/boost_install.log
-          
       - name: Brew install remaining deps
         run: |
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install libolm qt@5
+
+      - name: Configure Qt5 paths
+        run: |
+          QTPATH=$(brew --prefix qt@5)
+          echo "QTPATH=$QTPATH" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
+          # add qt bin to PATH for subsequent steps in same job
+          echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
           
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
+          QTPATH=$(brew --prefix qt@5)
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake
+          mkdir build && cd build
+          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake"
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
@@ -138,38 +140,26 @@ jobs:
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-        shell: bash
         run: |
           set -e
-          source ~/.bashrc
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
-          export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
-          export CFLAGS="$CFLAGS -I/usr/local/opt/libevent/include"
+          QTPATH=$(brew --prefix qt@5)
+          export PATH="$QTPATH/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="$HOME/boost-1.81.0"
-          
-          # No optimize, add debug info
           export CXXFLAGS="$CXXFLAGS -O0"
           export CFLAGS="$CFLAGS -O0"
-
-          echo "OAUTH_CLIENT_SECRET >>>>> $OAUTH_CLIENT_SECRET"
-          echo "OAUTH_REDIRECT_URI  >>>>> $OAUTH_REDIRECT_URI"
-          echo "OAUTH_CLIENT_ID     >>>>> $OAUTH_CLIENT_ID"
-          
           cmake -E make_directory ${{runner.workspace}}/build
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
+                -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" \
                 -DUR__DISABLE_TESTS=ON \
                 -DBOOST_ROOT=$HOME/boost-1.81.0 \
-                -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
                 -DAPPEND_CPPFLAGS="-I/usr/local/opt/libevent/include"
-                
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
           
