@@ -88,7 +88,22 @@ jobs:
           tar -xvzf boost_1_81_0.tar.gz
           cd boost_1_81_0          
           ./bootstrap.sh --prefix=$HOME/boost-1.81.0
-          ./b2 install 
+          #./b2 install 
+           # build single-thread and verbose debug output, capture log
+          ./b2 install -j1 -d2 --prefix=$HOME/boost-1.81.0 2>&1 | tee $RUNNER_TEMP/boost_install.log || true
+          tail -n 200 $RUNNER_TEMP/boost_install.log || true
+          # upload log as artifact for inspection
+          echo "Uploading boost_install.log"
+          ls -la $RUNNER_TEMP/boost_install.log
+          
+      - name: Upload Boost log
+        uses: actions/upload-artifact@v4
+        with:
+          name: boost_install_log
+          path: $RUNNER_TEMP/boost_install.log
+          
+      - name: Brew install remaining deps
+        run: |
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install libolm qt@5
