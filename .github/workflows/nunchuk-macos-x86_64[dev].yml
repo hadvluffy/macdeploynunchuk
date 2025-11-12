@@ -82,17 +82,13 @@ jobs:
           rm -rf /usr/local/include/openssl
       - name: Install dependencies
         run: |
-          sudo mkdir -p /usr/local/opt/boost@1.81
-          sudo mkdir -p /usr/local/opt/boost@1.81/include/boost
-          sudo mkdir -p /usr/local/opt/boost@1.81/lib/cmake
-          sudo chown -R $(whoami) /usr/local/opt/boost@1.81
-          sudo chmod -R 777 /usr/local/opt/boost@1.81
-          
+        
+          mkdir -p $HOME/boost-1.81.0
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
-          cd boost_1_81_0
-          ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
-          ./b2 install
+          cd boost_1_81_0          
+          ./bootstrap.sh --prefix=$HOME/boost-1.81.0
+          ./b2 install 
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install libolm qt@5
@@ -132,11 +128,11 @@ jobs:
           set -e
           source ~/.bashrc
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
           export LDFLAGS="$LDFLAGS -static-libgcc -static-libstdc++"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export CFLAGS="$CFLAGS -I/usr/local/opt/libevent/include"
-          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          export BOOST_ROOT="$HOME/boost-1.81.0"
           
           # No optimize, add debug info
           export CXXFLAGS="$CXXFLAGS -O0"
@@ -152,7 +148,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5/lib/cmake \
                 -DUR__DISABLE_TESTS=ON \
-                -DBOOST_ROOT=/usr/local/opt/boost@1.81 \
+                -DBOOST_ROOT=$HOME/boost-1.81.0 \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
@@ -170,9 +166,9 @@ jobs:
           set -e
           source ~/.bashrc
           export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L/usr/local/opt/boost@1.81/lib -L/usr/local/opt/berkeley-db@4/lib"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I/usr/local/opt/boost@1.81/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
-          export BOOST_ROOT="/usr/local/opt/boost@1.81"
+          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export BOOST_ROOT="$HOME/boost-1.81.0"
           
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH \
