@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: macos-14
+    env:
+      MACOSX_DEPLOYMENT_TARGET: 13.0
+      CMAKE_OSX_ARCHITECTURES: "x86_64;arm64"
 
     steps:
       - name: Checkout
@@ -117,7 +120,9 @@ jobs:
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake"
+          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" \
+                   -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" \
+                   -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
@@ -159,6 +164,8 @@ jobs:
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
                 -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
                 -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+                -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                 -DAPPEND_CPPFLAGS="-I$(brew --prefix libevent)/include"
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . --config Release -j$CORES
