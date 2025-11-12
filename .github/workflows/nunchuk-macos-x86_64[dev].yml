@@ -86,12 +86,13 @@ jobs:
           sudo mkdir -p /usr/local/opt/boost@1.81/include/boost
           sudo mkdir -p /usr/local/opt/boost@1.81/lib/cmake
           sudo chown -R $(whoami) /usr/local/opt/boost@1.81
+          sudo chmod -R 777 /usr/local/opt/boost@1.81
           
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
           cd boost_1_81_0
           ./bootstrap.sh --prefix=/usr/local/opt/boost@1.81
-          sudo ./b2 install
+          ./b2 install
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
           brew install libolm qt@5
