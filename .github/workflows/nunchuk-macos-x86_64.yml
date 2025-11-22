@@ -3,8 +3,7 @@ name: nunchuk-macos-x86_64
 on:
   push:
     tags:
-    - '*'
-
+      - '*'
   workflow_dispatch:
 
 jobs:
@@ -55,11 +54,33 @@ jobs:
           echo "Current commit: $CURRENT_COMMIT"
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
 
+      # --- Homebrew caches (restore) ---
+      - name: Restore Homebrew cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/Library/Caches/Homebrew
+            /Users/runner/Library/Caches/Homebrew
+          key: homebrew-${{ runner.os }}-v1
+
+      # --- Boost cache (restore) ---
+      - name: Restore Boost cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/boost-1.81.0
+            $RUNNER_TEMP/boost_1_81_0.tar.gz
+          # If you change boost version, update this key accordingly
+          key: boost-1.81.0-${{ runner.os }}-v1
+          restore-keys: |
+            boost-1.81.0-${{ runner.os }}-
+
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           echo "Timestamp: $TIMESTAMP"
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+
       - name: Check environment variants
         id: set-timestamp
         run: |
@@ -80,9 +101,9 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
+
       - name: Install dependencies
         run: |
-        
           mkdir -p $HOME/boost-1.81.0
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
@@ -122,6 +143,15 @@ jobs:
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
           
+      # --- Restore OpenSSL build cache (before building openssl) ---
+      - name: Restore OpenSSL build cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          key: openssl-${{ runner.os }}-${{ env.LATEST_VERSION }}-v1
+          restore-keys: |
+            openssl-${{ runner.os }}-
+
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
@@ -132,7 +162,17 @@ jobs:
           CORES=$(sysctl -n hw.ncpu)
           make -j$CORES
           make install_dev
-          
+
+      # --- Restore CMake build cache (build/) before building nunchuk-qt ---
+      - name: Restore CMake build cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/build
+          key: build-${{ runner.os }}-${{ env.LATEST_VERSION }}-${{ hashFiles('nunchuk-qt/**/CMakeLists.txt') }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ env.LATEST_VERSION }}-
+            build-${{ runner.os }}-
+
       - name: Build nunchuk-qt
         working-directory: ${{runner.workspace}}
         env:
@@ -364,6 +404,16 @@ jobs:
               echo "$disk ejected"
             fi
           done
+
+      # --- NPM cache restore (for appdmg) ---
+      - name: Restore npm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-appdmg-v1
+          restore-keys: |
+            npm-${{ runner.os }}-appdmg-v1
+
       - name: Install appdmg
         run: npm install -g appdmg
 
