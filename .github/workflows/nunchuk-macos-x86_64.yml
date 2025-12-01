@@ -23,8 +23,8 @@ jobs:
           
       - name: Check Qt install
         run: |
-          echo $CMAKE_PREFIX_PATH
-          ls $CMAKE_PREFIX_PATH/lib/cmake/Qt5
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          ls $QTPATH
           
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
