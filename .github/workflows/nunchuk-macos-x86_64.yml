@@ -20,6 +20,7 @@ jobs:
           version: '5.15.2'
           host: 'mac'
           modules: 'qtwebengine'
+          install-dir: ${{ env.HOME }}/Qt
           
       - name: Check Qt install
         run: |
