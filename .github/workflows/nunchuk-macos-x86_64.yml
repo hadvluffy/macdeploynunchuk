@@ -23,8 +23,6 @@ jobs:
           
       - name: Check Qt install
         run: |
-          $CMAKE_PREFIX_PATH/bin/qmake -v
-          $CMAKE_PREFIX_PATH/bin/qmake -query
           QTPATH="$HOME/Qt/5.15.2/clang_64"
           ls $QTPATH/lib/cmake/Qt5
           
