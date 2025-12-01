@@ -80,9 +80,9 @@ jobs:
         run: |
           rm -rf /usr/local/opt/openssl
           rm -rf /usr/local/include/openssl
+          
       - name: Install dependencies
         run: |
-        
           mkdir -p $HOME/boost-1.81.0
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
           tar -xvzf boost_1_81_0.tar.gz
@@ -108,12 +108,7 @@ jobs:
           version: '5.15.2'
           host: 'mac'
           modules: 'qtwebengine'
-          
-      - name: Check Qt install
-        run: |
-          QTPATH="$HOME/Qt/5.15.2/clang_64"
-          ls $QTPATH/lib/cmake/Qt5
-          
+  
       - name: Configure Qt5 paths
         run: |
           QTPATH="$HOME/Qt/5.15.2/clang_64"
@@ -129,7 +124,8 @@ jobs:
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          #cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
