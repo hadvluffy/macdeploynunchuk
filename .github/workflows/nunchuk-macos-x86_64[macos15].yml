@@ -100,11 +100,23 @@ jobs:
         run: |
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install libolm qt@5 libevent
-
+          brew install libolm libevent
+      
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'mac'
+          modules: 'qtwebengine'
+          
+      - name: Check Qt install
+        run: |
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          ls $QTPATH/lib/cmake/Qt5
+          
       - name: Configure Qt5 paths
         run: |
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           # add qt bin to PATH for subsequent steps in same job
@@ -113,7 +125,7 @@ jobs:
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
@@ -142,7 +154,7 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
         run: |
           set -e
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
           export PATH="$QTPATH/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
