@@ -19,7 +19,7 @@ jobs:
         with:
           version: '5.15.2'
           host: 'mac'
-          modules: 'qtqml qtquick qtmultimedia qtsvg qtprintsupport qtwebengine'
+          modules: 'qtwebengine'
           
       - name: Check Qt install
         run: |
