@@ -19,7 +19,13 @@ jobs:
         with:
           version: '5.15.2'
           host: 'mac'
-          modules: 'qtqml,qtquick,qtmultimedia,qtsvg,qtprintsupport,qtwebengine'
+          modules: 'qtqml qtquick qtmultimedia qtsvg qtprintsupport qtwebengine'
+          
+      - name: Check Qt install
+        run: |
+          $CMAKE_PREFIX_PATH/bin/qmake -v
+          $CMAKE_PREFIX_PATH/bin/qmake -query
+          ls -l $CMAKE_PREFIX_PATH/lib/cmake/Qt5
           
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
