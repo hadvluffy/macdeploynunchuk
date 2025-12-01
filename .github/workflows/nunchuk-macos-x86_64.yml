@@ -20,7 +20,7 @@ jobs:
           version: '5.15.2'
           host: 'mac'
           modules: 'qtwebengine'
-          dir: ${{ runner.workspace }}/Qt
+          dir: ${{ runner.workspace }}
           
       - name: Check Qt install
         run: |
