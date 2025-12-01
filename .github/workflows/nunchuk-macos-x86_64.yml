@@ -20,11 +20,11 @@ jobs:
           version: '5.15.2'
           host: 'mac'
           modules: 'qtwebengine'
-          dir: ${{ env.HOME }}/Qt
+          dir: ${{ runner.workspace }}/Qt
           
       - name: Check Qt install
         run: |
-          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          QTPATH="${{ runner.workspace }}/Qt/5.15.2/clang_64"
           ls $QTPATH
           
       - name: Checkout HWI
