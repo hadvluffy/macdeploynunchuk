@@ -13,19 +13,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Qt 5.15.2
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '5.15.2'
-          host: 'mac'
-          modules: 'qtwebengine'
-          dir: ${{ runner.workspace }}
-          
-      - name: Check Qt install
-        run: |
-          QTPATH="${{ runner.workspace }}/Qt/5.15.2/clang_64"
-          ls $QTPATH
           
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
@@ -116,19 +103,6 @@ jobs:
           rm -rf /usr/local/include/openssl
 
       - name: Install dependencies
-#        run: |
-#          mkdir -p $HOME/boost-1.81.0
-#          wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
-#          tar -xvzf boost_1_81_0.tar.gz
-#          cd boost_1_81_0          
-#          ./bootstrap.sh --prefix=$HOME/boost-1.81.0
-#          #./b2 install 
-#           # build single-thread and verbose debug output, capture log
-#          ./b2 install -j1 -d2 --prefix=$HOME/boost-1.81.0 2>&1 | tee $RUNNER_TEMP/boost_install.log || true
-#          tail -n 200 $RUNNER_TEMP/boost_install.log || true
-#          # upload log as artifact for inspection
-#          echo "Uploading boost_install.log"
-#          ls -la $RUNNER_TEMP/boost_install.log
         run: |
           if [ -d "$HOME/boost-1.81.0" ]; then
             echo "✅ Boost already cached"
@@ -147,11 +121,24 @@ jobs:
         run: |
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install libolm qt@5 libevent
+          brew install libolm libevent
+
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'mac'
+          modules: 'qtwebengine'
+          dir: ${{ runner.workspace }}
+          
+      - name: Check Qt install
+        run: |
+          QTPATH="${{ runner.workspace }}/Qt/5.15.2/clang_64"
+          ls $QTPATH
 
       - name: Configure Qt5 paths
         run: |
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           # add qt bin to PATH for subsequent steps in same job
@@ -160,7 +147,7 @@ jobs:
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
@@ -208,7 +195,7 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
         run: |
           set -e
-          QTPATH=$(brew --prefix qt@5)
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           export PATH="$QTPATH/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
