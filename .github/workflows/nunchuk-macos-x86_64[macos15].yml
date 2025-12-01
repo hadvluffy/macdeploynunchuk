@@ -60,6 +60,7 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           echo "Timestamp: $TIMESTAMP"
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          
       - name: Check environment variants
         id: set-timestamp
         run: |
@@ -111,21 +112,19 @@ jobs:
   
       - name: Configure Qt5 paths
         run: |
-          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
-          # add qt bin to PATH for subsequent steps in same job
           echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
           
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
-          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
-          #cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
-          cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
           sudo cmake --install . --prefix "/usr/local"
@@ -150,7 +149,7 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
         run: |
           set -e
-          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
           export PATH="$QTPATH/bin:$PATH"
           export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
