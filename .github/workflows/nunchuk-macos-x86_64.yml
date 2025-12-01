@@ -25,7 +25,8 @@ jobs:
         run: |
           $CMAKE_PREFIX_PATH/bin/qmake -v
           $CMAKE_PREFIX_PATH/bin/qmake -query
-          ls -l $CMAKE_PREFIX_PATH/lib/cmake/Qt5
+          QTPATH="$HOME/Qt/5.15.2/clang_64"
+          ls $QTPATH/lib/cmake/Qt5
           
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
