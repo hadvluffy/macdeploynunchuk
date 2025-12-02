@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64[macos15]
+name: nunchuk-macos-x86_64[x86]
 
 on:
   push:
