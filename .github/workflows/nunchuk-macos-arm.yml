@@ -1,4 +1,4 @@
-name: nunchuk-macos-x86_64[arm]
+name: nunchuk-macos[arm]
 
 on:
   push:
