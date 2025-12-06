@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt 5.15.2 (using aqtinstall in a venv, prefer arm64)
+      - name: Install Qt 5.15.2 (aqtinstall, prefer arm64) - fixed CLI
         shell: bash
         run: |
           set -euo pipefail
@@ -26,34 +26,45 @@ jobs:
           mkdir -p "$OUTDIR"
           rm -rf "$VENV_DIR"
           python3 -m venv "$VENV_DIR"
-          # activate venv for the rest of the step
           source "$VENV_DIR/bin/activate"
 
           python -V
           pip install --upgrade pip setuptools wheel
           pip install aqtinstall
 
-          echo "Available Qt archives for mac desktop ${QT_VERSION}:"
-          aqt list-qt mac desktop "$QT_VERSION" || true
+          echo "=== aqt version ==="
+          aqt --version || true
 
-          # prefer clang_arm64, then macos_universal, then clang_64
+          echo "=== list available Qt versions (spec) ==="
+          # use --spec to list matching versions
+          aqt list-qt mac desktop --spec "$QT_VERSION" || true
+
+          echo "=== list available architectures (arch) ==="
+          # use --arch to list candidate architectures for that version
+          aqt list-qt mac desktop --arch "$QT_VERSION" || true
+
+          # choose preferred archive
           WANT_ARCH=""
-          if aqt list-qt mac desktop "$QT_VERSION" | grep -q "clang_arm64"; then
+          # check for clang_arm64
+          if aqt list-qt mac desktop --arch "$QT_VERSION" | grep -qi "clang_arm64"; then
             WANT_ARCH="clang_arm64"
-          elif aqt list-qt mac desktop "$QT_VERSION" | grep -q "macos_universal"; then
+          elif aqt list-qt mac desktop --arch "$QT_VERSION" | grep -qi "macos_universal"; then
             WANT_ARCH="macos_universal"
-          elif aqt list-qt mac desktop "$QT_VERSION" | grep -q "clang_64"; then
+          elif aqt list-qt mac desktop --arch "$QT_VERSION" | grep -qi "clang_64"; then
             WANT_ARCH="clang_64"
           else
-            echo "No expected archive names found for Qt $QT_VERSION; aborting."
+            echo "No candidate architectures found for Qt $QT_VERSION; printing full list and aborting."
+            aqt list-qt mac desktop --spec "$QT_VERSION" || true
+            aqt list-qt mac desktop --arch "$QT_VERSION" || true
             exit 1
           fi
 
           echo "Selected Qt archive: $WANT_ARCH"
 
+          # install selected archive (install all modules by default)
           aqt install-qt mac desktop "$QT_VERSION" "$WANT_ARCH" --outputdir "$OUTDIR" --assume-yes
 
-          # Find qmake path and set QTPATH
+          # find qmake installed path
           QMAKE_PATH=$(find "$OUTDIR" -type f -name qmake -print -quit || true)
           if [ -z "$QMAKE_PATH" ]; then
             echo "Failed to find qmake under $OUTDIR — listing contents for debug:"
@@ -64,9 +75,11 @@ jobs:
           QTPATH="$(dirname "$(dirname "$QMAKE_PATH")")"
           echo "Installed QTPATH: $QTPATH"
 
+          # debug prints
           echo "## ls lib ##"
           ls -la "$QTPATH/lib" || true
-          echo "## file libQt5Core.dylib ##"
+
+          echo "## libQt5Core.dylib info ##"
           if [ -f "$QTPATH/lib/libQt5Core.dylib" ]; then
             file "$QTPATH/lib/libQt5Core.dylib" || true
             lipo -info "$QTPATH/lib/libQt5Core.dylib" || true
@@ -79,12 +92,12 @@ jobs:
           "$QMAKE_PATH" -v || true
           "$QMAKE_PATH" -query || true
 
-          # Export env vars for following steps
+          # export env for later steps
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
 
-          # Unset CC/CXX to prefer Apple clang
+          # prefer Apple clang for subsequent builds
           unset CC || true
           unset CXX || true
           echo "Unset CC/CXX to prefer Apple clang for building Qt apps"
