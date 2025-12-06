@@ -15,10 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: List ALL Qt versions, architectures, and modules from aqt
+      - name: Install aqt in venv and list ALL Qt versions, modules, architectures
         shell: bash
         run: |
           set -euo pipefail
+
+          VENV_DIR="${{ runner.temp }}/pyvenv_aqt"
+          rm -rf "$VENV_DIR"
+          python3 -m venv "$VENV_DIR"
+          source "$VENV_DIR/bin/activate"
+
+          python -V
+          pip install --upgrade pip setuptools wheel
+          pip install aqtinstall
+
+          echo "=== aqt executable location ==="
+          which aqt || true
+          aqt --version || true
+
+          echo ""
           echo "=== ALL Qt versions available (mac desktop) ==="
           aqt list-qt mac desktop || true
 
@@ -29,5 +44,6 @@ jobs:
           echo ""
           echo "=== ALL Qt versions + architectures ==="
           aqt list-qt mac desktop --arch || true
+
 
 
