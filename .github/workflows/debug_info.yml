@@ -1,4 +1,4 @@
-name: nunchuk-macos[arm]
+name: debug_info
 
 on:
   push:
@@ -15,14 +15,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt 5.15.2 (using aqtinstall, prefer arm64)
+      - name: Install Qt 5.15.2 (using aqtinstall in a venv, prefer arm64)
+        shell: bash
         run: |
           set -euo pipefail
+
           QT_VERSION="5.15.2"
           OUTDIR="${{ github.workspace }}/Qt/${QT_VERSION}"
+          VENV_DIR="${{ runner.temp }}/pyvenv_aqt"
           mkdir -p "$OUTDIR"
-          python3 -m pip install --upgrade pip setuptools wheel
-          pip3 install aqtinstall
+          rm -rf "$VENV_DIR"
+          python3 -m venv "$VENV_DIR"
+          # activate venv for the rest of the step
+          source "$VENV_DIR/bin/activate"
+
+          python -V
+          pip install --upgrade pip setuptools wheel
+          pip install aqtinstall
 
           echo "Available Qt archives for mac desktop ${QT_VERSION}:"
           aqt list-qt mac desktop "$QT_VERSION" || true
@@ -42,12 +51,9 @@ jobs:
 
           echo "Selected Qt archive: $WANT_ARCH"
 
-          # install (aqt will create directories under OUTDIR)
           aqt install-qt mac desktop "$QT_VERSION" "$WANT_ARCH" --outputdir "$OUTDIR" --assume-yes
 
-          # Normalize QTPATH to point to clang_64 style folder used by qmake and other tools
-          # aqt usually installs to: $OUTDIR/<host>/<target>/<version>/<spec>
-          # Find the installed qmake
+          # Find qmake path and set QTPATH
           QMAKE_PATH=$(find "$OUTDIR" -type f -name qmake -print -quit || true)
           if [ -z "$QMAKE_PATH" ]; then
             echo "Failed to find qmake under $OUTDIR — listing contents for debug:"
@@ -55,9 +61,8 @@ jobs:
             exit 1
           fi
 
-          QTPATH="$(dirname "$(dirname "$QMAKE_PATH")")" # qmake is under bin/ -> go up to Qt root
+          QTPATH="$(dirname "$(dirname "$QMAKE_PATH")")"
           echo "Installed QTPATH: $QTPATH"
-          echo "Adding to PATH and printing debug info..."
 
           echo "## ls lib ##"
           ls -la "$QTPATH/lib" || true
@@ -74,13 +79,14 @@ jobs:
           "$QMAKE_PATH" -v || true
           "$QMAKE_PATH" -query || true
 
-          # Export QTPATH as environment variable for later steps in this job
+          # Export env vars for following steps
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
 
-          # Unset CC/CXX if they were set to Homebrew gcc/g++
+          # Unset CC/CXX to prefer Apple clang
           unset CC || true
           unset CXX || true
           echo "Unset CC/CXX to prefer Apple clang for building Qt apps"
+
 
