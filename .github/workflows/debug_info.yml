@@ -1,0 +1,86 @@
+name: nunchuk-macos[arm]
+
+on:
+  push:
+    tags:
+    - '*'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 5.15.2 (using aqtinstall, prefer arm64)
+        run: |
+          set -euo pipefail
+          QT_VERSION="5.15.2"
+          OUTDIR="${{ github.workspace }}/Qt/${QT_VERSION}"
+          mkdir -p "$OUTDIR"
+          python3 -m pip install --upgrade pip setuptools wheel
+          pip3 install aqtinstall
+
+          echo "Available Qt archives for mac desktop ${QT_VERSION}:"
+          aqt list-qt mac desktop "$QT_VERSION" || true
+
+          # prefer clang_arm64, then macos_universal, then clang_64
+          WANT_ARCH=""
+          if aqt list-qt mac desktop "$QT_VERSION" | grep -q "clang_arm64"; then
+            WANT_ARCH="clang_arm64"
+          elif aqt list-qt mac desktop "$QT_VERSION" | grep -q "macos_universal"; then
+            WANT_ARCH="macos_universal"
+          elif aqt list-qt mac desktop "$QT_VERSION" | grep -q "clang_64"; then
+            WANT_ARCH="clang_64"
+          else
+            echo "No expected archive names found for Qt $QT_VERSION; aborting."
+            exit 1
+          fi
+
+          echo "Selected Qt archive: $WANT_ARCH"
+
+          # install (aqt will create directories under OUTDIR)
+          aqt install-qt mac desktop "$QT_VERSION" "$WANT_ARCH" --outputdir "$OUTDIR" --assume-yes
+
+          # Normalize QTPATH to point to clang_64 style folder used by qmake and other tools
+          # aqt usually installs to: $OUTDIR/<host>/<target>/<version>/<spec>
+          # Find the installed qmake
+          QMAKE_PATH=$(find "$OUTDIR" -type f -name qmake -print -quit || true)
+          if [ -z "$QMAKE_PATH" ]; then
+            echo "Failed to find qmake under $OUTDIR — listing contents for debug:"
+            ls -R "$OUTDIR" || true
+            exit 1
+          fi
+
+          QTPATH="$(dirname "$(dirname "$QMAKE_PATH")")" # qmake is under bin/ -> go up to Qt root
+          echo "Installed QTPATH: $QTPATH"
+          echo "Adding to PATH and printing debug info..."
+
+          echo "## ls lib ##"
+          ls -la "$QTPATH/lib" || true
+          echo "## file libQt5Core.dylib ##"
+          if [ -f "$QTPATH/lib/libQt5Core.dylib" ]; then
+            file "$QTPATH/lib/libQt5Core.dylib" || true
+            lipo -info "$QTPATH/lib/libQt5Core.dylib" || true
+            otool -L "$QTPATH/lib/libQt5Core.dylib" || true
+          else
+            echo "libQt5Core.dylib not found at $QTPATH/lib"
+          fi
+
+          echo "## qmake info ##"
+          "$QMAKE_PATH" -v || true
+          "$QMAKE_PATH" -query || true
+
+          # Export QTPATH as environment variable for later steps in this job
+          echo "QTPATH=$QTPATH" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
+          echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
+
+          # Unset CC/CXX if they were set to Homebrew gcc/g++
+          unset CC || true
+          unset CXX || true
+          echo "Unset CC/CXX to prefer Apple clang for building Qt apps"
+
