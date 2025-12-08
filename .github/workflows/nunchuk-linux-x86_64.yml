@@ -13,25 +13,60 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         
-      - name: Download HWI
+      - name: Download and extract HWI
         run: |
+          set -euo pipefail
+      
           HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
-          #HWI_ARCHIVE="hwi.tar.gz"
-          HWI_ARCHIVE="hwi-3.1.0-linux-x86_64.tar.gz"
+          HWI_ARCHIVE="hwi.tar.gz"
+          TMPDIR="hwi-extracted"
       
           echo "Downloading HWI from $HWI_URL"
-          #wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
-          file "$HWI_ARCHIVE"
-          wget -q "$HWI_URL"
-          ls -l
+          # prefer curl for better control; fall back to wget
+          if command -v curl >/dev/null 2>&1; then
+            curl -fL --retry 3 --retry-delay 3 -o "$HWI_ARCHIVE" "$HWI_URL"
+          else
+            wget -q --tries=3 -O "$HWI_ARCHIVE" "$HWI_URL"
+          fi
       
-          echo "Extracting HWI archive..."
-          mkdir -p hwi-extracted
-          tar -xzf "$HWI_ARCHIVE" -C hwi-extracted
+          echo "Downloaded file summary:"
+          ls -lh "$HWI_ARCHIVE" || true
+          echo "--- file(1) output ---"
+          file_out=$(file -b "$HWI_ARCHIVE" || true)
+          echo "$file_out"
+      
+          echo "--- first 64 bytes (hex) ---"
+          head -c 64 "$HWI_ARCHIVE" | hexdump -C || true
+      
+          mkdir -p "$TMPDIR"
+      
+          # choose extraction method based on file command
+          if echo "$file_out" | grep -qi gzip; then
+            echo "Detected gzip compressed archive -> tar -xzf"
+            tar -xzf "$HWI_ARCHIVE" -C "$TMPDIR"
+          elif echo "$file_out" | grep -qi 'XZ compressed'; then
+            echo "Detected xz compressed archive -> tar -xJf"
+            tar -xJf "$HWI_ARCHIVE" -C "$TMPDIR"
+          elif echo "$file_out" | grep -qi 'bzip2 compressed'; then
+            echo "Detected bzip2 compressed archive -> tar -xjf"
+            tar -xjf "$HWI_ARCHIVE" -C "$TMPDIR"
+          elif echo "$file_out" | grep -qi 'Zip archive'; then
+            echo "Detected zip archive -> unzip"
+            unzip -q "$HWI_ARCHIVE" -d "$TMPDIR"
+          elif echo "$file_out" | grep -qi 'tar archive' || hexdump -n 512 "$HWI_ARCHIVE" | grep -q 'ustar'; then
+            echo "Detected plain tar archive -> tar -xf"
+            tar -xf "$HWI_ARCHIVE" -C "$TMPDIR"
+          else
+            echo "ERROR: Unknown/unsupported archive type:"
+            echo "$file_out"
+            echo "Dumping first 200 bytes for debug (as text):"
+            head -c 200 "$HWI_ARCHIVE" | sed -n '1,80p' || true
+            exit 1
+          fi
       
           echo "Listing extracted files:"
-          ls -l hwi-extracted
-        
+          find "$TMPDIR" -maxdepth 3 -type f -ls || true
+
       - name: Download logo
         working-directory: ${{runner.workspace}}
         run: |
