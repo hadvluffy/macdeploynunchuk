@@ -21,6 +21,7 @@ jobs:
       
           echo "Downloading HWI from $HWI_URL"
           #wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
+          file "$HWI_ARCHIVE"
           wget -q "$HWI_URL"
           ls -l
       
