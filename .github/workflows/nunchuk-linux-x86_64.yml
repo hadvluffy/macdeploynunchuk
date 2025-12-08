@@ -16,10 +16,12 @@ jobs:
       - name: Download HWI
         run: |
           HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
-          HWI_ARCHIVE="hwi.tar.gz"
+          #HWI_ARCHIVE="hwi.tar.gz"
+          HWI_ARCHIVE="hwi-3.1.0-linux-x86_64.tar.gz"
       
           echo "Downloading HWI from $HWI_URL"
-          wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
+          #wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
+          wget -q "$HWI_URL"
           ls -l
       
           echo "Extracting HWI archive..."
