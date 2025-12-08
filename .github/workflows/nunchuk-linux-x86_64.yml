@@ -20,7 +20,7 @@ jobs:
       
           echo "Downloading HWI from $HWI_URL"
           wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
-          ls -l $HWI_URL
+          ls -l
       
           echo "Extracting HWI archive..."
           mkdir -p hwi-extracted
