@@ -13,6 +13,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         
+      - name: Download HWI
+        run: |
+          HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
+          HWI_ARCHIVE="hwi.tar.gz"
+      
+          echo "Downloading HWI from $HWI_URL"
+          wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
+      
+          echo "Extracting HWI archive..."
+          mkdir -p hwi-extracted
+          tar -xzf "$HWI_ARCHIVE" -C hwi-extracted
+      
+          echo "Listing extracted files:"
+          ls -l hwi-extracted
+        
       - name: Download logo
         working-directory: ${{runner.workspace}}
         run: |
@@ -291,19 +306,6 @@ jobs:
       - name: Download and install HWI
         run: |
           BINDIR="${{ runner.workspace }}/nunchuk-linux-v${{ env.LATEST_VERSION }}/Appdir/bin"
-          HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
-          HWI_ARCHIVE="hwi.tar.gz"
-      
-          echo "Downloading HWI from $HWI_URL"
-          wget -q "$HWI_URL" -O "$HWI_ARCHIVE"
-      
-          echo "Extracting HWI archive..."
-          mkdir -p hwi-extracted
-          tar -xzf "$HWI_ARCHIVE" -C hwi-extracted
-      
-          echo "Listing extracted files:"
-          ls -l hwi-extracted
-      
           echo "Copying HWI binary to $BINDIR..."
           mkdir -p "$BINDIR"
           cp hwi-extracted/hwi "$BINDIR/"
