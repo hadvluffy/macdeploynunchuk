@@ -1,4 +1,4 @@
-name: nunchuk-macos[x86]
+name: nunchuk-macos-offChain[x86]
 
 on:
   push:
