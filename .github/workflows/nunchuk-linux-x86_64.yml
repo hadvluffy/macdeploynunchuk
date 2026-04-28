@@ -17,7 +17,8 @@ jobs:
         run: |
           set -euo pipefail
       
-          HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
+          #HWI_URL="https://github.com/giahuy98/HWI/releases/download/3.1.0-coldcard/hwi-3.1.0-linux-x86_64.tar.gz"
+          HWI_URL="https://github.com/nogibi/HWI/releases/download/3.2.0-nunchuk/hwi-3.2.0-mac-x86_64.tar.gz"
           HWI_ARCHIVE="hwi.tar.gz"
           TMPDIR="hwi-extracted"
       
