@@ -136,7 +136,8 @@ jobs:
       - name: Checkout, Build & Install qtkeychain
         working-directory: ${{ runner.workspace }}
         run: |
-          git clone https://github.com/frankosterfeld/qtkeychain.git
+          #git clone https://github.com/frankosterfeld/qtkeychain.git
+          git clone --depth 1 --branch 0.15.0 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
           echo "Qt5 DIR ----->>>>> ${{ env.QT5_DIR }}"
