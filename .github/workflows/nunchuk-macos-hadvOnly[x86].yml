@@ -1,4 +1,4 @@
-name: nunchuk-macos-hadvOnly[x86]
+name: nunchuk-hadvOnly[x86]
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
           xcodebuild -version
 
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          job_runs_id="21869989069"
+          job_runs_id="25678039176"
           gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
           unzip hwi_macos.zip
           echo "ls -l"
@@ -35,7 +35,7 @@ jobs:
         env:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
+          echo -e "machine gitlab.com\n  login tongvanlinhqhi\n  password $GITLAB_PASS" >~/.netrc
           TARGET_BRANCH="hadvOnly"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
           echo "Cloning fresh repository"
