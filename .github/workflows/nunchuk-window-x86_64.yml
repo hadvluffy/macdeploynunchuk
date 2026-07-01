@@ -1,5 +1,5 @@
 name: nunchuk-window-x86_64
- 
+
 on:
   push:
     tags:
@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
- 
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -17,12 +17,12 @@ jobs:
       - name: Check Windows Version
         shell: pwsh
         run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
- 
+
       - name: Setup msbuild
         uses: microsoft/setup-msbuild@v2
         with:
             msbuild-architecture: x64
- 
+
       - name: Install CMake 3.31.0
         shell: pwsh
         run: |
@@ -39,12 +39,12 @@ jobs:
           
       - name: Check CMake version
         run: cmake --version
- 
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
- 
+
       - name: Install aqtinstall
         run: |
           pip install aqtinstall
@@ -74,7 +74,7 @@ jobs:
           dir C:\qt\5.15.2\msvc2019_64
           dir C:\qt\5.15.2\msvc2019_64\bin
           echo "QT_DIR=C:\qt\5.15.2\msvc2019_64" >> $GITHUB_ENV
- 
+
           echo "Check bin"
           Get-ChildItem "C:\qt\5.15.2\msvc2019_64\bin"
       
@@ -87,7 +87,7 @@ jobs:
           key: vcpkg-full-${{ runner.os }}-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
             vcpkg-full-${{ runner.os }}-
- 
+
       - name: Set up vcpkg
         working-directory: ${{ runner.workspace }}
         shell: pwsh
@@ -111,7 +111,7 @@ jobs:
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
- 
+
       - name: Checkout Olm
         working-directory: ${{ runner.workspace }}
         run: git clone https://gitlab.matrix.org/matrix-org/olm.git
@@ -119,7 +119,7 @@ jobs:
       - name: Build Olm
         working-directory: ${{ runner.workspace }}/olm
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
           
       - name: Checkout QtKeychain
@@ -131,6 +131,8 @@ jobs:
         working-directory: ${{ runner.workspace }}/qtkeychain
         run: |
           cmake -B build -S . `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
@@ -151,7 +153,7 @@ jobs:
             Write-Error "❌ qt5keychain.dll not found at $src"
             exit 1
           }
- 
+
       - name: Locate all libssl and libcrypto files
         shell: pwsh
         run: |
@@ -208,7 +210,7 @@ jobs:
           $timestamp = Get-Date -Format "yyyyMMddHHmmss"
           echo "Timestamp: $timestamp"
           echo "TIMESTAMP=$timestamp" >> $env:GITHUB_ENV
- 
+
       - name: Check environment variants
         id: set-timestamp
         run: |
@@ -236,8 +238,9 @@ jobs:
           $qtKeychain = ${{ env.QTKEYCHAIN_PATH }}
           echo "Qt path :>>> $qtDir"
           echo "Qt keychain path :>>> $qtKeychain"
- 
+
           $cmakeConfigureCmd = @(
+            "-G", "Visual Studio 17 2022",
             "-A", "x64",
             "-B", "build",
             "-S", "$env:project_path",
@@ -265,7 +268,7 @@ jobs:
             "/m:4"
           )
           cmake @cmakeBuildCmd
- 
+
       - name: Deploy with windeployqt
         shell: pwsh
         env:
@@ -275,24 +278,24 @@ jobs:
           Get-ChildItem "${{ runner.workspace }}"
           $windeployqt = "$env:windeployqt_exe"
           $nunchuk_qt = "build\Release\nunchuk-qt.exe"
- 
+
           if (!(Test-Path $windeployqt)) {
             Write-Error "❌ windeployqt not found at $windeployqt"
             exit 1
           }
- 
+
           if (!(Test-Path $nunchuk_qt)) {
             Write-Error "❌ Executable not found at $nunchuk_qt"
             exit 1
           }
- 
+
           & $windeployqt `
             "--release" `
             "--no-translations" `
             "--verbose=2" `
             $nunchuk_qt `
             "--qmldir" $env:project_path
- 
+
       # ----------------------------------------------------------------------
       # Stage toàn bộ runtime vào 1 thư mục sạch (staging).
       # windeployqt chỉ copy DLL của Qt -> phải copy thêm DLL bên thứ ba
@@ -308,11 +311,11 @@ jobs:
           $stage = "staging"
           if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
           New-Item -ItemType Directory -Path $stage | Out-Null
- 
+
           # 1) Copy exe + tất cả DLL Qt mà windeployqt đã sinh trong build\Release
           Copy-Item -Path "build\Release\*" -Destination $stage -Recurse -Force
           Write-Host "✅ Copied build\Release\* to $stage"
- 
+
           # 2) Copy DLL bên thứ ba (release) từ vcpkg.
           #    vcpkg để DLL debug trong /bin và DLL debug trong /debug/bin;
           #    /installed/x64-windows/bin là bản release.
@@ -325,7 +328,7 @@ jobs:
             Write-Error "❌ vcpkg bin dir not found at $env:vcpkg_bin"
             exit 1
           }
- 
+
           # 3) Đảm bảo qt5keychain.dll có mặt (bước build QtKeychain đã copy
           #    vào Qt bin, windeployqt có thể đã kéo theo; copy lại cho chắc).
           if (Test-Path $env:qtkeychain_dll) {
@@ -334,10 +337,10 @@ jobs:
           } else {
             Write-Host "⚠️ qt5keychain.dll not found at $env:qtkeychain_dll (có thể đã nằm trong build\Release)"
           }
- 
+
           Write-Host "---- Staging contents ----"
           Get-ChildItem $stage | Select-Object Name, Length
- 
+
       # ----------------------------------------------------------------------
       # Bundle HWI (hardware wallet) cho Windows - đồng bộ với Linux/macOS.
       # ----------------------------------------------------------------------
@@ -349,12 +352,12 @@ jobs:
           $stage = "staging"
           $zip = "$env:TEMP\hwi.zip"
           $out = "$env:TEMP\hwi-extracted"
- 
+
           Write-Host "Downloading HWI from $env:HWI_URL"
           Invoke-WebRequest -Uri $env:HWI_URL -OutFile $zip
           if (Test-Path $out) { Remove-Item -Recurse -Force $out }
           Expand-Archive -Path $zip -DestinationPath $out -Force
- 
+
           # Tìm hwi.exe trong gói giải nén (đề phòng cấu trúc thư mục lồng nhau)
           $hwi = Get-ChildItem -Path $out -Recurse -Filter "hwi.exe" | Select-Object -First 1
           if ($null -eq $hwi) {
@@ -364,7 +367,7 @@ jobs:
           }
           Copy-Item $hwi.FullName -Destination $stage -Force
           Write-Host "✅ Bundled $($hwi.Name) into $stage"
- 
+
       # ----------------------------------------------------------------------
       # Tạo installer bằng Inno Setup.
       # ----------------------------------------------------------------------
@@ -379,7 +382,7 @@ jobs:
             exit 1
           }
           echo "ISCC=$iscc" >> $env:GITHUB_ENV
- 
+
       - name: Generate Inno Setup script
         shell: pwsh
         run: |
@@ -389,12 +392,12 @@ jobs:
           if ($rawVersion -match '(\d+(\.\d+){1,3})') { $appVersion = $Matches[1] } else { $appVersion = "0.0.0" }
           echo "APP_VERSION=$appVersion" >> $env:GITHUB_ENV
           Write-Host "Installer AppVersion = $appVersion (from tag '$rawVersion')"
- 
+
           $iss = @"
           #define MyAppName "Nunchuk"
           #define MyAppVersion "$appVersion"
           #define MyAppExeName "nunchuk-qt.exe"
- 
+
           [Setup]
           AppId={{8F1B9C2A-4D3E-4A21-9C7B-1E2F3A4B5C6D}}
           AppName={#MyAppName}
@@ -409,28 +412,28 @@ jobs:
           ArchitecturesAllowed=x64
           ArchitecturesInstallIn64BitMode=x64
           WizardStyle=modern
- 
+
           [Languages]
           Name: "english"; MessagesFile: "compiler:Default.isl"
- 
+
           [Tasks]
           Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
- 
+
           [Files]
           Source: "staging\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
- 
+
           [Icons]
           Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
           Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
           Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
- 
+
           [Run]
           Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
           "@
           Set-Content -Path "nunchuk.iss" -Value $iss -Encoding UTF8
           Write-Host "---- nunchuk.iss ----"
           Get-Content "nunchuk.iss"
- 
+
       - name: Build installer with Inno Setup
         shell: pwsh
         run: |
@@ -438,7 +441,7 @@ jobs:
           & "${{ env.ISCC }}" "nunchuk.iss"
           Write-Host "---- installer dir ----"
           Get-ChildItem "installer"
- 
+
       - name: Zip deployed release folder
         shell: pwsh
         run: |
@@ -450,13 +453,13 @@ jobs:
           }
           Compress-Archive -Path "$src\*" -DestinationPath $dst -Force
           Write-Host "✅ Zipped $src to $dst"
- 
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
           name: nunchuk-windows-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
           path: installer/*.exe
- 
+
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
