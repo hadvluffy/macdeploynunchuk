@@ -23,6 +23,16 @@ jobs:
         with:
             msbuild-architecture: x64
 
+      # Nạp môi trường MSVC (cl.exe, nmake, INCLUDE/LIB, PATH) cho MỌI step sau.
+      # Cần thiết vì CMake generator "Visual Studio" không dò được VS trên runner
+      # này (COM/vswhere của CMake fail) trong khi cl.exe vẫn tồn tại — bằng chứng
+      # là vcpkg build boost thành công. Với env này + generator Ninja, CMake gọi
+      # thẳng cl.exe từ PATH, không phụ thuộc cơ chế dò VS.
+      - name: Setup MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Install CMake 3.31.0
         shell: pwsh
         run: |
@@ -45,9 +55,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install aqtinstall
+      - name: Install aqtinstall and ninja
         run: |
-          pip install aqtinstall
+          pip install aqtinstall ninja
   
       - name: Install Qt 5.15.2 (MSVC 2019)
         run: |
@@ -119,8 +129,8 @@ jobs:
       - name: Build Olm
         working-directory: ${{ runner.workspace }}/olm
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
           
       - name: Checkout QtKeychain
         working-directory: ${{ runner.workspace }}
@@ -131,16 +141,15 @@ jobs:
         working-directory: ${{ runner.workspace }}/qtkeychain
         run: |
           cmake -B build -S . `
-            -G "Visual Studio 17 2022" `
-            -A x64 `
+            -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
             -DCMAKE_INSTALL_PREFIX="C:/qtkeychainInstalled" `
             -DQt5_DIR="C:\Qt\5.15.2\msvc2019_64\lib\cmake\Qt5"
-            
-          cmake --build build --config Release
-          cmake --install build --config Release
+
+          cmake --build build
+          cmake --install build
           echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $GITHUB_ENV
           
           # ✅ Copy DLL vào Qt bin
@@ -239,9 +248,12 @@ jobs:
           echo "Qt path :>>> $qtDir"
           echo "Qt keychain path :>>> $qtKeychain"
 
+          # Generator Ninja: gọi thẳng cl.exe từ env MSVC đã nạp ở bước
+          # "Setup MSVC developer environment". Không dùng -A x64 (chỉ hợp lệ
+          # với generator Visual Studio); kiến trúc x64 đã do env MSVC (arch: x64)
+          # quyết định. Ninja là single-config nên CMAKE_BUILD_TYPE quyết định.
           $cmakeConfigureCmd = @(
-            "-G", "Visual Studio 17 2022",
-            "-A", "x64",
+            "-G", "Ninja",
             "-B", "build",
             "-S", "$env:project_path",
             "-DCMAKE_BUILD_TYPE=$env:build_mode",
@@ -253,51 +265,53 @@ jobs:
             "-D_WIN32_WINNT=0x0601"
           )
           cmake @cmakeConfigureCmd
-          
+
       - name: Build nunchuk-qt
         shell: pwsh
-        env:
-          build_mode: Release
         run: |
-          $cmakeBuildCmd = @(
-            "--build", 
-            "build", 
-            "--config", 
-            "$env:build_mode", 
-            "--", 
-            "/m:4"
-          )
-          cmake @cmakeBuildCmd
+          # Ninja tự song song hoá; không có --config (single-config).
+          cmake --build build
 
+      # ----------------------------------------------------------------------
+      # Deploy Qt runtime TRỰC TIẾP vào thư mục staging sạch.
+      # Ninja là single-config nên exe nằm ở build\nunchuk-qt.exe (không có
+      # subfolder Release). Copy exe sang staging rồi chạy windeployqt trên
+      # exe đã staged -> mọi DLL/plugin Qt được đổ thẳng vào staging, tránh
+      # rác build (CMakeCache, .obj, ...).
+      # ----------------------------------------------------------------------
       - name: Deploy with windeployqt
         shell: pwsh
         env:
           project_path: ${{ runner.workspace }}\nunchuk-qt
           windeployqt_exe: C:\qt\5.15.2\msvc2019_64\bin\windeployqt.exe
         run: |
-          Get-ChildItem "${{ runner.workspace }}"
           $windeployqt = "$env:windeployqt_exe"
-          $nunchuk_qt = "build\Release\nunchuk-qt.exe"
+          $built_exe = "build\nunchuk-qt.exe"
+          $stage = "staging"
 
           if (!(Test-Path $windeployqt)) {
             Write-Error "❌ windeployqt not found at $windeployqt"
             exit 1
           }
-
-          if (!(Test-Path $nunchuk_qt)) {
-            Write-Error "❌ Executable not found at $nunchuk_qt"
+          if (!(Test-Path $built_exe)) {
+            Write-Error "❌ Executable not found at $built_exe"
+            Get-ChildItem "build" | Select-Object Name
             exit 1
           }
+
+          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item $built_exe -Destination $stage -Force
 
           & $windeployqt `
             "--release" `
             "--no-translations" `
             "--verbose=2" `
-            $nunchuk_qt `
+            "$stage\nunchuk-qt.exe" `
             "--qmldir" $env:project_path
 
       # ----------------------------------------------------------------------
-      # Stage toàn bộ runtime vào 1 thư mục sạch (staging).
+      # Bổ sung DLL bên thứ ba vào staging.
       # windeployqt chỉ copy DLL của Qt -> phải copy thêm DLL bên thứ ba
       # từ vcpkg (boost, zeromq, libevent, sqlcipher, openssl, ...) và
       # qt5keychain.dll, nếu không app sẽ thiếu DLL khi chạy trên máy sạch.
@@ -309,12 +323,10 @@ jobs:
           qtkeychain_dll: C:/qtkeychainInstalled/bin/qt5keychain.dll
         run: |
           $stage = "staging"
-          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
-          New-Item -ItemType Directory -Path $stage | Out-Null
-
-          # 1) Copy exe + tất cả DLL Qt mà windeployqt đã sinh trong build\Release
-          Copy-Item -Path "build\Release\*" -Destination $stage -Recurse -Force
-          Write-Host "✅ Copied build\Release\* to $stage"
+          if (!(Test-Path $stage)) {
+            Write-Error "❌ staging dir not found (bước Deploy with windeployqt phải chạy trước)"
+            exit 1
+          }
 
           # 2) Copy DLL bên thứ ba (release) từ vcpkg.
           #    vcpkg để DLL debug trong /bin và DLL debug trong /debug/bin;
@@ -335,7 +347,7 @@ jobs:
             Copy-Item $env:qtkeychain_dll -Destination $stage -Force
             Write-Host "📌 Copied qt5keychain.dll"
           } else {
-            Write-Host "⚠️ qt5keychain.dll not found at $env:qtkeychain_dll (có thể đã nằm trong build\Release)"
+            Write-Host "⚠️ qt5keychain.dll not found at $env:qtkeychain_dll (có thể windeployqt đã kéo vào staging)"
           }
 
           Write-Host "---- Staging contents ----"
