@@ -231,29 +231,55 @@ jobs:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
           # Qt6: framework dùng "Versions/A" (Qt5 là "Versions/5").
+          # Các thao tác install_name_tool được GUARD: -delete_rpath fail cứng
+          # nếu rpath không tồn tại, mà layout rpath của Qt6 khác Qt5 -> chỉ
+          # xoá/thêm/đổi khi thực sự có, và coi lỗi lành tính là non-fatal.
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
-          
-          install_name_tool -delete_rpath "@executable_path/../Frameworks" "$HELPER_EXEC"
-          install_name_tool -add_rpath "@executable_path/../../../../../../../../Frameworks" "$HELPER_EXEC"
-          # Bắt mọi Qt*.framework dù ở đâu
-          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework")
-          
+
+          if [ ! -f "$HELPER_EXEC" ]; then
+            echo "⚠️ Helper executable not found: $HELPER_EXEC — bỏ qua bước patch."
+            exit 0
+          fi
+          echo "Helper executable found: $HELPER_EXEC"
+
+          # Liệt kê rpath hiện có (dòng path ngay sau mỗi LC_RPATH).
+          CURRENT_RPATHS=$(otool -l "$HELPER_EXEC" | awk '/cmd LC_RPATH/{f=1} f&&/path /{print $2; f=0}')
+
+          OLD_RPATH="@executable_path/../Frameworks"
+          NEW_RPATH="@executable_path/../../../../../../../../Frameworks"
+
+          # Xoá rpath cũ chỉ khi tồn tại
+          if echo "$CURRENT_RPATHS" | grep -qx "$OLD_RPATH"; then
+            echo "🔧 Deleting old rpath $OLD_RPATH"
+            install_name_tool -delete_rpath "$OLD_RPATH" "$HELPER_EXEC" || echo "⚠️ delete_rpath non-zero — bỏ qua"
+          else
+            echo "ℹ️ Old rpath $OLD_RPATH không có — skip delete"
+          fi
+
+          # Thêm rpath mới chỉ khi chưa có
+          if echo "$CURRENT_RPATHS" | grep -qx "$NEW_RPATH"; then
+            echo "ℹ️ New rpath đã có — skip add"
+          else
+            echo "🔧 Adding new rpath $NEW_RPATH"
+            install_name_tool -add_rpath "$NEW_RPATH" "$HELPER_EXEC" || echo "⚠️ add_rpath non-zero — bỏ qua"
+          fi
+
+          # Đổi dependency Qt*.framework chỉ khi thực sự xuất hiện trong otool -L
+          DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework" || true)
           if [ -z "$DEPS" ]; then
             echo "⚠️ No Qt dependencies found needing patch."
           else
             echo "$DEPS" | while read -r dep; do
-              basename=$(basename "$dep")
               framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
               new_path="@executable_path/../../../../../../../${framework}.framework/Versions/A/${framework}"
               echo "🔧 Fixing: $dep → $new_path"
-              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
+              install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC" || echo "⚠️ change fail cho $dep — bỏ qua"
             done
           fi
-          
+
           echo "✅ Done patching QtWebEngineProcess dependencies."
-          # Check result
           echo "-- CHECK OTOOL AGAIN --"
           otool -L "$HELPER_EXEC"
         
