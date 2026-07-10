@@ -129,9 +129,15 @@ jobs:
         with:
           version: '6.9.3'
           host: 'mac'
-          # Qt6 tách WebEngine ra và KHÔNG tự kéo các module phụ thuộc;
-          # qtwebengine cần qtwebchannel + qtpositioning đi kèm.
-          modules: 'qtwebengine qtwebchannel qtpositioning'
+          # Module theo find_package(Qt6 ...) trong CMakeLists.txt của nunchuk-qt.
+          # Các component còn lại (Core/CorePrivate/Gui/Widgets/Concurrent/Network/
+          # Sql/PrintSupport = qtbase; Qml/Quick/QuickControls2 = qtdeclarative;
+          # Svg = qtsvg) đã nằm trong bản base nên không cần liệt kê.
+          # Cần thêm qua -m:
+          #  - qtmultimedia   -> Qt6::Multimedia
+          #  - qtwebengine    -> Qt6::WebEngineWidgets (USING_WEBENGINE=ON)
+          #  - qtwebchannel + qtpositioning -> phụ thuộc bắt buộc của WebEngine
+          modules: 'qtmultimedia qtwebengine qtwebchannel qtpositioning'
 
       - name: Configure Qt6 paths
         run: |
