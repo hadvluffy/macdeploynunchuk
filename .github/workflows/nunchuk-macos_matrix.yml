@@ -1,4 +1,4 @@
-name: nunchuk-macos[arm]
+name: nunchuk-macos-matrix
 
 on:
   push:
@@ -9,11 +9,30 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    # Build tách biệt 2 bản: Intel (x86_64) và Apple Silicon (arm64).
+    # Mỗi phần tử matrix chạy trên runner đúng kiến trúc -> binary native.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Homebrew prefix khác nhau theo kiến trúc:
+      #   Intel  -> /usr/local
+      #   Apple Silicon -> /opt/homebrew
+      # Bắt động để mọi bước dùng chung, tránh hardcode.
+      - name: Set Homebrew prefix
+        run: |
+          echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
+          echo "Homebrew prefix = $(brew --prefix) (arch: ${{ matrix.arch }})"
 
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
@@ -22,7 +41,7 @@ jobs:
           xcodebuild -version
 
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-          job_runs_id="19273506565"
+          job_runs_id="25678039176"
           gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
           unzip hwi_macos.zip
           echo "ls -l"
@@ -35,14 +54,14 @@ jobs:
         env:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
-          echo -e "machine gitlab.com\n  login hadvluffy\n  password $GITLAB_PASS" >~/.netrc
-          TARGET_BRANCH="dev"
+          echo -e "machine gitlab.com\n  login tongvanlinhqhi\n  password $GITLAB_PASS" >~/.netrc
+          TARGET_BRANCH="qt6"
           echo "BUILD_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
           echo "Cloning fresh repository"
           rm -rf nunchuk-qt
           git clone -b $TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
           cd nunchuk-qt
-          git fetch --all --tags --force
+          git fetch --all --tags --prune
           git submodule sync --recursive
           git submodule update --init --recursive
           echo "Latest commit ----->>>>> $(git rev-parse HEAD)"
@@ -79,8 +98,8 @@ jobs:
           
       - name: Remove default openssl
         run: |
-          rm -rf /usr/local/opt/openssl
-          rm -rf /usr/local/include/openssl
+          rm -rf "$BREW_PREFIX/opt/openssl"
+          rm -rf "$BREW_PREFIX/include/openssl"
           
       - name: Install dependencies
         run: |
@@ -101,33 +120,41 @@ jobs:
         run: |
           export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
           export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install libolm libevent
+          # berkeley-db@4 được tham chiếu trong LDFLAGS/CPPFLAGS. Trên Intel có thể
+          # sẵn, nhưng trên arm64 thường thiếu -> cài tường minh cho cả 2 kiến trúc.
+          brew install libolm libevent berkeley-db@4
       
-      - name: Install Qt 5.15.2
+      - name: Install Qt 6.9.3
         uses: jurplel/install-qt-action@v4
         with:
-          version: '5.15.2'
+          version: '6.9.3'
           host: 'mac'
-          modules: 'qtwebengine'
-  
-      - name: Configure Qt5 paths
+          # Qt6 tách WebEngine ra và KHÔNG tự kéo các module phụ thuộc;
+          # qtwebengine cần qtwebchannel + qtpositioning đi kèm.
+          modules: 'qtwebengine qtwebchannel qtpositioning'
+
+      - name: Configure Qt6 paths
         run: |
-          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
+          # Qt6 trên macOS dùng thư mục kiến trúc "macos" (universal x86_64+arm64),
+          # KHÔNG còn là "clang_64" như Qt5.
+          QTPATH="${{ github.workspace }}/Qt/6.9.3/macos"
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
-          
+
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
-          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
+          QTPATH="${{ github.workspace }}/Qt/6.9.3/macos"
           git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
           cd qtkeychain
           mkdir build && cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          # BUILD_WITH_QT6=ON: build qtkeychain cho Qt6 (mặc định vẫn là Qt5).
+          cmake .. -DBUILD_WITH_QT6=ON -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           CORES=$(sysctl -n hw.ncpu)
           cmake --build . -j$CORES
-          sudo cmake --install . --prefix "/usr/local"
+          # Cài vào Homebrew prefix (Intel: /usr/local, arm64: /opt/homebrew)
+          sudo cmake --install . --prefix "$BREW_PREFIX"
           
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
@@ -149,10 +176,10 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
         run: |
           set -e
-          QTPATH="${{ github.workspace }}/Qt/5.15.2/clang_64"
+          QTPATH="${{ github.workspace }}/Qt/6.9.3/macos"
           export PATH="$QTPATH/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
-          export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L$BREW_PREFIX/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I$BREW_PREFIX/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="$HOME/boost-1.81.0"
           export CXXFLAGS="$CXXFLAGS -O0"
           export CFLAGS="$CFLAGS -O0"
@@ -160,7 +187,7 @@ jobs:
           cd build
           cmake ${{runner.workspace}}/nunchuk-qt \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" \
+                -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake;$BREW_PREFIX" \
                 -DUR__DISABLE_TESTS=ON \
                 -DBOOST_ROOT=$HOME/boost-1.81.0 \
                 -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
@@ -178,11 +205,14 @@ jobs:
         run: |
           set -e
           source ~/.bashrc
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="$LDFLAGS -L/usr/local/opt/qt@5/lib -L$HOME/boost-1.81.0/lib -L/usr/local/opt/berkeley-db@4/lib"
-          export CPPFLAGS="$CPPFLAGS -I/usr/local/opt/qt@5/include -I$HOME/boost-1.81.0/include -I/usr/local/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
+          # Dùng macdeployqt của Qt6 vừa cài (QTPATH set ở bước Configure Qt6 paths),
+          # KHÔNG dùng Homebrew qt@5.
+          export PATH="$QTPATH/bin:$PATH"
+          export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L$BREW_PREFIX/opt/berkeley-db@4/lib"
+          export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I$BREW_PREFIX/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="$HOME/boost-1.81.0"
-          
+
+          which macdeployqt
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH \
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
@@ -194,7 +224,8 @@ jobs:
         env:
           APP_PATH: "${{runner.workspace}}/build/Nunchuk.app"
         run: |
-          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          # Qt6: framework dùng "Versions/A" (Qt5 là "Versions/5").
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
           
@@ -209,7 +240,7 @@ jobs:
             echo "$DEPS" | while read -r dep; do
               basename=$(basename "$dep")
               framework=$(echo "$dep" | sed -E 's|.*/(Qt[^/]+)\.framework.*|\1|')
-              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/5/${framework}"
+              new_path="@executable_path/../../../../../../../${framework}.framework/Versions/A/${framework}"
               echo "🔧 Fixing: $dep → $new_path"
               install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC"
             done
@@ -286,7 +317,8 @@ jobs:
           #codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
 
           echo "Signing QWebengineProcess executables..."
-          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app"
+          # Qt6: Versions/A (Qt5 là Versions/5)
+          HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app"
           HELPER_ENTITLEMENTS="$HELPER_PATH/Contents/Resources/QtWebEngineProcess.entitlements"
           codesign --force --deep --verify --options=runtime --verbose --timestamp --entitlements "$HELPER_ENTITLEMENTS" -s "$MACOS_CERTIFICATE_NAME" "$HELPER_PATH" -vvv
          
@@ -344,13 +376,13 @@ jobs:
           spctl --assess --type exec --verbose=4 "$APP_PATH"
 
           timestamp=${{ env.TIMESTAMP }}
-          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-${{ matrix.arch }}"
           mkdir -p "$final_package_dir"
           echo "Repackaging the notarized app bundle to $final_package_dir"
           cp -R "$APP_PATH" "$final_package_dir/"
 
           echo "Packaging built folder..."
-          final_built_zip="/tmp/$timestamp/nunchuk-macos-built.zip"
+          final_built_zip="/tmp/$timestamp/nunchuk-macos-${{ matrix.arch }}-built.zip"
           ditto -c -k --keepParent "$final_package_dir" "$final_built_zip"
 
       - name: Debug running processes
@@ -395,7 +427,7 @@ jobs:
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
-          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-${{ matrix.arch }}"
           
           cat <<EOF > dmg.json
           {
@@ -435,22 +467,22 @@ jobs:
           timestamp=${{ env.TIMESTAMP }}
           final_dmg_dir="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}"
           mkdir -p "$final_dmg_dir"
-          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-x86_64"
+          final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-${{ matrix.arch }}"
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
           appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
           ls -la $final_dmg_dir
           
-          final_package_zip="/tmp/$timestamp/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
+          final_package_zip="/tmp/$timestamp/nunchuk-macos-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
           ditto -c -k --keepParent "$final_dmg_dir" "$final_package_zip"
       - name: Upload Nunchuk BUILT
         uses: actions/upload-artifact@v4
         with:
-          name: nunchuk-macos-built
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-built.zip
-      
+          name: nunchuk-macos-${{ matrix.arch }}-built
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-${{ matrix.arch }}-built.zip
+
       - name: Upload Nunchuk DMG
         uses: 'actions/upload-artifact@v4'
         with:
-          name: nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
-          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
+          name: nunchuk-macos-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          path: /tmp/${{ env.TIMESTAMP }}/nunchuk-macos-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip
