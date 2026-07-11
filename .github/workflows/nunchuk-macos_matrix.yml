@@ -33,13 +33,11 @@ jobs:
         run: |
           echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           echo "Homebrew prefix = $(brew --prefix) (arch: ${{ matrix.arch }})"
-
       - name: Checkout HWI
         working-directory: ${{runner.workspace}}
         run: |
           xcode-select -p
           xcodebuild -version
-
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
           job_runs_id="25678039176"
           gh run download $job_runs_id -n "hwi_macos.zip" --repo hadvluffy/macdeploynunchuk
@@ -73,7 +71,6 @@ jobs:
           echo "Latest tag found: $LATEST_TAG (commit $TAGGED_COMMIT)"
           echo "Current commit: $CURRENT_COMMIT"
           echo "LATEST_VERSION=$LATEST_TAG" >> $GITHUB_ENV
-
       - name: Generate build timestamp
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -101,20 +98,27 @@ jobs:
           rm -rf "$BREW_PREFIX/opt/openssl"
           rm -rf "$BREW_PREFIX/include/openssl"
           
+      # Cache Boost đã build. Key TÁCH THEO arch để bản Intel (x86_64) và arm64
+      # KHÔNG dùng nhầm binary của nhau.
+      - name: Cache Boost 1.81.0
+        id: cache-boost
+        uses: actions/cache@v4
+        with:
+          path: ~/boost-1.81.0
+          key: boost-1.81.0-${{ matrix.arch }}
+
       - name: Install dependencies
+        # Chỉ build boost khi chưa có cache cho arch này.
+        if: steps.cache-boost.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/boost-1.81.0
           wget https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
-          tar -xvzf boost_1_81_0.tar.gz
-          cd boost_1_81_0          
+          tar -xzf boost_1_81_0.tar.gz
+          cd boost_1_81_0
           ./bootstrap.sh --prefix=$HOME/boost-1.81.0
-          #./b2 install 
-           # build single-thread and verbose debug output, capture log
-          ./b2 install -j1 -d2 --prefix=$HOME/boost-1.81.0 2>&1 | tee $RUNNER_TEMP/boost_install.log || true
-          tail -n 200 $RUNNER_TEMP/boost_install.log || true
-          # upload log as artifact for inspection
-          echo "Uploading boost_install.log"
-          ls -la $RUNNER_TEMP/boost_install.log
+          # Build song song theo số core (trước đây là -j1 -> rất chậm trên Intel).
+          CORES=$(sysctl -n hw.ncpu)
+          ./b2 install -j$CORES --prefix=$HOME/boost-1.81.0
           
       - name: Brew install remaining deps
         run: |
@@ -147,7 +151,6 @@ jobs:
           echo "QTPATH=$QTPATH" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> $GITHUB_ENV
           echo "PATH=$QTPATH/bin:$PATH" >> $GITHUB_ENV
-
       - name: Install qtkeychain
         working-directory: ${{runner.workspace}}
         run: |
@@ -162,6 +165,15 @@ jobs:
           # Cài vào Homebrew prefix (Intel: /usr/local, arm64: /opt/homebrew)
           sudo cmake --install . --prefix "$BREW_PREFIX"
           
+      # Cache OpenSSL đã build (thư mục lib output). Key tách theo arch.
+      # Nếu bump phiên bản openssl vendored trong repo -> đổi hậu tố -v1 để invalidate.
+      - name: Cache OpenSSL (contrib)
+        id: cache-openssl
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          key: openssl-contrib-${{ matrix.arch }}-v1
+
       - name: Build openssl
         if: steps.cache-openssl.outputs.cache-hit != 'true'
         working-directory: ${{runner.workspace}}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
@@ -217,14 +229,12 @@ jobs:
           export LDFLAGS="$LDFLAGS -L$QTPATH/lib -L$HOME/boost-1.81.0/lib -L$BREW_PREFIX/opt/berkeley-db@4/lib"
           export CPPFLAGS="$CPPFLAGS -I$QTPATH/include -I$HOME/boost-1.81.0/include -I$BREW_PREFIX/opt/berkeley-db@4/include -I$OPENSSL_ROOT_DIR/include"
           export BOOST_ROOT="$HOME/boost-1.81.0"
-
           which macdeployqt
           find ${{runner.workspace}} -name "Nunchuk.app"
           macdeployqt $APP_PATH \
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
                       -qmldir=${{runner.workspace}}/nunchuk-qt \
                       -always-overwrite
-
       - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
@@ -237,19 +247,15 @@ jobs:
           HELPER_PATH="$APP_PATH/Contents/Frameworks/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app"
           HELPER_EXEC="$HELPER_PATH/Contents/MacOS/QtWebEngineProcess"
           HELPER_FRAMEWORKS="$HELPER_PATH/Contents/Frameworks"
-
           if [ ! -f "$HELPER_EXEC" ]; then
             echo "⚠️ Helper executable not found: $HELPER_EXEC — bỏ qua bước patch."
             exit 0
           fi
           echo "Helper executable found: $HELPER_EXEC"
-
           # Liệt kê rpath hiện có (dòng path ngay sau mỗi LC_RPATH).
           CURRENT_RPATHS=$(otool -l "$HELPER_EXEC" | awk '/cmd LC_RPATH/{f=1} f&&/path /{print $2; f=0}')
-
           OLD_RPATH="@executable_path/../Frameworks"
           NEW_RPATH="@executable_path/../../../../../../../../Frameworks"
-
           # Xoá rpath cũ chỉ khi tồn tại
           if echo "$CURRENT_RPATHS" | grep -qx "$OLD_RPATH"; then
             echo "🔧 Deleting old rpath $OLD_RPATH"
@@ -257,7 +263,6 @@ jobs:
           else
             echo "ℹ️ Old rpath $OLD_RPATH không có — skip delete"
           fi
-
           # Thêm rpath mới chỉ khi chưa có
           if echo "$CURRENT_RPATHS" | grep -qx "$NEW_RPATH"; then
             echo "ℹ️ New rpath đã có — skip add"
@@ -265,7 +270,6 @@ jobs:
             echo "🔧 Adding new rpath $NEW_RPATH"
             install_name_tool -add_rpath "$NEW_RPATH" "$HELPER_EXEC" || echo "⚠️ add_rpath non-zero — bỏ qua"
           fi
-
           # Đổi dependency Qt*.framework chỉ khi thực sự xuất hiện trong otool -L
           DEPS=$(otool -L "$HELPER_EXEC" | awk '{print $1}' | grep -E "Qt[^/]+\.framework" || true)
           if [ -z "$DEPS" ]; then
@@ -278,13 +282,12 @@ jobs:
               install_name_tool -change "$dep" "$new_path" "$HELPER_EXEC" || echo "⚠️ change fail cho $dep — bỏ qua"
             done
           fi
-
           echo "✅ Done patching QtWebEngineProcess dependencies."
           echo "-- CHECK OTOOL AGAIN --"
           otool -L "$HELPER_EXEC"
         
       - name: Setup certification
-        env: 
+        env:
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_NAME }}
