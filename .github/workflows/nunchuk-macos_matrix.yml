@@ -403,7 +403,25 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$zip_file"
       
           echo "Submitting app bundle for notarization..."
-          xcrun notarytool submit "$zip_file" --keychain-profile "notarytool-profile" --wait --verbose
+          # Retry: Apple notary hay trả 503 "Slow Down" và notarytool có thể tự
+          # crash (Bus error) ở nhánh retry multipart -> đều là lỗi transient.
+          # Thử lại tối đa 3 lần với backoff tăng dần; --timeout tránh treo vô hạn.
+          max_attempts=3
+          attempt=1
+          until xcrun notarytool submit "$zip_file" \
+                  --keychain-profile "notarytool-profile" \
+                  --wait --timeout 30m --verbose; do
+            status=$?
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "❌ Notarization thất bại sau $attempt lần thử (exit $status)"
+              exit "$status"
+            fi
+            backoff=$((attempt * 60))
+            echo "⚠️ Notarization lần $attempt lỗi (503/crash?) -> chờ ${backoff}s rồi thử lại..."
+            sleep "$backoff"
+            attempt=$((attempt + 1))
+          done
+          echo "✅ Notarization thành công (lần thử $attempt)."
       
           echo "Stapling notarization ticket to the app bundle..."
           xcrun stapler staple "$APP_PATH"
