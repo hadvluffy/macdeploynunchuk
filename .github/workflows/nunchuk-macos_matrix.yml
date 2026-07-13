@@ -149,7 +149,7 @@ jobs:
           #  - qt5compat -> QML "import Qt5Compat.GraphicalEffects" (thay QtGraphicalEffects
           #    của Qt5). Đây là import QML-only, KHÔNG xuất hiện trong find_package,
           #    nhưng thiếu thì QML gốc load fail -> app trắng màn hình.
-          modules: 'qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat'
+          modules: 'qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat qtshadertools'
 
       - name: Configure Qt6 paths
         run: |
