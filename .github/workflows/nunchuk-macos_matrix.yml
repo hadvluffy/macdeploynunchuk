@@ -490,13 +490,19 @@ jobs:
         run: |
           echo "📌 Volume status *before* detach:"
           mount | grep "/Volumes/Nunchuk" || echo "⛔️ Not mounted."
-        
-          # Unmount any mounted volume with same name
-          (mount | grep -q "/Volumes/Nunchuk" && hdiutil detach "/Volumes/Nunchuk") || true          
-          
+
+          # Unmount tất cả volume còn sót có tên khớp "Nunchuk" hoặc bị macOS
+          # tự đổi tên do trùng ("Nunchuk 1", "Nunchuk 2", ...), tránh appdmg
+          # mount volume mới bị lệch tên rồi tự detach lỗi "No such file or directory".
+          for vol in $(mount | grep -o "/Volumes/Nunchuk[^ ]*" || true); do
+            echo "Detaching stale volume: $vol"
+            hdiutil detach "$vol" -force || echo "⚠️ Detach $vol thất bại (bỏ qua, có thể đã tự unmount)."
+            sleep 1
+          done
+
           echo "📌 Volume status *after* detach:"
           mount | grep "/Volumes/Nunchuk" || echo "✅ Successfully detached (not found in mount list)."
-          
+
           # Use custom temp dir to avoid /var/folders quirks
           export TMPDIR="${{runner.workspace}}/tmp"
           mkdir -p "$TMPDIR"
@@ -550,7 +556,33 @@ jobs:
           final_package_dir="${{runner.workspace}}/$timestamp/nunchuk-macos-${{ matrix.arch }}"
           echo "Create DMG from source : $final_package_dir"
           echo "Create DMG to directory: $final_dmg_dir"
-          appdmg dmg.json $final_dmg_dir/Nunchuk.dmg
+
+          # appdmg đôi khi fail ở bước "Unmounting temporary image" do race
+          # với Disk Arbitration/Finder (hdiutil detach: No such file or directory).
+          # Retry + sleep chờ hệ thống ổn định volume trước khi thử lại.
+          max_attempts=3
+          for attempt in $(seq 1 $max_attempts); do
+            echo "🔁 appdmg attempt $attempt/$max_attempts"
+            rm -f "$final_dmg_dir/Nunchuk.dmg"
+
+            if appdmg dmg.json "$final_dmg_dir/Nunchuk.dmg"; then
+              echo "✅ appdmg thành công (lần thử $attempt)."
+              break
+            fi
+
+            echo "⚠️ appdmg thất bại (lần thử $attempt)."
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "❌ appdmg thất bại sau $max_attempts lần thử."
+              exit 1
+            fi
+
+            # Dọn volume còn sót lại trước khi thử lại, chờ vài giây cho ổn định.
+            for vol in $(mount | grep -o "/Volumes/Nunchuk[^ ]*" || true); do
+              hdiutil detach "$vol" -force || true
+            done
+            sleep 2
+          done
+
           ls -la $final_dmg_dir
           
           final_package_zip="/tmp/$timestamp/nunchuk-macos-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}.zip"
