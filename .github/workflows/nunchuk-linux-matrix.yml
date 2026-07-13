@@ -1,0 +1,375 @@
+name: nunchuk-linux-matrix
+
+env:
+  QT_VERSION: '6.9.3'
+  BOOST_VERSION: '1.81.0'
+  UPLOAD_BUILT: 'false'
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+            qt_host: linux
+            qt_arch: gcc_64
+            appimage_arch: x86_64
+            hwi_mode: download
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+            qt_host: linux_arm64
+            qt_arch: linux_gcc_arm64
+            appimage_arch: aarch64
+            hwi_mode: build
+
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout workflow repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            curl \
+            desktop-file-utils \
+            file \
+            git \
+            libboost-all-dev \
+            libdb++-dev \
+            libevent-dev \
+            libfuse2 \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libpulse-dev \
+            libsecret-1-dev \
+            libsqlite3-dev \
+            libudev-dev \
+            libusb-1.0-0-dev \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxkbcommon-x11-0 \
+            libzmq3-dev \
+            ninja-build \
+            patchelf \
+            python3-pip \
+            sqlite3 \
+            wget \
+            zip
+
+      - name: Install GCC 14
+        run: |
+          set -euo pipefail
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+          echo "AR=gcc-ar-14" >> "$GITHUB_ENV"
+          echo "NM=gcc-nm-14" >> "$GITHUB_ENV"
+          echo "RANLIB=gcc-ranlib-14" >> "$GITHUB_ENV"
+
+      - name: Install Qt 6.9.3
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --upgrade aqtinstall
+          export PATH="$HOME/.local/bin:$PATH"
+
+          aqt install-qt \
+            "${{ matrix.qt_host }}" desktop "$QT_VERSION" "${{ matrix.qt_arch }}" \
+            --outputdir "$HOME/Qt" \
+            --modules qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat
+
+          QMAKE_PATH=$(find "$HOME/Qt/$QT_VERSION" -type f \( -name qmake6 -o -name qmake \) -print -quit)
+          test -n "$QMAKE_PATH"
+          QTPATH=$(cd "$(dirname "$QMAKE_PATH")/.." && pwd)
+          echo "QTPATH=$QTPATH" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> "$GITHUB_ENV"
+          echo "$QTPATH/bin" >> "$GITHUB_PATH"
+          "$QMAKE_PATH" -query
+
+      - name: Checkout nunchuk-qt
+        working-directory: ${{ runner.workspace }}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        run: |
+          set -euo pipefail
+          printf 'machine gitlab.com\n  login tongvanlinhqhi\n  password %s\n' "$GITLAB_PASS" > "$HOME/.netrc"
+          chmod 600 "$HOME/.netrc"
+
+          TARGET_BRANCH="qt6"
+          echo "BUILD_BRANCH=$TARGET_BRANCH" >> "$GITHUB_ENV"
+          rm -rf nunchuk-qt
+          git clone --branch "$TARGET_BRANCH" https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          cd nunchuk-qt
+          git fetch --all --tags --prune
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+          LAST_COMMITID=$(git rev-parse HEAD)
+          LATEST_TAG=$(git for-each-ref --count=1 --sort=-taggerdate --format '%(refname:short)' refs/tags)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="0.0.0"
+          fi
+          echo "LAST_COMMITID=$LAST_COMMITID" >> "$GITHUB_ENV"
+          echo "LATEST_VERSION=$LATEST_TAG" >> "$GITHUB_ENV"
+          echo "Commit: $LAST_COMMITID"
+          echo "Version: $LATEST_TAG"
+
+      - name: Generate build metadata
+        run: |
+          echo "TIMESTAMP=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV"
+          echo "Architecture: ${{ matrix.arch }}"
+          echo "Runner machine: $(uname -m)"
+
+      - name: Download application icon
+        working-directory: ${{ runner.workspace }}
+        run: |
+          curl -fL --retry 3 \
+            -o nunchuk-qt.png \
+            https://raw.githubusercontent.com/hadvluffy/macdeploynunchuk/main/nunchuk-qt.png
+
+      - name: Cache Boost 1.81.0
+        id: cache-boost
+        uses: actions/cache@v4
+        with:
+          path: ~/boost-1.81.0
+          key: boost-1.81.0-linux-${{ matrix.arch }}-v1
+
+      - name: Build Boost 1.81.0
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o boost.tar.gz \
+            https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz
+          tar -xzf boost.tar.gz
+          cd boost_1_81_0
+          ./bootstrap.sh --prefix="$HOME/boost-1.81.0"
+          ./b2 install -j"$(nproc)" --prefix="$HOME/boost-1.81.0"
+
+      - name: Build and install qtkeychain for Qt6
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          rm -rf qtkeychain
+          git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain
+          cmake -S qtkeychain -B qtkeychain/build -G Ninja \
+            -DBUILD_WITH_QT6=ON \
+            -DBUILD_TEST_APPLICATION=OFF \
+            -DBUILD_TRANSLATIONS=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake" \
+            -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+          cmake --build qtkeychain/build --parallel "$(nproc)"
+          cmake --install qtkeychain/build
+
+      - name: Build and install Olm 3.2.16
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          rm -rf olm
+          git clone --depth 1 --branch 3.2.16 https://gitlab.matrix.org/matrix-org/olm.git
+          cmake -S olm -B olm/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build olm/build --parallel "$(nproc)"
+          cmake --install olm/build
+
+      - name: Cache OpenSSL contrib
+        id: cache-openssl
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          key: openssl-contrib-linux-${{ matrix.arch }}-v1
+
+      - name: Build OpenSSL contrib
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+        run: |
+          set -euo pipefail
+          ./config --prefix="$PWD/lib"
+          make -j"$(nproc)"
+          make install_dev
+
+      - name: Configure and build nunchuk-qt
+        working-directory: ${{ runner.workspace }}
+        env:
+          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          export BOOST_ROOT="$HOME/boost-1.81.0"
+          export CPPFLAGS="-I$OPENSSL_ROOT_DIR/include -I$BOOST_ROOT/include"
+          export LDFLAGS="-L$OPENSSL_ROOT_DIR/lib -L$BOOST_ROOT/lib"
+
+          cmake -S nunchuk-qt -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QTPATH/lib/cmake;$HOME/.local" \
+            -DCMAKE_C_COMPILER="$CC" \
+            -DCMAKE_CXX_COMPILER="$CXX" \
+            -DCMAKE_AR="$AR" \
+            -DCMAKE_NM="$NM" \
+            -DCMAKE_RANLIB="$RANLIB" \
+            -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" \
+            -DBOOST_ROOT="$BOOST_ROOT" \
+            -DUR__DISABLE_TESTS=ON \
+            -DCMAKE_C_FLAGS_RELEASE="-O0 $CPPFLAGS" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O0 $CPPFLAGS" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
+          cmake --build build --parallel "$(nproc)"
+
+          NUNCHUK_BINARY=$(find "$PWD/build" -type f -name nunchuk-qt -perm -111 -print -quit)
+          test -n "$NUNCHUK_BINARY"
+          echo "NUNCHUK_BINARY=$NUNCHUK_BINARY" >> "$GITHUB_ENV"
+          file "$NUNCHUK_BINARY"
+
+      - name: Download HWI x86_64
+        if: matrix.hwi_mode == 'download'
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          mkdir -p hwi
+          curl -fL --retry 3 -o hwi.tar.gz \
+            https://github.com/nogibi/HWI/releases/download/3.2.0-displayaddress/hwi-3.2.0-linux-x86_64.tar.gz
+          echo "ee7cf2afe085128c55ebaa1fb1da45831ae82a02f5b8c462c1dc95e6e606220a  hwi.tar.gz" | sha256sum -c -
+          tar -xzf hwi.tar.gz -C hwi
+          test -x hwi/hwi
+          echo "HWI_BINARY=$PWD/hwi/hwi" >> "$GITHUB_ENV"
+          file hwi/hwi
+
+      - name: Build HWI arm64
+        if: matrix.hwi_mode == 'build'
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          rm -rf hwi-src
+          git clone --depth 1 --branch 3.2.0-displayaddress https://github.com/nogibi/HWI hwi-src
+          cd hwi-src
+          docker build -f contrib/build.Dockerfile -t nunchuk-hwi-arm64 .
+          docker run --rm \
+            -v "$PWD:/src" \
+            -w /src \
+            nunchuk-hwi-arm64 \
+            bash -c 'git config --global --add safe.directory /src && contrib/build_bin.sh --without-gui'
+
+          HWI_BINARY=$(find "$PWD/dist" -path '*.tar.gz.dir/hwi' -type f -perm -111 -print -quit)
+          test -n "$HWI_BINARY"
+          echo "HWI_BINARY=$HWI_BINARY" >> "$GITHUB_ENV"
+          file "$HWI_BINARY"
+
+      - name: Download Linux deployment tools
+        working-directory: ${{ runner.workspace }}
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 \
+            -o linuxdeploy \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.appimage_arch }}.AppImage"
+          curl -fL --retry 3 \
+            -o linuxdeploy-plugin-qt \
+            "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-${{ matrix.appimage_arch }}.AppImage"
+          chmod +x linuxdeploy linuxdeploy-plugin-qt
+          file linuxdeploy linuxdeploy-plugin-qt
+
+      - name: Create AppImage
+        working-directory: ${{ runner.workspace }}
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          set -euo pipefail
+          export PATH="$PWD:$QTPATH/bin:$PATH"
+          export QMAKE="$QTPATH/bin/qmake6"
+          if [ ! -x "$QMAKE" ]; then
+            export QMAKE="$QTPATH/bin/qmake"
+          fi
+          export QML_SOURCES_PATHS="$PWD/nunchuk-qt"
+          export NO_STRIP=1
+
+          rm -rf AppDir
+          mkdir -p AppDir/usr/bin
+          install -m 755 "$HWI_BINARY" AppDir/usr/bin/hwi
+
+          cat > nunchuk.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Nunchuk
+          Comment=Bitcoin multisig wallet
+          Exec=nunchuk-qt
+          Icon=nunchuk-qt
+          Categories=Finance;Utility;
+          Terminal=false
+          EOF
+
+          ./linuxdeploy \
+            --appdir AppDir \
+            --executable "$NUNCHUK_BINARY" \
+            --desktop-file nunchuk.desktop \
+            --icon-file nunchuk-qt.png \
+            --plugin qt
+
+          # QtWebEngine sandbox không hoạt động ổn định bên trong AppImage.
+          sed -i '/^exec /i export QTWEBENGINE_DISABLE_SANDBOX=1' AppDir/AppRun
+
+          export VERSION="${LATEST_VERSION#v}"
+          export ARCH="${{ matrix.appimage_arch }}"
+          ./linuxdeploy --appdir AppDir --output appimage
+
+          GENERATED_APPIMAGE=$(find "$PWD" -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          test -n "$GENERATED_APPIMAGE"
+          FINAL_APPIMAGE="$PWD/nunchuk-linux-${{ matrix.arch }}-v${LATEST_VERSION}_${BUILD_BRANCH}_${TIMESTAMP}.AppImage"
+          mv "$GENERATED_APPIMAGE" "$FINAL_APPIMAGE"
+          echo "FINAL_APPIMAGE=$FINAL_APPIMAGE" >> "$GITHUB_ENV"
+
+      - name: Verify AppImage contents
+        working-directory: ${{ runner.workspace }}
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          set -euo pipefail
+          file "$FINAL_APPIMAGE"
+          test -x AppDir/usr/bin/hwi
+          test -x AppDir/usr/bin/nunchuk-qt
+          file AppDir/usr/bin/hwi AppDir/usr/bin/nunchuk-qt
+          desktop-file-validate AppDir/usr/share/applications/nunchuk.desktop
+          LD_LIBRARY_PATH="$PWD/AppDir/usr/lib" ldd AppDir/usr/bin/nunchuk-qt | tee linked-libraries.txt
+          if grep -q 'not found' linked-libraries.txt; then
+            echo 'ERROR: AppImage còn thiếu shared library.'
+            exit 1
+          fi
+
+      - name: Zip built AppDir
+        if: env.UPLOAD_BUILT == 'true'
+        working-directory: ${{ runner.workspace }}
+        run: |
+          zip -r "nunchuk-linux-${{ matrix.arch }}-built.zip" AppDir
+
+      - name: Upload Nunchuk AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-linux-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          path: ${{ env.FINAL_APPIMAGE }}
+          if-no-files-found: error
+
+      - name: Upload built AppDir
+        if: env.UPLOAD_BUILT == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-linux-${{ matrix.arch }}-built
+          path: ${{ runner.workspace }}/nunchuk-linux-${{ matrix.arch }}-built.zip
+          if-no-files-found: error
