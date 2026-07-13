@@ -20,7 +20,6 @@ jobs:
           - arch: x86_64
             runner: ubuntu-22.04
             qt_host: linux
-            qt_arch: gcc_64
             qt_arch: linux_gcc_64
             appimage_arch: x86_64
             hwi_mode: download
@@ -86,7 +85,6 @@ jobs:
       - name: Install Qt 6.9.3
         run: |
           set -euo pipefail
-          python3 -m pip install --user --upgrade aqtinstall
           python3 -m pip install --user "aqtinstall==3.3.0"
           export PATH="$HOME/.local/bin:$PATH"
 
@@ -107,7 +105,6 @@ jobs:
           aqt install-qt \
             "${{ matrix.qt_host }}" desktop "$QT_VERSION" "${{ matrix.qt_arch }}" \
             --outputdir "$HOME/Qt" \
-            --modules qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat
             -m qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat
 
           QMAKE_PATH=$(find "$HOME/Qt/$QT_VERSION" -type f \( -name qmake6 -o -name qmake \) -print -quit)
