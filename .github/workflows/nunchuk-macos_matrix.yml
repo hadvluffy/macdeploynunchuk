@@ -243,6 +243,20 @@ jobs:
                       -executable=$APP_PATH/Contents/MacOS/Nunchuk \
                       -qmldir=${{runner.workspace}}/nunchuk-qt \
                       -always-overwrite
+
+          # macdeployqt BỎ SÓT QtShaderTools.framework — đây là dependency của
+          # libqtgraphicaleffectsprivateplugin.dylib (Qt5Compat.GraphicalEffects.private).
+          # Thiếu nó -> OpacityMask/DropShadow fail -> chuỗi QML popup unavailable
+          # -> app trắng màn hình. Copy tay vào Contents/Frameworks (rpath
+          # @executable_path/../Frameworks đã resolve tới đây theo log dlopen).
+          SHADERTOOLS_SRC="$QTPATH/lib/QtShaderTools.framework"
+          SHADERTOOLS_DST="$APP_PATH/Contents/Frameworks/QtShaderTools.framework"
+          if [ -d "$SHADERTOOLS_SRC" ] && [ ! -d "$SHADERTOOLS_DST" ]; then
+            cp -R "$SHADERTOOLS_SRC" "$APP_PATH/Contents/Frameworks/"
+            echo "✅ Copied QtShaderTools.framework vào app bundle"
+          else
+            echo "ℹ️ QtShaderTools.framework: src tồn tại=$( [ -d "$SHADERTOOLS_SRC" ] && echo yes || echo no ), dst đã có=$( [ -d "$SHADERTOOLS_DST" ] && echo yes || echo no )"
+          fi
       - name: Patch QtWebEngineProcess dependencies
         working-directory: ${{runner.workspace}}/build
         env:
