@@ -19,6 +19,8 @@ jobs:
         include:
           - arch: x86_64
             runner: ubuntu-24.04
+            deb_arch: amd64
+            elf_machine: x86-64
             qt_host: linux
             qt_arch: linux_gcc_64
             appimage_arch: x86_64
@@ -26,6 +28,8 @@ jobs:
           - arch: arm64
             # Qt 6.9.3 ARM64 host tools (moc/rcc) yêu cầu GLIBC >= 2.38.
             runner: ubuntu-24.04-arm
+            deb_arch: arm64
+            elf_machine: ARM aarch64
             qt_host: linux_arm64
             qt_arch: linux_gcc_arm64
             appimage_arch: aarch64
@@ -54,6 +58,7 @@ jobs:
             libevent-dev \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
+            libminizip-dev \
             libpulse-dev \
             libsecret-1-dev \
             libsqlite3-dev \
@@ -147,6 +152,76 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> "$GITHUB_ENV"
           echo "$QTPATH/bin" >> "$GITHUB_PATH"
           "$QMAKE_PATH" -query
+
+      - name: Verify Qt WebEngine native dependencies
+        run: |
+          set -euo pipefail
+
+          HOST_ARCH=$(dpkg --print-architecture)
+          if [ "$HOST_ARCH" != "${{ matrix.deb_arch }}" ]; then
+            echo "ERROR: Runner architecture là $HOST_ARCH, expected ${{ matrix.deb_arch }}."
+            exit 1
+          fi
+
+          for package in libminizip-dev libminizip1t64; do
+            PACKAGE_ARCH=$(dpkg-query -W -f='${Architecture}' "$package")
+            PACKAGE_VERSION=$(dpkg-query -W -f='${Version}' "$package")
+            if [ "$PACKAGE_ARCH" != "$HOST_ARCH" ]; then
+              echo "ERROR: $package là $PACKAGE_ARCH, expected $HOST_ARCH."
+              exit 1
+            fi
+            echo "$package $PACKAGE_VERSION $PACKAGE_ARCH"
+          done
+
+          mapfile -t MINIZIP_LIBS < <(
+            ldconfig -p | awk '$1 == "libminizip.so.1" { print $NF }'
+          )
+          if [ "${#MINIZIP_LIBS[@]}" -ne 1 ]; then
+            echo 'ERROR: Không tìm thấy đúng một native libminizip.so.1.'
+            printf '%s\n' "${MINIZIP_LIBS[@]}"
+            exit 1
+          fi
+          MINIZIP_LIB="${MINIZIP_LIBS[0]}"
+          test -f "$MINIZIP_LIB"
+          MINIZIP_FILE_INFO=$(file -L "$MINIZIP_LIB")
+          echo "$MINIZIP_FILE_INFO"
+          if ! grep -Fq '${{ matrix.elf_machine }}' <<< "$MINIZIP_FILE_INFO"; then
+            echo 'ERROR: libminizip không đúng ELF architecture của matrix.'
+            exit 1
+          fi
+
+          "$NM" -D --defined-only "$MINIZIP_LIB" \
+            | awk '{ sub(/@.*/, "", $3); print $3 }' \
+            > minizip-symbols.txt
+          for symbol in \
+            fill_fopen64_filefunc \
+            zipWriteInFileInZip \
+            zipOpenNewFileInZip4_64 \
+            zipOpen2_64 \
+            zipClose \
+            zipCloseFileInZip; do
+            if ! grep -qx "$symbol" minizip-symbols.txt; then
+              echo "ERROR: $MINIZIP_LIB thiếu symbol $symbol."
+              exit 1
+            fi
+          done
+
+          WEBENGINE_CORE=$(find "$QTPATH/lib" -maxdepth 1 \
+            -type f -name 'libQt6WebEngineCore.so.*' \
+            -print -quit)
+          test -n "$WEBENGINE_CORE"
+          WEBENGINE_FILE_INFO=$(file -L "$WEBENGINE_CORE")
+          echo "$WEBENGINE_FILE_INFO"
+          if ! grep -Fq '${{ matrix.elf_machine }}' <<< "$WEBENGINE_FILE_INFO"; then
+            echo 'ERROR: Qt WebEngineCore không đúng ELF architecture của matrix.'
+            exit 1
+          fi
+          LD_LIBRARY_PATH="$QTPATH/lib" ldd "$WEBENGINE_CORE" \
+            | tee qt-webengine-dependencies.txt
+          if grep -q 'not found' qt-webengine-dependencies.txt; then
+            echo 'ERROR: Qt WebEngineCore còn thiếu native shared library.'
+            exit 1
+          fi
 
       - name: Checkout nunchuk-qt
         working-directory: ${{ github.workspace }}/..
