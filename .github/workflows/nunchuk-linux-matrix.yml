@@ -59,8 +59,19 @@ jobs:
             libsqlite3-dev \
             libudev-dev \
             libusb-1.0-0-dev \
+            libx11-xcb1 \
             libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-util1 \
+            libxcb-xfixes0 \
             libxcb-xinerama0 \
+            libxcb-xkb1 \
             libxkbcommon-x11-0 \
             libzmq3-dev \
             ninja-build \
@@ -342,6 +353,18 @@ jobs:
             "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-${{ matrix.appimage_arch }}.AppImage"
           chmod +x linuxdeploy linuxdeploy-plugin-qt
           file linuxdeploy linuxdeploy-plugin-qt
+
+      - name: Verify Qt XCB runtime dependencies
+        working-directory: ${{ github.workspace }}/..
+        run: |
+          set -euo pipefail
+          XCB_PLUGIN="$QTPATH/plugins/platforms/libqxcb.so"
+          test -f "$XCB_PLUGIN"
+          ldd "$XCB_PLUGIN" | tee qt-xcb-dependencies.txt
+          if grep -q 'not found' qt-xcb-dependencies.txt; then
+            echo 'ERROR: Qt XCB platform plugin còn thiếu shared library.'
+            exit 1
+          fi
 
       - name: Create AppImage
         working-directory: ${{ github.workspace }}/..
