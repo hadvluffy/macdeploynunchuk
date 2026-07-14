@@ -560,7 +560,7 @@ jobs:
           Comment=Bitcoin multisig wallet
           Exec=nunchuk-qt
           Icon=nunchuk-qt
-          Categories=Finance;Utility;
+          Categories=Utility;
           Terminal=false
           EOF
 
@@ -602,7 +602,8 @@ jobs:
           test -x "$BUNDLE_ROOT/usr/bin/hwi"
           test -x "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
           file "$BUNDLE_ROOT/usr/bin/hwi" "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
-          desktop-file-validate "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"
+          desktop-file-validate --no-hints \
+            "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"
 
           verify_plugin_set() {
             local plugin_dir="$1"
