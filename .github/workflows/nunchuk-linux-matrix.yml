@@ -366,6 +366,43 @@ jobs:
             exit 1
           fi
 
+      - name: Restrict Qt SQL plugins to SQLite
+        working-directory: ${{ github.workspace }}/..
+        run: |
+          set -euo pipefail
+          SQLDRIVERS_DIR="$QTPATH/plugins/sqldrivers"
+          SQLITE_DRIVER="$SQLDRIVERS_DIR/libqsqlite.so"
+
+          test -d "$SQLDRIVERS_DIR"
+          test -f "$SQLITE_DRIVER"
+
+          # linuxdeploy-plugin-qt deploy toàn bộ thư mục sqldrivers. Chỉ giữ
+          # QSQLITE mà Nunchuk sử dụng để không kéo các driver DB ngoài như
+          # Mimer, Oracle, MySQL hoặc PostgreSQL cùng dependency không cần thiết.
+          find "$SQLDRIVERS_DIR" -maxdepth 1 \
+            \( -type f -o -type l \) \
+            -name 'libqsql*.so*' \
+            ! -name 'libqsqlite.so' \
+            -print -delete
+
+          mapfile -t SQL_DRIVERS < <(
+            find "$SQLDRIVERS_DIR" -maxdepth 1 \
+              \( -type f -o -type l \) \
+              -name 'libqsql*.so*' \
+              -print
+          )
+          if [ "${#SQL_DRIVERS[@]}" -ne 1 ] || [ "${SQL_DRIVERS[0]}" != "$SQLITE_DRIVER" ]; then
+            echo 'ERROR: Qt SQL plugin whitelist không chỉ còn libqsqlite.so.'
+            printf '%s\n' "${SQL_DRIVERS[@]}"
+            exit 1
+          fi
+
+          LD_LIBRARY_PATH="$QTPATH/lib" ldd "$SQLITE_DRIVER" | tee qt-sqlite-dependencies.txt
+          if grep -q 'not found' qt-sqlite-dependencies.txt; then
+            echo 'ERROR: Qt SQLite plugin còn thiếu shared library.'
+            exit 1
+          fi
+
       - name: Create AppImage
         working-directory: ${{ github.workspace }}/..
         env:
@@ -417,18 +454,55 @@ jobs:
 
       - name: Verify AppImage contents
         working-directory: ${{ github.workspace }}/..
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
           set -euo pipefail
           file "$FINAL_APPIMAGE"
-          test -x AppDir/usr/bin/hwi
-          test -x AppDir/usr/bin/nunchuk-qt
-          file AppDir/usr/bin/hwi AppDir/usr/bin/nunchuk-qt
-          desktop-file-validate AppDir/usr/share/applications/nunchuk.desktop
-          LD_LIBRARY_PATH="$PWD/AppDir/usr/lib" ldd AppDir/usr/bin/nunchuk-qt | tee linked-libraries.txt
-          if grep -q 'not found' linked-libraries.txt; then
-            echo 'ERROR: AppImage còn thiếu shared library.'
+
+          rm -rf AppImageExtract
+          mkdir AppImageExtract
+          (
+            cd AppImageExtract
+            "$FINAL_APPIMAGE" --appimage-extract >/dev/null
+          )
+          BUNDLE_ROOT="$PWD/AppImageExtract/squashfs-root"
+
+          test -x "$BUNDLE_ROOT/usr/bin/hwi"
+          test -x "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
+          file "$BUNDLE_ROOT/usr/bin/hwi" "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
+          desktop-file-validate "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"
+
+          mapfile -t DEPLOYED_SQL_DRIVERS < <(
+            find "$BUNDLE_ROOT/usr/plugins/sqldrivers" -maxdepth 1 \
+              \( -type f -o -type l \) \
+              -name 'libqsql*.so*' \
+              -print
+          )
+          if [ "${#DEPLOYED_SQL_DRIVERS[@]}" -ne 1 ] || \
+             [ "$(basename "${DEPLOYED_SQL_DRIVERS[0]}")" != 'libqsqlite.so' ]; then
+            echo 'ERROR: AppImage chứa SQL driver ngoài whitelist SQLite.'
+            printf '%s\n' "${DEPLOYED_SQL_DRIVERS[@]}"
+            exit 1
+          fi
+
+          : > missing-elf-dependencies.txt
+          while IFS= read -r -d '' ELF_FILE; do
+            if ! file -b "$ELF_FILE" | grep -q 'ELF'; then
+              continue
+            fi
+
+            LDD_OUTPUT=$(
+              LD_LIBRARY_PATH="$BUNDLE_ROOT/usr/lib" ldd "$ELF_FILE" 2>&1 || true
+            )
+            if grep -q 'not found' <<< "$LDD_OUTPUT"; then
+              {
+                echo "===== $ELF_FILE ====="
+                echo "$LDD_OUTPUT"
+              } | tee -a missing-elf-dependencies.txt
+            fi
+          done < <(find "$BUNDLE_ROOT" -type f -print0)
+
+          if [ -s missing-elf-dependencies.txt ]; then
+            echo 'ERROR: AppImage còn ELF thiếu shared library; xem báo cáo phía trên.'
             exit 1
           fi
 
