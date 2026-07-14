@@ -76,11 +76,33 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           sudo apt-get update
           sudo apt-get install -y gcc-14 g++-14
-          echo "CC=gcc-14" >> "$GITHUB_ENV"
-          echo "CXX=g++-14" >> "$GITHUB_ENV"
-          echo "AR=gcc-ar-14" >> "$GITHUB_ENV"
-          echo "NM=gcc-nm-14" >> "$GITHUB_ENV"
-          echo "RANLIB=gcc-ranlib-14" >> "$GITHUB_ENV"
+
+          CC_PATH=$(command -v gcc-14)
+          CXX_PATH=$(command -v g++-14)
+          AR_PATH=$(command -v gcc-ar-14)
+          NM_PATH=$(command -v gcc-nm-14)
+          RANLIB_PATH=$(command -v gcc-ranlib-14)
+
+          for tool in "$CC_PATH" "$CXX_PATH" "$AR_PATH" "$NM_PATH" "$RANLIB_PATH"; do
+            test -x "$tool" || {
+              echo "ERROR: Compiler tool không tồn tại hoặc không executable: $tool"
+              exit 1
+            }
+          done
+
+          {
+            echo "CC=$CC_PATH"
+            echo "CXX=$CXX_PATH"
+            echo "AR=$AR_PATH"
+            echo "NM=$NM_PATH"
+            echo "RANLIB=$RANLIB_PATH"
+          } >> "$GITHUB_ENV"
+
+          "$CC_PATH" --version
+          "$CXX_PATH" --version
+          "$AR_PATH" --version
+          "$NM_PATH" --version
+          "$RANLIB_PATH" --version
 
       - name: Install Qt 6.9.3
         run: |
@@ -116,7 +138,7 @@ jobs:
           "$QMAKE_PATH" -query
 
       - name: Checkout nunchuk-qt
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         env:
           GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
         run: |
@@ -150,7 +172,7 @@ jobs:
           echo "Runner machine: $(uname -m)"
 
       - name: Download application icon
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           curl -fL --retry 3 \
             -o nunchuk-qt.png \
@@ -165,7 +187,7 @@ jobs:
 
       - name: Build Boost 1.81.0
         if: steps.cache-boost.outputs.cache-hit != 'true'
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           curl -fL --retry 3 -o boost.tar.gz \
@@ -176,7 +198,7 @@ jobs:
           ./b2 install -j"$(nproc)" --prefix="$HOME/boost-1.81.0"
 
       - name: Build and install qtkeychain for Qt6
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           rm -rf qtkeychain
@@ -192,7 +214,7 @@ jobs:
           cmake --install qtkeychain/build
 
       - name: Build and install Olm 3.2.16
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           rm -rf olm
@@ -208,12 +230,12 @@ jobs:
         id: cache-openssl
         uses: actions/cache@v4
         with:
-          path: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          path: ${{ github.workspace }}/../nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
           key: openssl-contrib-linux-${{ matrix.arch }}-v1
 
       - name: Build OpenSSL contrib
         if: steps.cache-openssl.outputs.cache-hit != 'true'
-        working-directory: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl
+        working-directory: ${{ github.workspace }}/../nunchuk-qt/contrib/libnunchuk/contrib/openssl
         run: |
           set -euo pipefail
           ./config --prefix="$PWD/lib"
@@ -221,9 +243,9 @@ jobs:
           make install_dev
 
       - name: Configure and build nunchuk-qt
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         env:
-          OPENSSL_ROOT_DIR: ${{ runner.workspace }}/nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
+          OPENSSL_ROOT_DIR: ${{ github.workspace }}/../nunchuk-qt/contrib/libnunchuk/contrib/openssl/lib
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
           OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
@@ -247,6 +269,26 @@ jobs:
             -DCMAKE_C_FLAGS_RELEASE="-O0 $CPPFLAGS" \
             -DCMAKE_CXX_FLAGS_RELEASE="-O0 $CPPFLAGS" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
+
+          verify_cmake_tool() {
+            cache_key="$1"
+            expected_path="$2"
+            configured_path=$(sed -n "s/^${cache_key}:[^=]*=//p" build/CMakeCache.txt)
+            if [ -z "$configured_path" ]; then
+              echo "ERROR: $cache_key không tồn tại trong CMakeCache.txt"
+              exit 1
+            fi
+            if [ "$(realpath "$configured_path")" != "$(realpath "$expected_path")" ]; then
+              echo "ERROR: $cache_key cấu hình sai: $configured_path (expected: $expected_path)"
+              exit 1
+            fi
+            echo "$cache_key=$configured_path"
+          }
+
+          verify_cmake_tool CMAKE_AR "$AR"
+          verify_cmake_tool CMAKE_NM "$NM"
+          verify_cmake_tool CMAKE_RANLIB "$RANLIB"
+
           cmake --build build --parallel "$(nproc)"
 
           NUNCHUK_BINARY=$(find "$PWD/build" -type f -name nunchuk-qt -perm -111 -print -quit)
@@ -256,7 +298,7 @@ jobs:
 
       - name: Download HWI x86_64
         if: matrix.hwi_mode == 'download'
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           mkdir -p hwi
@@ -270,7 +312,7 @@ jobs:
 
       - name: Build HWI arm64
         if: matrix.hwi_mode == 'build'
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           rm -rf hwi-src
@@ -289,7 +331,7 @@ jobs:
           file "$HWI_BINARY"
 
       - name: Download Linux deployment tools
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
           curl -fL --retry 3 \
@@ -302,7 +344,7 @@ jobs:
           file linuxdeploy linuxdeploy-plugin-qt
 
       - name: Create AppImage
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
@@ -351,7 +393,7 @@ jobs:
           echo "FINAL_APPIMAGE=$FINAL_APPIMAGE" >> "$GITHUB_ENV"
 
       - name: Verify AppImage contents
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         env:
           APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
@@ -369,7 +411,7 @@ jobs:
 
       - name: Zip built AppDir
         if: env.UPLOAD_BUILT == 'true'
-        working-directory: ${{ runner.workspace }}
+        working-directory: ${{ github.workspace }}/..
         run: |
           zip -r "nunchuk-linux-${{ matrix.arch }}-built.zip" AppDir
 
@@ -385,5 +427,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nunchuk-linux-${{ matrix.arch }}-built
-          path: ${{ runner.workspace }}/nunchuk-linux-${{ matrix.arch }}-built.zip
+          path: ${{ github.workspace }}/../nunchuk-linux-${{ matrix.arch }}-built.zip
           if-no-files-found: error
