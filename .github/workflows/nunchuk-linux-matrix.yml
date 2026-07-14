@@ -18,13 +18,14 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
             qt_host: linux
             qt_arch: linux_gcc_64
             appimage_arch: x86_64
             hwi_mode: download
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            # Qt 6.9.3 ARM64 host tools (moc/rcc) yêu cầu GLIBC >= 2.38.
+            runner: ubuntu-24.04-arm
             qt_host: linux_arm64
             qt_arch: linux_gcc_arm64
             appimage_arch: aarch64
@@ -51,7 +52,6 @@ jobs:
             libboost-all-dev \
             libdb++-dev \
             libevent-dev \
-            libfuse2 \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
             libpulse-dev \
