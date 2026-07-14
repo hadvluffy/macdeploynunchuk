@@ -542,8 +542,10 @@ jobs:
           fi
           export QML_SOURCES_PATHS="$PWD/nunchuk-qt"
           export NO_STRIP=1
-          # Không ép linuxdeploy kéo thêm module/plugin ngoài dependency graph.
-          unset EXTRA_QT_MODULES EXTRA_QT_PLUGINS EXTRA_PLATFORM_PLUGINS
+          # QIcon nạp SVG icon engine động nên ELF scanner không thấy QtSvg.
+          # Ép đúng module svg để deploy libqsvgicon.so, không kéo backend khác.
+          unset EXTRA_QT_PLUGINS EXTRA_PLATFORM_PLUGINS
+          export EXTRA_QT_MODULES=svg
 
           rm -rf AppDir
           mkdir -p AppDir/usr/bin
