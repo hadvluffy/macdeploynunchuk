@@ -441,40 +441,97 @@ jobs:
             exit 1
           fi
 
-      - name: Restrict Qt SQL plugins to SQLite
+      - name: Restrict Qt runtime plugins
         working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
-          SQLDRIVERS_DIR="$QTPATH/plugins/sqldrivers"
-          SQLITE_DRIVER="$SQLDRIVERS_DIR/libqsqlite.so"
 
-          test -d "$SQLDRIVERS_DIR"
-          test -f "$SQLITE_DRIVER"
+          restrict_plugins() {
+            local plugin_dir="$1"
+            shift
+            local allowed_plugins=("$@")
+            local plugin plugin_name allowed keep
+            local remaining_plugins=()
 
-          # linuxdeploy-plugin-qt deploy toàn bộ thư mục sqldrivers. Chỉ giữ
-          # QSQLITE mà Nunchuk sử dụng để không kéo các driver DB ngoài như
-          # Mimer, Oracle, MySQL hoặc PostgreSQL cùng dependency không cần thiết.
-          find "$SQLDRIVERS_DIR" -maxdepth 1 \
-            \( -type f -o -type l \) \
-            -name 'libqsql*.so*' \
-            ! -name 'libqsqlite.so' \
-            -print -delete
+            test -d "$plugin_dir"
+            for allowed in "${allowed_plugins[@]}"; do
+              test -f "$plugin_dir/$allowed" || {
+                echo "ERROR: Plugin bắt buộc không tồn tại: $plugin_dir/$allowed"
+                exit 1
+              }
+            done
 
-          mapfile -t SQL_DRIVERS < <(
-            find "$SQLDRIVERS_DIR" -maxdepth 1 \
-              \( -type f -o -type l \) \
-              -name 'libqsql*.so*' \
-              -print
+            while IFS= read -r -d '' plugin; do
+              plugin_name=$(basename "$plugin")
+              keep=0
+              for allowed in "${allowed_plugins[@]}"; do
+                if [ "$plugin_name" = "$allowed" ]; then
+                  keep=1
+                  break
+                fi
+              done
+
+              if [ "$keep" -eq 0 ]; then
+                echo "Removing unused Qt plugin: $plugin"
+                rm -f "$plugin"
+              fi
+            done < <(
+              find "$plugin_dir" -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -name '*.so*' -print0
+            )
+
+            mapfile -t remaining_plugins < <(
+              find "$plugin_dir" -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -name '*.so*' -printf '%f\n' | sort
+            )
+            if [ "${#remaining_plugins[@]}" -ne "${#allowed_plugins[@]}" ]; then
+              echo "ERROR: Qt plugin whitelist sai tại $plugin_dir."
+              printf '%s\n' "${remaining_plugins[@]}"
+              exit 1
+            fi
+            for allowed in "${allowed_plugins[@]}"; do
+              test -f "$plugin_dir/$allowed"
+            done
+          }
+
+          # linuxdeploy-plugin-qt deploy toàn bộ plugin trong mỗi module.
+          # Chỉ giữ backend thực sự dùng bởi ứng dụng desktop.
+          restrict_plugins "$QTPATH/plugins/sqldrivers" \
+            libqsqlite.so
+          restrict_plugins "$QTPATH/plugins/multimedia" \
+            libffmpegmediaplugin.so
+          restrict_plugins "$QTPATH/plugins/position" \
+            libqtposition_geoclue2.so \
+            libqtposition_positionpoll.so
+
+          ALLOWED_QT_PLUGINS=(
+            "$QTPATH/plugins/sqldrivers/libqsqlite.so"
+            "$QTPATH/plugins/multimedia/libffmpegmediaplugin.so"
+            "$QTPATH/plugins/position/libqtposition_geoclue2.so"
+            "$QTPATH/plugins/position/libqtposition_positionpoll.so"
           )
-          if [ "${#SQL_DRIVERS[@]}" -ne 1 ] || [ "${SQL_DRIVERS[0]}" != "$SQLITE_DRIVER" ]; then
-            echo 'ERROR: Qt SQL plugin whitelist không chỉ còn libqsqlite.so.'
-            printf '%s\n' "${SQL_DRIVERS[@]}"
-            exit 1
-          fi
 
-          LD_LIBRARY_PATH="$QTPATH/lib" ldd "$SQLITE_DRIVER" | tee qt-sqlite-dependencies.txt
-          if grep -q 'not found' qt-sqlite-dependencies.txt; then
-            echo 'ERROR: Qt SQLite plugin còn thiếu shared library.'
+          : > qt-plugin-dependencies.txt
+          : > missing-qt-plugin-dependencies.txt
+          for plugin in "${ALLOWED_QT_PLUGINS[@]}"; do
+            LDD_OUTPUT=$(LD_LIBRARY_PATH="$QTPATH/lib" ldd "$plugin" 2>&1 || true)
+            {
+              echo "===== $plugin ====="
+              echo "$LDD_OUTPUT"
+            } | tee -a qt-plugin-dependencies.txt
+            if grep -q 'not found' <<< "$LDD_OUTPUT"; then
+              {
+                echo "===== $plugin ====="
+                echo "$LDD_OUTPUT"
+              } >> missing-qt-plugin-dependencies.txt
+            fi
+          done
+
+          if [ -s missing-qt-plugin-dependencies.txt ]; then
+            echo 'ERROR: Qt plugin trong whitelist còn thiếu shared library.'
+            cat missing-qt-plugin-dependencies.txt
             exit 1
           fi
 
@@ -514,8 +571,9 @@ jobs:
             --icon-file nunchuk-qt.png \
             --plugin qt
 
-          # QtWebEngine sandbox không hoạt động ổn định bên trong AppImage.
+          # Cố định backend desktop và cấu hình QtWebEngine cho AppImage.
           sed -i '/^exec /i export QTWEBENGINE_DISABLE_SANDBOX=1' AppDir/AppRun
+          sed -i '/^exec /i export QT_MEDIA_BACKEND=ffmpeg' AppDir/AppRun
 
           export VERSION="${LATEST_VERSION#v}"
           export ARCH="${{ matrix.appimage_arch }}"
@@ -546,18 +604,41 @@ jobs:
           file "$BUNDLE_ROOT/usr/bin/hwi" "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
           desktop-file-validate "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"
 
-          mapfile -t DEPLOYED_SQL_DRIVERS < <(
-            find "$BUNDLE_ROOT/usr/plugins/sqldrivers" -maxdepth 1 \
-              \( -type f -o -type l \) \
-              -name 'libqsql*.so*' \
-              -print
-          )
-          if [ "${#DEPLOYED_SQL_DRIVERS[@]}" -ne 1 ] || \
-             [ "$(basename "${DEPLOYED_SQL_DRIVERS[0]}")" != 'libqsqlite.so' ]; then
-            echo 'ERROR: AppImage chứa SQL driver ngoài whitelist SQLite.'
-            printf '%s\n' "${DEPLOYED_SQL_DRIVERS[@]}"
-            exit 1
-          fi
+          verify_plugin_set() {
+            local plugin_dir="$1"
+            shift
+            local expected_plugins=("$@")
+            local expected
+            local actual_plugins=()
+
+            test -d "$plugin_dir"
+            mapfile -t actual_plugins < <(
+              find "$plugin_dir" -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -name '*.so*' -printf '%f\n' | sort
+            )
+            if [ "${#actual_plugins[@]}" -ne "${#expected_plugins[@]}" ]; then
+              echo "ERROR: AppImage chứa plugin ngoài whitelist tại $plugin_dir."
+              printf '%s\n' "${actual_plugins[@]}"
+              exit 1
+            fi
+            for expected in "${expected_plugins[@]}"; do
+              test -f "$plugin_dir/$expected" || {
+                echo "ERROR: AppImage thiếu plugin $plugin_dir/$expected"
+                exit 1
+              }
+            done
+          }
+
+          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/sqldrivers" \
+            libqsqlite.so
+          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/multimedia" \
+            libffmpegmediaplugin.so
+          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/position" \
+            libqtposition_geoclue2.so \
+            libqtposition_positionpoll.so
+
+          grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$BUNDLE_ROOT/AppRun"
 
           : > missing-elf-dependencies.txt
           while IFS= read -r -d '' ELF_FILE; do
