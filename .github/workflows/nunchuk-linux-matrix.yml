@@ -548,8 +548,14 @@ jobs:
           export EXTRA_QT_MODULES=svg
 
           rm -rf AppDir
-          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/bin AppDir/apprun-hooks
           install -m 755 "$HWI_BINARY" AppDir/usr/bin/hwi
+
+          # linuxdeploy tự source mọi file trong apprun-hooks trước khi mở app.
+          cat > AppDir/apprun-hooks/00-nunchuk-env.sh <<'EOF'
+          export QTWEBENGINE_DISABLE_SANDBOX=1
+          export QT_MEDIA_BACKEND=ffmpeg
+          EOF
 
           cat > nunchuk.desktop <<'EOF'
           [Desktop Entry]
@@ -562,20 +568,15 @@ jobs:
           Terminal=false
           EOF
 
+          export VERSION="${LATEST_VERSION#v}"
+          export ARCH="${{ matrix.appimage_arch }}"
           ./linuxdeploy \
             --appdir AppDir \
             --executable "$NUNCHUK_BINARY" \
             --desktop-file nunchuk.desktop \
             --icon-file nunchuk-qt.png \
-            --plugin qt
-
-          # Cố định backend desktop và cấu hình QtWebEngine cho AppImage.
-          sed -i '/^exec /i export QTWEBENGINE_DISABLE_SANDBOX=1' AppDir/AppRun
-          sed -i '/^exec /i export QT_MEDIA_BACKEND=ffmpeg' AppDir/AppRun
-
-          export VERSION="${LATEST_VERSION#v}"
-          export ARCH="${{ matrix.appimage_arch }}"
-          ./linuxdeploy --appdir AppDir --output appimage
+            --plugin qt \
+            --output appimage
 
           GENERATED_APPIMAGE=$(find "$PWD" -maxdepth 1 -type f -name '*.AppImage' -print -quit)
           test -n "$GENERATED_APPIMAGE"
@@ -666,10 +667,24 @@ jobs:
           done
           echo 'Qt plugin allowlist: PASS'
 
-          if ! grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$BUNDLE_ROOT/AppRun"; then
-            echo 'ERROR: AppRun chưa cố định QT_MEDIA_BACKEND=ffmpeg.'
+          ENV_HOOK="$BUNDLE_ROOT/apprun-hooks/00-nunchuk-env.sh"
+          if [ ! -f "$ENV_HOOK" ]; then
+            echo 'ERROR: AppImage thiếu Nunchuk AppRun environment hook.'
             exit 1
           fi
+          if ! grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$ENV_HOOK"; then
+            echo 'ERROR: AppRun hook chưa cố định QT_MEDIA_BACKEND=ffmpeg.'
+            exit 1
+          fi
+          if ! grep -qx 'export QTWEBENGINE_DISABLE_SANDBOX=1' "$ENV_HOOK"; then
+            echo 'ERROR: AppRun hook thiếu cấu hình QtWebEngine.'
+            exit 1
+          fi
+          if ! grep -Fq 'apprun-hooks/00-nunchuk-env.sh' "$BUNDLE_ROOT/AppRun"; then
+            echo 'ERROR: AppRun không source Nunchuk environment hook.'
+            exit 1
+          fi
+          echo 'AppRun environment hook: PASS'
 
           : > missing-elf-dependencies.txt
           while IFS= read -r -d '' ELF_FILE; do
