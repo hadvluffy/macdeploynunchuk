@@ -441,81 +441,75 @@ jobs:
             exit 1
           fi
 
-      - name: Restrict Qt runtime plugins
+      - name: Restrict optional Qt plugin backends
         working-directory: ${{ github.workspace }}/..
         run: |
           set -euo pipefail
 
-          restrict_plugins() {
-            local plugin_dir="$1"
-            shift
-            local allowed_plugins=("$@")
-            local plugin plugin_name allowed keep
-            local remaining_plugins=()
-
-            test -d "$plugin_dir"
-            for allowed in "${allowed_plugins[@]}"; do
-              test -f "$plugin_dir/$allowed" || {
-                echo "ERROR: Plugin bắt buộc không tồn tại: $plugin_dir/$allowed"
-                exit 1
-              }
-            done
-
-            while IFS= read -r -d '' plugin; do
-              plugin_name=$(basename "$plugin")
-              keep=0
-              for allowed in "${allowed_plugins[@]}"; do
-                if [ "$plugin_name" = "$allowed" ]; then
-                  keep=1
-                  break
-                fi
-              done
-
-              if [ "$keep" -eq 0 ]; then
-                echo "Removing unused Qt plugin: $plugin"
-                rm -f "$plugin"
-              fi
-            done < <(
-              find "$plugin_dir" -maxdepth 1 \
-                \( -type f -o -type l \) \
-                -name '*.so*' -print0
-            )
-
-            mapfile -t remaining_plugins < <(
-              find "$plugin_dir" -maxdepth 1 \
-                \( -type f -o -type l \) \
-                -name '*.so*' -printf '%f\n' | sort
-            )
-            if [ "${#remaining_plugins[@]}" -ne "${#allowed_plugins[@]}" ]; then
-              echo "ERROR: Qt plugin whitelist sai tại $plugin_dir."
-              printf '%s\n' "${remaining_plugins[@]}"
-              exit 1
-            fi
-            for allowed in "${allowed_plugins[@]}"; do
-              test -f "$plugin_dir/$allowed"
-            done
-          }
-
-          # linuxdeploy-plugin-qt deploy toàn bộ plugin trong mỗi module.
-          # Chỉ giữ backend thực sự dùng bởi ứng dụng desktop.
-          restrict_plugins "$QTPATH/plugins/sqldrivers" \
-            libqsqlite.so
-          restrict_plugins "$QTPATH/plugins/multimedia" \
-            libffmpegmediaplugin.so
-          restrict_plugins "$QTPATH/plugins/position" \
-            libqtposition_geoclue2.so \
-            libqtposition_positionpoll.so
-
+          # Qt module được linuxdeploy tự phát hiện từ ELF và QML imports.
+          # Chỉ cho linuxdeploy nhìn thấy các runtime backend app thực sự dùng.
           ALLOWED_QT_PLUGINS=(
-            "$QTPATH/plugins/sqldrivers/libqsqlite.so"
-            "$QTPATH/plugins/multimedia/libffmpegmediaplugin.so"
-            "$QTPATH/plugins/position/libqtposition_geoclue2.so"
-            "$QTPATH/plugins/position/libqtposition_positionpoll.so"
+            platforms/libqxcb.so
+            xcbglintegrations/libqxcb-egl-integration.so
+            xcbglintegrations/libqxcb-glx-integration.so
+            imageformats/libqjpeg.so
+            imageformats/libqsvg.so
+            iconengines/libqsvgicon.so
+            multimedia/libffmpegmediaplugin.so
+            sqldrivers/libqsqlite.so
+            tls/libqopensslbackend.so
+            platforminputcontexts/libcomposeplatforminputcontextplugin.so
+            platforminputcontexts/libibusplatforminputcontextplugin.so
+            platformthemes/libqxdgdesktopportal.so
           )
+
+          REQUIRED_QT_PLUGINS=(
+            platforms/libqxcb.so
+            imageformats/libqjpeg.so
+            imageformats/libqsvg.so
+            iconengines/libqsvgicon.so
+            multimedia/libffmpegmediaplugin.so
+            sqldrivers/libqsqlite.so
+            tls/libqopensslbackend.so
+          )
+
+          for plugin in "${REQUIRED_QT_PLUGINS[@]}"; do
+            test -f "$QTPATH/plugins/$plugin" || {
+              echo "ERROR: Qt plugin bắt buộc không tồn tại: $plugin"
+              exit 1
+            }
+          done
+
+          while IFS= read -r -d '' plugin; do
+            relative_plugin="${plugin#"$QTPATH/plugins/"}"
+            keep=0
+            for allowed in "${ALLOWED_QT_PLUGINS[@]}"; do
+              if [ "$relative_plugin" = "$allowed" ]; then
+                keep=1
+                break
+              fi
+            done
+            if [ "$keep" -eq 0 ]; then
+              echo "Removing unused Qt plugin: $relative_plugin"
+              rm -f "$plugin"
+            fi
+          done < <(
+            find "$QTPATH/plugins" \
+              \( -type f -o -type l \) \
+              -name '*.so*' -print0
+          )
+
+          mapfile -t DEPLOYABLE_QT_PLUGINS < <(
+            find "$QTPATH/plugins" \
+              \( -type f -o -type l \) \
+              -name '*.so*' -print | sort
+          )
+          echo 'Qt runtime plugin allowlist:'
+          printf '%s\n' "${DEPLOYABLE_QT_PLUGINS[@]}"
 
           : > qt-plugin-dependencies.txt
           : > missing-qt-plugin-dependencies.txt
-          for plugin in "${ALLOWED_QT_PLUGINS[@]}"; do
+          for plugin in "${DEPLOYABLE_QT_PLUGINS[@]}"; do
             LDD_OUTPUT=$(LD_LIBRARY_PATH="$QTPATH/lib" ldd "$plugin" 2>&1 || true)
             {
               echo "===== $plugin ====="
@@ -548,6 +542,8 @@ jobs:
           fi
           export QML_SOURCES_PATHS="$PWD/nunchuk-qt"
           export NO_STRIP=1
+          # Không ép linuxdeploy kéo thêm module/plugin ngoài dependency graph.
+          unset EXTRA_QT_MODULES EXTRA_QT_PLUGINS EXTRA_PLATFORM_PLUGINS
 
           rm -rf AppDir
           mkdir -p AppDir/usr/bin
@@ -602,44 +598,76 @@ jobs:
           test -x "$BUNDLE_ROOT/usr/bin/hwi"
           test -x "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
           file "$BUNDLE_ROOT/usr/bin/hwi" "$BUNDLE_ROOT/usr/bin/nunchuk-qt"
-          desktop-file-validate --no-hints \
-            "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"
+          echo 'Validating desktop entry...'
+          if ! desktop-file-validate --no-hints \
+            "$BUNDLE_ROOT/usr/share/applications/nunchuk.desktop"; then
+            echo 'ERROR: Desktop entry không hợp lệ.'
+            exit 1
+          fi
+          echo 'Desktop entry: PASS'
 
-          verify_plugin_set() {
-            local plugin_dir="$1"
-            shift
-            local expected_plugins=("$@")
-            local expected
-            local actual_plugins=()
+          echo 'Deployed Qt plugins:'
+          if [ ! -d "$BUNDLE_ROOT/usr/plugins" ]; then
+            echo 'ERROR: AppImage không chứa Qt plugin root.'
+            exit 1
+          fi
 
-            test -d "$plugin_dir"
-            mapfile -t actual_plugins < <(
-              find "$plugin_dir" -maxdepth 1 \
-                \( -type f -o -type l \) \
-                -name '*.so*' -printf '%f\n' | sort
-            )
-            if [ "${#actual_plugins[@]}" -ne "${#expected_plugins[@]}" ]; then
-              echo "ERROR: AppImage chứa plugin ngoài whitelist tại $plugin_dir."
-              printf '%s\n' "${actual_plugins[@]}"
+          ALLOWED_QT_PLUGINS=(
+            platforms/libqxcb.so
+            xcbglintegrations/libqxcb-egl-integration.so
+            xcbglintegrations/libqxcb-glx-integration.so
+            imageformats/libqjpeg.so
+            imageformats/libqsvg.so
+            iconengines/libqsvgicon.so
+            multimedia/libffmpegmediaplugin.so
+            sqldrivers/libqsqlite.so
+            tls/libqopensslbackend.so
+            platforminputcontexts/libcomposeplatforminputcontextplugin.so
+            platforminputcontexts/libibusplatforminputcontextplugin.so
+            platformthemes/libqxdgdesktopportal.so
+          )
+          REQUIRED_QT_PLUGINS=(
+            platforms/libqxcb.so
+            imageformats/libqjpeg.so
+            imageformats/libqsvg.so
+            iconengines/libqsvgicon.so
+            multimedia/libffmpegmediaplugin.so
+            sqldrivers/libqsqlite.so
+            tls/libqopensslbackend.so
+          )
+
+          while IFS= read -r -d '' plugin; do
+            relative_plugin="${plugin#"$BUNDLE_ROOT/usr/plugins/"}"
+            echo "$relative_plugin"
+            matched=0
+            for allowed in "${ALLOWED_QT_PLUGINS[@]}"; do
+              if [ "$relative_plugin" = "$allowed" ]; then
+                matched=1
+                break
+              fi
+            done
+            if [ "$matched" -eq 0 ]; then
+              echo "ERROR: AppImage chứa Qt plugin ngoài allowlist: $relative_plugin"
               exit 1
             fi
-            for expected in "${expected_plugins[@]}"; do
-              test -f "$plugin_dir/$expected" || {
-                echo "ERROR: AppImage thiếu plugin $plugin_dir/$expected"
-                exit 1
-              }
-            done
-          }
+          done < <(
+            find "$BUNDLE_ROOT/usr/plugins" \
+              \( -type f -o -type l \) \
+              -name '*.so*' -print0
+          )
 
-          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/sqldrivers" \
-            libqsqlite.so
-          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/multimedia" \
-            libffmpegmediaplugin.so
-          verify_plugin_set "$BUNDLE_ROOT/usr/plugins/position" \
-            libqtposition_geoclue2.so \
-            libqtposition_positionpoll.so
+          for plugin in "${REQUIRED_QT_PLUGINS[@]}"; do
+            test -f "$BUNDLE_ROOT/usr/plugins/$plugin" || {
+              echo "ERROR: AppImage thiếu Qt plugin bắt buộc: $plugin"
+              exit 1
+            }
+          done
+          echo 'Qt plugin allowlist: PASS'
 
-          grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$BUNDLE_ROOT/AppRun"
+          if ! grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$BUNDLE_ROOT/AppRun"; then
+            echo 'ERROR: AppRun chưa cố định QT_MEDIA_BACKEND=ffmpeg.'
+            exit 1
+          fi
 
           : > missing-elf-dependencies.txt
           while IFS= read -r -d '' ELF_FILE; do
