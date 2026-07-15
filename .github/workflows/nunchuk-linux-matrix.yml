@@ -583,7 +583,31 @@ jobs:
             --desktop-file nunchuk.desktop \
             --icon-file nunchuk-qt.png \
             --custom-apprun nunchuk.AppRun \
-            --plugin qt \
+            --plugin qt
+
+          # Qt plugin copy QML/plugin ELF sau dependency scan đầu tiên.
+          # Quét lại toàn bộ AppDir để đóng dependency closure trước khi pack.
+          export LD_LIBRARY_PATH="$PWD/AppDir/usr/lib:$QTPATH/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          APPDIR_ELF_ARGS=()
+          while IFS= read -r -d '' candidate; do
+            candidate_type=$(file -b "$candidate")
+            if [[ "$candidate_type" == *ELF* ]]; then
+              APPDIR_ELF_ARGS+=(--deploy-deps-only "$candidate")
+            fi
+          done < <(find "$PWD/AppDir" -type f -print0)
+
+          if [ "${#APPDIR_ELF_ARGS[@]}" -eq 0 ]; then
+            echo 'ERROR: Không tìm thấy ELF trong AppDir để deploy dependency closure.'
+            exit 1
+          fi
+          echo "Dependency closure ELF count: $((${#APPDIR_ELF_ARGS[@]} / 2))"
+
+          # Tạo lại custom AppRun ở pass cuối, tránh giữ root launcher trung gian.
+          rm -f AppDir/AppRun AppDir/AppRun.wrapped
+          ./linuxdeploy \
+            --appdir AppDir \
+            "${APPDIR_ELF_ARGS[@]}" \
+            --custom-apprun nunchuk.AppRun \
             --output appimage
 
           GENERATED_APPIMAGE=$(find "$PWD" -maxdepth 1 -type f -name '*.AppImage' -print -quit)
@@ -701,9 +725,18 @@ jobs:
           fi
           echo "Custom AppRun: PASS ($CUSTOM_APPRUN)"
 
+          GRAPHICAL_EFFECTS_PLUGIN="$BUNDLE_ROOT/usr/qml/Qt5Compat/GraphicalEffects/private/libqtgraphicaleffectsprivateplugin.so"
+          SHADER_TOOLS_LIB=$(find "$BUNDLE_ROOT/usr/lib" -maxdepth 1 \
+            -name 'libQt6ShaderTools.so*' -print -quit)
+          if [ -f "$GRAPHICAL_EFFECTS_PLUGIN" ] && [ -z "$SHADER_TOOLS_LIB" ]; then
+            echo 'ERROR: Qt5Compat GraphicalEffects thiếu Qt6ShaderTools runtime.'
+            exit 1
+          fi
+
           : > missing-elf-dependencies.txt
           while IFS= read -r -d '' ELF_FILE; do
-            if ! file -b "$ELF_FILE" | grep -q 'ELF'; then
+            ELF_TYPE=$(file -b "$ELF_FILE")
+            if [[ "$ELF_TYPE" != *ELF* ]]; then
               continue
             fi
 
