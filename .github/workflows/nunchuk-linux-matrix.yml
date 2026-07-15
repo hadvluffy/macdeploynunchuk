@@ -548,14 +548,21 @@ jobs:
           export EXTRA_QT_MODULES=svg
 
           rm -rf AppDir
-          mkdir -p AppDir/usr/bin AppDir/apprun-hooks
+          mkdir -p AppDir/usr/bin
           install -m 755 "$HWI_BINARY" AppDir/usr/bin/hwi
 
-          # linuxdeploy tự source mọi file trong apprun-hooks trước khi mở app.
-          cat > AppDir/apprun-hooks/00-nunchuk-env.sh <<'EOF'
+          # Launcher do workflow quản lý, không phụ thuộc cấu trúc AppRun sinh tự động.
+          cat > nunchuk.AppRun <<'EOF'
+          #!/bin/sh
+          # nunchuk-custom-apprun
+          set -eu
+          APPDIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
           export QTWEBENGINE_DISABLE_SANDBOX=1
           export QT_MEDIA_BACKEND=ffmpeg
+          export PATH="$APPDIR/usr/bin:$PATH"
+          exec "$APPDIR/usr/bin/nunchuk-qt" "$@"
           EOF
+          chmod 755 nunchuk.AppRun
 
           cat > nunchuk.desktop <<'EOF'
           [Desktop Entry]
@@ -575,6 +582,7 @@ jobs:
             --executable "$NUNCHUK_BINARY" \
             --desktop-file nunchuk.desktop \
             --icon-file nunchuk-qt.png \
+            --custom-apprun nunchuk.AppRun \
             --plugin qt \
             --output appimage
 
@@ -667,24 +675,31 @@ jobs:
           done
           echo 'Qt plugin allowlist: PASS'
 
-          ENV_HOOK="$BUNDLE_ROOT/apprun-hooks/00-nunchuk-env.sh"
-          if [ ! -f "$ENV_HOOK" ]; then
-            echo 'ERROR: AppImage thiếu Nunchuk AppRun environment hook.'
+          CUSTOM_APPRUN=''
+          for candidate in "$BUNDLE_ROOT/AppRun" "$BUNDLE_ROOT/AppRun.wrapped"; do
+            if [ -f "$candidate" ] && \
+               grep -Fq '# nunchuk-custom-apprun' "$candidate"; then
+              CUSTOM_APPRUN="$candidate"
+              break
+            fi
+          done
+          if [ -z "$CUSTOM_APPRUN" ]; then
+            echo 'ERROR: AppImage không chứa Nunchuk custom AppRun.'
+            file "$BUNDLE_ROOT/AppRun" || true
+            readlink "$BUNDLE_ROOT/AppRun" || true
+            find "$BUNDLE_ROOT" -maxdepth 1 -name 'AppRun*' -print
             exit 1
           fi
-          if ! grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$ENV_HOOK"; then
-            echo 'ERROR: AppRun hook chưa cố định QT_MEDIA_BACKEND=ffmpeg.'
+          grep -qx 'export QT_MEDIA_BACKEND=ffmpeg' "$CUSTOM_APPRUN"
+          grep -qx 'export QTWEBENGINE_DISABLE_SANDBOX=1' "$CUSTOM_APPRUN"
+          grep -Fqx 'exec "$APPDIR/usr/bin/nunchuk-qt" "$@"' "$CUSTOM_APPRUN"
+
+          if [ "$CUSTOM_APPRUN" = "$BUNDLE_ROOT/AppRun.wrapped" ] && \
+             ! grep -Fq 'AppRun.wrapped' "$BUNDLE_ROOT/AppRun"; then
+            echo 'ERROR: AppRun không chuyển tiếp tới custom AppRun.wrapped.'
             exit 1
           fi
-          if ! grep -qx 'export QTWEBENGINE_DISABLE_SANDBOX=1' "$ENV_HOOK"; then
-            echo 'ERROR: AppRun hook thiếu cấu hình QtWebEngine.'
-            exit 1
-          fi
-          if ! grep -Fq 'apprun-hooks/00-nunchuk-env.sh' "$BUNDLE_ROOT/AppRun"; then
-            echo 'ERROR: AppRun không source Nunchuk environment hook.'
-            exit 1
-          fi
-          echo 'AppRun environment hook: PASS'
+          echo "Custom AppRun: PASS ($CUSTOM_APPRUN)"
 
           : > missing-elf-dependencies.txt
           while IFS= read -r -d '' ELF_FILE; do
