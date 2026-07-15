@@ -133,7 +133,7 @@ jobs:
           AVAILABLE_MODULES=$(aqt list-qt \
             "${{ matrix.qt_host }}" desktop \
             --modules "$QT_VERSION" "${{ matrix.qt_arch }}")
-          for module in qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat; do
+          for module in qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat qtshadertools; do
             grep -qw "$module" <<< "$AVAILABLE_MODULES" || {
               echo "ERROR: Qt module không tồn tại: $module"
               exit 1
@@ -143,7 +143,7 @@ jobs:
           aqt install-qt \
             "${{ matrix.qt_host }}" desktop "$QT_VERSION" "${{ matrix.qt_arch }}" \
             --outputdir "$HOME/Qt" \
-            -m qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat
+            -m qtmultimedia qtwebengine qtwebchannel qtpositioning qt5compat qtshadertools
 
           QMAKE_PATH=$(find "$HOME/Qt/$QT_VERSION" -type f \( -name qmake6 -o -name qmake \) -print -quit)
           test -n "$QMAKE_PATH"
@@ -152,6 +152,26 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$QTPATH/lib/cmake" >> "$GITHUB_ENV"
           echo "$QTPATH/bin" >> "$GITHUB_PATH"
           "$QMAKE_PATH" -query
+
+          QT_SHADER_TOOLS_LIB="$QTPATH/lib/libQt6ShaderTools.so.6"
+          test -e "$QT_SHADER_TOOLS_LIB" || {
+            echo 'ERROR: qtshadertools đã cài nhưng thiếu libQt6ShaderTools.so.6.'
+            exit 1
+          }
+          echo "QT_SHADER_TOOLS_LIB=$QT_SHADER_TOOLS_LIB" >> "$GITHUB_ENV"
+
+          QT_QML_PATH=$("$QMAKE_PATH" -query QT_INSTALL_QML)
+          GRAPHICAL_EFFECTS_PLUGIN="$QT_QML_PATH/Qt5Compat/GraphicalEffects/private/libqtgraphicaleffectsprivateplugin.so"
+          test -f "$GRAPHICAL_EFFECTS_PLUGIN" || {
+            echo 'ERROR: Qt5Compat GraphicalEffects private plugin không tồn tại.'
+            exit 1
+          }
+          GRAPHICAL_EFFECTS_LDD=$(LD_LIBRARY_PATH="$QTPATH/lib" ldd "$GRAPHICAL_EFFECTS_PLUGIN" 2>&1 || true)
+          echo "$GRAPHICAL_EFFECTS_LDD"
+          if grep -q 'not found' <<< "$GRAPHICAL_EFFECTS_LDD"; then
+            echo 'ERROR: Qt5Compat GraphicalEffects còn thiếu dependency ngay sau khi cài Qt.'
+            exit 1
+          fi
 
       - name: Verify Qt WebEngine native dependencies
         run: |
@@ -580,6 +600,7 @@ jobs:
           ./linuxdeploy \
             --appdir AppDir \
             --executable "$NUNCHUK_BINARY" \
+            --library "$QT_SHADER_TOOLS_LIB" \
             --desktop-file nunchuk.desktop \
             --icon-file nunchuk-qt.png \
             --custom-apprun nunchuk.AppRun \
