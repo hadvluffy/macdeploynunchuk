@@ -1,0 +1,974 @@
+name: nunchuk-windows-matrix
+
+env:
+  QT_VERSION: '6.9.3'
+  UPLOAD_BUILT: 'false'
+
+on:
+  push:
+    tags:
+    - '*'
+  workflow_dispatch:
+  
+jobs:
+  build:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2022
+            msvc_arch: x64
+            qt_arch: win64_msvc2022_64
+            qt_dir_name: msvc2022_64
+            vcpkg_triplet: x64-windows
+            vc_redist: vc_redist.x64.exe
+            vs_tool_component: Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+            target_machine_pattern: '8664 machine \(x64\)'
+            installer_arch_allowed: 'x64compatible and not arm64'
+            installer_64bit_mode: x64compatible
+          - arch: arm64
+            # Qt 6.9.3 phát hành Windows ARM64 dưới dạng cross-compiled.
+            # Dùng host x64 ổn định để chạy aqt/windeployqt/Inno Setup và
+            # MSVC amd64_arm64 để tạo toàn bộ binary đích ARM64.
+            runner: windows-2022
+            msvc_arch: amd64_arm64
+            qt_arch: win64_msvc2022_arm64_cross_compiled
+            qt_dir_name: msvc2022_arm64
+            vcpkg_triplet: arm64-windows
+            vc_redist: vc_redist.arm64.exe
+            vs_tool_component: Microsoft.VisualStudio.Component.VC.Tools.ARM64
+            target_machine_pattern: 'AA64 machine \(ARM64\)'
+            # hwi.exe hiện là x64 nên yêu cầu Windows 11 ARM có x64 emulation.
+            installer_arch_allowed: 'arm64 and x64compatible'
+            installer_64bit_mode: arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        
+      - name: Check Windows Version
+        shell: pwsh
+        run: systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+
+      # Nạp môi trường MSVC (cl.exe, nmake, INCLUDE/LIB, PATH) cho MỌI step sau.
+      # Cần thiết vì CMake generator "Visual Studio" không dò được VS trên runner
+      # này (COM/vswhere của CMake fail) trong khi cl.exe vẫn tồn tại — bằng chứng
+      # là vcpkg build boost thành công. Với env này + generator Ninja, CMake gọi
+      # thẳng cl.exe từ PATH, không phụ thuộc cơ chế dò VS.
+      - name: Setup MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
+      - name: Verify MSVC target architecture
+        shell: pwsh
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          TARGET_MACHINE_PATTERN: ${{ matrix.target_machine_pattern }}
+        run: |
+          if ($env:VSCMD_ARG_TGT_ARCH -ne $env:TARGET_ARCH) {
+            Write-Error "MSVC target sai: expected=$env:TARGET_ARCH actual=$env:VSCMD_ARG_TGT_ARCH"
+            exit 1
+          }
+          Get-Command cl.exe, dumpbin.exe -ErrorAction Stop | `
+            Select-Object Name, Source
+          'int main() { return 0; }' | Set-Content toolchain-probe.cpp `
+            -Encoding ASCII
+          & cl.exe /nologo /c toolchain-probe.cpp /Fotoolchain-probe.obj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $headers = & dumpbin.exe /HEADERS toolchain-probe.obj 2>&1 | `
+            Out-String
+          if ($LASTEXITCODE -ne 0 -or `
+              $headers -notmatch $env:TARGET_MACHINE_PATTERN) {
+            Write-Error "MSVC không tạo object $env:TARGET_ARCH hợp lệ."
+            exit 1
+          }
+          Write-Host "MSVC target architecture: PASS ($env:TARGET_ARCH)"
+
+      - name: Install CMake 3.31.0
+        shell: pwsh
+        run: |
+          $version = "3.31.0"
+          $uri = "https://github.com/Kitware/CMake/releases/download/v$version/cmake-$version-windows-x86_64.zip"
+          $zipPath = "$env:TEMP\cmake.zip"
+          $cmakeDir = "$env:ProgramFiles\CMake"
+      
+          Invoke-WebRequest -Uri $uri -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $cmakeDir -Force
+      
+          $binPath = "$cmakeDir\cmake-$version-windows-x86_64\bin"
+          echo "$binPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+      - name: Check CMake version
+        run: cmake --version
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install aqtinstall and ninja
+        run: |
+          pip install "aqtinstall==3.3.0" ninja
+  
+      - name: Install Qt 6.9.3 (MSVC 2022)
+        shell: pwsh
+        env:
+          QT_ARCH: ${{ matrix.qt_arch }}
+          QT_DIR_NAME: ${{ matrix.qt_dir_name }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          TARGET_MACHINE_PATTERN: ${{ matrix.target_machine_pattern }}
+        run: |
+          $modules = @(
+            "qtmultimedia",
+            "qtwebengine",
+            "qtwebchannel",
+            "qtpositioning",
+            "qt5compat",
+            "qtshadertools"
+          )
+
+          $available = aqt list-qt windows desktop `
+            --modules "$env:QT_VERSION" "$env:QT_ARCH"
+          $availableModules = (($available | Out-String) -split '\s+') | `
+            Where-Object { $_ -ne '' }
+          foreach ($module in $modules) {
+            if ($availableModules -notcontains $module) {
+              Write-Error "Qt module không tồn tại: $module"
+              exit 1
+            }
+          }
+
+          aqt install-qt windows desktop "$env:QT_VERSION" "$env:QT_ARCH" `
+            --outputdir C:\qt `
+            -m $modules
+
+          $qtDir = "C:\qt\$env:QT_VERSION\$env:QT_DIR_NAME"
+          $required = @(
+            "$qtDir\bin\Qt6Core.dll",
+            "$qtDir\bin\Qt6ShaderTools.dll",
+            "$qtDir\bin\windeployqt.exe"
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) {
+              Write-Error "Qt runtime bắt buộc không tồn tại: $file"
+              exit 1
+            }
+          }
+
+          $qtHeaders = & dumpbin.exe /HEADERS "$qtDir\bin\Qt6Core.dll" `
+            2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or `
+              $qtHeaders -notmatch $env:TARGET_MACHINE_PATTERN) {
+            Write-Error "Qt6Core.dll không đúng kiến trúc $env:TARGET_ARCH."
+            exit 1
+          }
+
+          $effectsPlugin = Get-ChildItem `
+            "$qtDir\qml\Qt5Compat\GraphicalEffects\private" `
+            -Filter "*graphicaleffectsprivateplugin.dll" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $effectsPlugin) {
+            Write-Error "Qt5Compat GraphicalEffects private plugin không tồn tại."
+            exit 1
+          }
+
+          "QT_DIR=$qtDir" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "QT_QML_DIR=$qtDir\qml" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$qtDir\bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "Qt installed at: $qtDir"
+      
+      - name: Setup Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg
+            ${{ github.workspace }}/vcpkg/installed
+          key: vcpkg-f523208-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-f523208-${{ runner.os }}-${{ matrix.arch }}-
+
+      - name: Set up vcpkg
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          if (!(Test-Path "vcpkg\.git")) {
+            if (Test-Path "vcpkg") { Remove-Item "vcpkg" -Recurse -Force }
+            git clone https://github.com/microsoft/vcpkg.git
+          }
+          cd vcpkg
+          echo "Checkout version f523208df4ae467436dc2d2eeab594fed240d552"
+          git checkout f523208df4ae467436dc2d2eeab594fed240d552
+          .\bootstrap-vcpkg.bat
+          
+      - name: Install dependencies with vcpkg
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        env:
+          VCPKG_TRIPLET: ${{ matrix.vcpkg_triplet }}
+        run: |
+          $packages = @(
+            "boost",
+            "zeromq",
+            "libevent",
+            "berkeleydb",
+            "sqlite3",
+            "sqlcipher"
+          ) | ForEach-Object { "${_}:$env:VCPKG_TRIPLET" }
+          vcpkg\vcpkg.exe install @packages
+                        
+          vcpkg\vcpkg.exe integrate install
+          vcpkg\vcpkg.exe list
+
+      - name: Checkout Olm
+        working-directory: ${{ github.workspace }}
+        run: git clone --depth 1 --branch 3.2.16 https://gitlab.matrix.org/matrix-org/olm.git
+      
+      - name: Build Olm
+        working-directory: ${{ github.workspace }}/olm
+        run: |
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="C:/olmInstalled" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DOLM_TESTS=OFF `
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build build
+          cmake --install build
+
+          if (!(Test-Path "C:/olmInstalled/lib/cmake/Olm/OlmConfig.cmake")) {
+            Write-Error "OlmConfig.cmake not found after install."
+            exit 1
+          }
+          
+      - name: Checkout QtKeychain
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone --depth 1 --branch 0.14.2 https://github.com/frankosterfeld/qtkeychain.git
+      
+      - name: Build QtKeychain
+        working-directory: ${{ github.workspace }}/qtkeychain
+        env:
+          VCPKG_TRIPLET: ${{ matrix.vcpkg_triplet }}
+        run: |
+          cmake -B build -S . `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
+            -DCMAKE_INSTALL_PREFIX="C:/qtkeychainInstalled" `
+            -DCMAKE_PREFIX_PATH="$env:QT_DIR" `
+            -DBUILD_WITH_QT6=ON `
+            -DBUILD_TEST_APPLICATION=OFF `
+            -DBUILD_TRANSLATIONS=OFF
+
+          cmake --build build
+          cmake --install build
+          echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $env:GITHUB_ENV
+          
+          $keychainDll = "C:/qtkeychainInstalled/bin/qt6keychain.dll"
+          if (!(Test-Path $keychainDll)) {
+            Write-Error "qt6keychain.dll not found at $keychainDll"
+            exit 1
+          }
+          
+      - name: Checkout nunchuk-qt
+        working-directory: ${{ github.workspace }}
+        env:
+          GITLAB_PASS: ${{ secrets.GITLAB_PASS }}
+        shell: pwsh
+        run: |
+          # Tạo ~/.netrc
+          $netrcContent = "machine gitlab.com`n  login hadvluffy`n  password $env:GITLAB_PASS"
+          $netrcPath = "$env:USERPROFILE\.netrc"
+          $netrcContent | Out-File -FilePath $netrcPath -Encoding ASCII
+      
+          # Set biến môi trường
+          $env:TARGET_BRANCH = "qt6"
+          echo "BUILD_BRANCH=$env:TARGET_BRANCH" >> $env:GITHUB_ENV
+      
+          echo "Cloning fresh repository"
+          if (Test-Path "nunchuk-qt") { Remove-Item -Recurse -Force "nunchuk-qt" }
+          git clone -b $env:TARGET_BRANCH https://gitlab.com/nunchuck/nunchuck-qt nunchuk-qt
+          Set-Location nunchuk-qt
+          git fetch --all --tags --force
+          git submodule sync --recursive
+          git submodule update --init --recursive
+      
+          $lastCommit = git rev-parse HEAD
+          echo "Latest commit ----->>>>> $lastCommit"
+          echo "LAST_COMMITID=$lastCommit" >> $env:GITHUB_ENV
+      
+          $latestTag = git for-each-ref --sort=-taggerdate --format '%(refname:short)' refs/tags | Select-Object -First 1
+          $currentCommit = git rev-parse HEAD
+          $taggedCommit = git rev-list -n 1 $latestTag
+          echo "Latest tag found: $latestTag (commit $taggedCommit)"
+          echo "Current commit: $currentCommit"
+          echo "LATEST_VERSION=$latestTag" >> $env:GITHUB_ENV
+      
+      - name: Generate build timestamp
+        shell: pwsh
+        run: |
+          $timestamp = Get-Date -Format "yyyyMMddHHmmss"
+          echo "Timestamp: $timestamp"
+          echo "TIMESTAMP=$timestamp" >> $env:GITHUB_ENV
+
+      - name: Check environment variants
+        id: set-timestamp
+        run: |
+          echo "Timestamp build :>>> ${{ env.TIMESTAMP }}"
+          echo "Version target build :>>> ${{ env.LATEST_VERSION }}"
+          echo "Commit target build :>>> ${{ env.LAST_COMMITID }}"
+          echo "Branch target build :>>> ${{ env.BUILD_BRANCH }}"
+          
+      - name: Configuration nunchuk-qt
+        shell: pwsh
+        env:
+          toolchainFile: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          project_path: ${{ github.workspace }}/nunchuk-qt
+          qt_keychain_installed: C:/qtkeychainInstalled
+          build_mode: Release
+          VCPKG_TRIPLET: ${{ matrix.vcpkg_triplet }}
+          # OAuth secrets: giữ đồng bộ với workflow Linux/macOS.
+          # Lưu ý: cmake bên Linux/macOS đọc 3 secret này qua biến môi trường,
+          # nên ở đây chỉ cần expose ra env là CMake script nhận được.
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+        run: |
+          $qtDir = "$env:QT_DIR"
+          $qtKeychain = "$env:QTKEYCHAIN_PATH"
+          echo "Qt path :>>> $qtDir"
+          echo "Qt keychain path :>>> $qtKeychain"
+
+          # Generator Ninja gọi thẳng cl.exe từ env MSVC. Kiến trúc đích do
+          # matrix.msvc_arch quyết định; không dùng -A với Ninja single-config.
+          $cmakeConfigureCmd = @(
+            "-G", "Ninja",
+            "-B", "build",
+            "-S", "$env:project_path",
+            "-DCMAKE_BUILD_TYPE=$env:build_mode",
+            "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
+            "-DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET",
+            "-DUR__DISABLE_TESTS=ON",
+            "-DQt6_DIR=$env:QT_DIR/lib/cmake/Qt6",
+            "-DCMAKE_PREFIX_PATH=$env:QT_DIR;$env:qt_keychain_installed;C:/olmInstalled",
+            "-D_WIN32_WINNT=0x0A00"
+          )
+          cmake @cmakeConfigureCmd
+
+      - name: Build nunchuk-qt
+        shell: pwsh
+        run: |
+          # Ninja tự song song hoá; không có --config (single-config).
+          cmake --build build
+
+      # ----------------------------------------------------------------------
+      # Deploy Qt runtime TRỰC TIẾP vào thư mục staging sạch.
+      # Ninja là single-config nên exe nằm ở build\nunchuk-qt.exe (không có
+      # subfolder Release). Copy exe sang staging rồi chạy windeployqt trên
+      # exe đã staged -> mọi DLL/plugin Qt được đổ thẳng vào staging, tránh
+      # rác build (CMakeCache, .obj, ...).
+      # ----------------------------------------------------------------------
+      - name: Deploy with windeployqt
+        shell: pwsh
+        env:
+          project_path: ${{ github.workspace }}\nunchuk-qt
+        run: |
+          $windeployqt = "$env:QT_DIR\bin\windeployqt.exe"
+          $built_exe = "build\nunchuk-qt.exe"
+          $stage = "staging"
+
+          if (!(Test-Path $windeployqt)) {
+            Write-Error "❌ windeployqt not found at $windeployqt"
+            exit 1
+          }
+          if (!(Test-Path $built_exe)) {
+            Write-Error "❌ Executable not found at $built_exe"
+            Get-ChildItem "build" | Select-Object Name
+            exit 1
+          }
+
+          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item $built_exe -Destination $stage -Force
+
+          & $windeployqt `
+            "--release" `
+            "--verbose" "2" `
+            "--qmldir" $env:project_path `
+            "$stage\nunchuk-qt.exe"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "windeployqt failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+      # ----------------------------------------------------------------------
+      # Bổ sung DLL bên thứ ba vào staging.
+      # windeployqt chỉ copy DLL của Qt -> phải copy thêm DLL bên thứ ba
+      # từ vcpkg (boost, zeromq, libevent, sqlcipher, openssl, ...) và
+      # qt6keychain.dll, nếu không app sẽ thiếu DLL khi chạy trên máy sạch.
+      # ----------------------------------------------------------------------
+      - name: Stage application files
+        shell: pwsh
+        env:
+          vcpkg_bin: ${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_triplet }}/bin
+          qtkeychain_dll: C:/qtkeychainInstalled/bin/qt6keychain.dll
+        run: |
+          $stage = "staging"
+          if (!(Test-Path $stage)) {
+            Write-Error "❌ staging dir not found (bước Deploy with windeployqt phải chạy trước)"
+            exit 1
+          }
+
+          # 2) Copy DLL bên thứ ba (release) từ vcpkg.
+          #    vcpkg để DLL debug trong /bin và DLL debug trong /debug/bin;
+          #    /installed/<triplet>/bin là bản release.
+          if (Test-Path $env:vcpkg_bin) {
+            Get-ChildItem -Path $env:vcpkg_bin -Filter *.dll | ForEach-Object {
+              Copy-Item $_.FullName -Destination $stage -Force
+              Write-Host "📌 Copied vcpkg DLL: $($_.Name)"
+            }
+          } else {
+            Write-Error "❌ vcpkg bin dir not found at $env:vcpkg_bin"
+            exit 1
+          }
+
+          # 3) qt6keychain được link động nhưng nằm ngoài Qt SDK.
+          if (Test-Path $env:qtkeychain_dll) {
+            Copy-Item $env:qtkeychain_dll -Destination $stage -Force
+            Write-Host "Copied qt6keychain.dll"
+          } else {
+            Write-Error "qt6keychain.dll not found at $env:qtkeychain_dll"
+            exit 1
+          }
+
+          # Qt5Compat.GraphicalEffects nạp ShaderTools động; copy rõ ràng để
+          # không phụ thuộc khả năng phát hiện QML runtime của windeployqt.
+          $shaderTools = "$env:QT_DIR\bin\Qt6ShaderTools.dll"
+          if (!(Test-Path $shaderTools)) {
+            Write-Error "Qt6ShaderTools.dll not found at $shaderTools"
+            exit 1
+          }
+          Copy-Item $shaderTools -Destination $stage -Force
+
+          # UI dùng GIF/SVG trực tiếp. Copy có chủ đích để không phụ thuộc kết
+          # quả suy luận plugin động của windeployqt.
+          $imageRuntimeFiles = @(
+            @("$env:QT_DIR\bin\Qt6Svg.dll", "$stage\Qt6Svg.dll"),
+            @("$env:QT_DIR\plugins\imageformats\qgif.dll", "$stage\imageformats\qgif.dll"),
+            @("$env:QT_DIR\plugins\imageformats\qjpeg.dll", "$stage\imageformats\qjpeg.dll"),
+            @("$env:QT_DIR\plugins\imageformats\qsvg.dll", "$stage\imageformats\qsvg.dll"),
+            @("$env:QT_DIR\plugins\iconengines\qsvgicon.dll", "$stage\iconengines\qsvgicon.dll")
+          )
+          foreach ($item in $imageRuntimeFiles) {
+            $source = $item[0]
+            $destination = $item[1]
+            if (!(Test-Path $source)) {
+              Write-Error "Qt SVG runtime not found at $source"
+              exit 1
+            }
+            New-Item -ItemType Directory -Path (Split-Path $destination) `
+              -Force | Out-Null
+            Copy-Item $source -Destination $destination -Force
+          }
+
+          Write-Host "---- Staging contents ----"
+          Get-ChildItem $stage | Select-Object Name, Length
+
+      # Không dùng --compiler-runtime khi cross-compile vì tool host x64 có thể
+      # chọn nhầm runtime host. Lấy đúng redistributable của MSVC theo matrix.
+      - name: Stage target Visual C++ Redistributable
+        shell: pwsh
+        env:
+          VC_REDIST: ${{ matrix.vc_redist }}
+          HWI_REDIST: vc_redist.x64.exe
+          VS_TOOL_COMPONENT: ${{ matrix.vs_tool_component }}
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (!(Test-Path $vswhere)) {
+            Write-Error "vswhere.exe không tồn tại."
+            exit 1
+          }
+          $vsInstall = & $vswhere -latest -products * `
+            -requires $env:VS_TOOL_COMPONENT `
+            -property installationPath
+          if (!$vsInstall) {
+            Write-Error "Không tìm thấy Visual Studio có MSVC."
+            exit 1
+          }
+
+          $requiredRedists = @($env:VC_REDIST, $env:HWI_REDIST) | `
+            Select-Object -Unique
+          foreach ($redistName in $requiredRedists) {
+            $redist = Get-ChildItem "$vsInstall\VC\Redist\MSVC" -Recurse -File `
+              -Filter $redistName -ErrorAction SilentlyContinue | `
+              Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($null -eq $redist) {
+              Write-Error "Không tìm thấy $redistName trong MSVC Redist."
+              exit 1
+            }
+            Copy-Item $redist.FullName "staging\$redistName" -Force
+            Write-Host "Staged VC Redistributable: $($redist.FullName)"
+          }
+
+      - name: Restrict optional Qt plugin backends
+        shell: pwsh
+        run: |
+          $stage = "staging"
+
+          $sqlDir = Join-Path $stage "sqldrivers"
+          $sqlite = Join-Path $sqlDir "qsqlite.dll"
+          if (!(Test-Path $sqlite)) {
+            Write-Error "Qt SQLite driver không tồn tại trong staging."
+            exit 1
+          }
+          Get-ChildItem $sqlDir -Filter "*.dll" | Where-Object {
+            $_.Name -ne "qsqlite.dll"
+          } | Remove-Item -Force -Verbose
+
+          $multimediaDir = Join-Path $stage "multimedia"
+          $ffmpeg = Get-ChildItem $multimediaDir -Filter "*ffmpeg*mediaplugin.dll" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $ffmpeg) {
+            Write-Error "Qt FFmpeg multimedia plugin không tồn tại trong staging."
+            exit 1
+          }
+          Get-ChildItem $multimediaDir -Filter "*.dll" | Where-Object {
+            $_.FullName -ne $ffmpeg.FullName
+          } | Remove-Item -Force -Verbose
+
+          $positionDir = Join-Path $stage "position"
+          if (Test-Path $positionDir) {
+            Remove-Item $positionDir -Recurse -Force
+          }
+
+      # ----------------------------------------------------------------------
+      # Bundle HWI (hardware wallet) cho Windows - đồng bộ với Linux/macOS.
+      # ----------------------------------------------------------------------
+      - name: Download and bundle HWI
+        shell: pwsh
+        env:
+          HWI_URL: https://github.com/nogibi/HWI/releases/download/3.2.0-displayaddress/hwi-3.2.0-windows-x86_64.zip
+          HWI_SHA256: 936b57ed68d6f949fbade7b6e4352c6fef5a851d341052ceaefd050abf317644
+        run: |
+          $stage = "staging"
+          $zip = "$env:TEMP\hwi.zip"
+          $out = "$env:TEMP\hwi-extracted"
+
+          Write-Host "Downloading HWI from $env:HWI_URL"
+          Invoke-WebRequest -Uri $env:HWI_URL -OutFile $zip
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:HWI_SHA256) {
+            Write-Error "HWI checksum mismatch: $actualHash"
+            exit 1
+          }
+          if (Test-Path $out) { Remove-Item -Recurse -Force $out }
+          Expand-Archive -Path $zip -DestinationPath $out -Force
+
+          # Chưa có HWI ARM64: cả hai artifact tạm bundle HWI x64. Trên
+          # Windows 11 ARM, tiến trình này chạy qua x64 emulation.
+          # Tìm hwi.exe trong gói giải nén (đề phòng cấu trúc thư mục lồng nhau)
+          $hwi = Get-ChildItem -Path $out -Recurse -Filter "hwi.exe" | Select-Object -First 1
+          if ($null -eq $hwi) {
+            Write-Error "❌ hwi.exe not found in extracted HWI archive"
+            Get-ChildItem -Path $out -Recurse | ForEach-Object { Write-Host $_.FullName }
+            exit 1
+          }
+          Copy-Item $hwi.FullName -Destination $stage -Force
+          Write-Host "✅ Bundled $($hwi.Name) into $stage"
+
+      - name: Verify staged Windows runtime
+        shell: pwsh
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          TARGET_MACHINE_PATTERN: ${{ matrix.target_machine_pattern }}
+          VC_REDIST: ${{ matrix.vc_redist }}
+          HWI_REDIST: vc_redist.x64.exe
+        run: |
+          $stage = (Resolve-Path "staging").Path
+          $requiredFiles = @(
+            "nunchuk-qt.exe",
+            "hwi.exe",
+            "qt6keychain.dll",
+            "Qt6Core.dll",
+            "Qt6Qml.dll",
+            "Qt6Quick.dll",
+            "Qt6Multimedia.dll",
+            "Qt6Svg.dll",
+            "Qt6ShaderTools.dll",
+            "Qt6WebEngineCore.dll",
+            "Qt6WebEngineWidgets.dll",
+            "platforms\qwindows.dll",
+            "imageformats\qgif.dll",
+            "imageformats\qjpeg.dll",
+            "imageformats\qsvg.dll",
+            "iconengines\qsvgicon.dll",
+            "sqldrivers\qsqlite.dll",
+            "tls\qschannelbackend.dll",
+            "$env:VC_REDIST",
+            "$env:HWI_REDIST"
+          )
+          foreach ($relativePath in $requiredFiles) {
+            $path = Join-Path $stage $relativePath
+            if (!(Test-Path $path)) {
+              Write-Error "Staging thiếu runtime bắt buộc: $relativePath"
+              exit 1
+            }
+          }
+
+          function Assert-StagedMatch {
+            param([string]$SearchRoot, [string]$Filter, [string]$Label)
+            $found = Get-ChildItem $SearchRoot -Recurse -File -Filter $Filter `
+              -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $found) {
+              Write-Error "Staging thiếu runtime bắt buộc: $Label"
+              exit 1
+            }
+          }
+          Assert-StagedMatch `
+            "$stage\qml\Qt5Compat\GraphicalEffects\private" `
+            "*graphicaleffectsprivateplugin.dll" `
+            "Qt5Compat GraphicalEffects private plugin"
+          Assert-StagedMatch "$stage\multimedia" "*ffmpeg*mediaplugin.dll" "FFmpeg multimedia plugin"
+          Assert-StagedMatch $stage "QtWebEngineProcess.exe" "QtWebEngineProcess.exe"
+          Assert-StagedMatch $stage "qtwebengine_resources.pak" "qtwebengine_resources.pak"
+          Assert-StagedMatch $stage "qtwebengine_resources_100p.pak" "QtWebEngine 100% resources"
+          Assert-StagedMatch $stage "qtwebengine_resources_200p.pak" "QtWebEngine 200% resources"
+          Assert-StagedMatch $stage "icudtl.dat" "QtWebEngine ICU data"
+          Assert-StagedMatch $stage "v8_context_snapshot.bin" "QtWebEngine V8 snapshot"
+          Assert-StagedMatch `
+            "$stage\translations\qtwebengine_locales" `
+            "en-US.pak" `
+            "QtWebEngine en-US locale"
+
+          $debugQtDlls = Get-ChildItem $stage -Recurse -File -Filter "Qt6*d.dll"
+          if ($debugQtDlls.Count -gt 0) {
+            Write-Error "Staging Release chứa Qt debug DLL: $($debugQtDlls.Name -join ', ')"
+            exit 1
+          }
+
+          $dumpbin = (Get-Command dumpbin.exe -ErrorAction Stop).Source
+
+          # Mọi DLL và EXE runtime phải đúng kiến trúc đích. Hai ngoại lệ có
+          # chủ đích: HWI hiện chỉ có x64; VC Redistributable là bootstrapper.
+          $targetPeFiles = Get-ChildItem $stage -Recurse -File | Where-Object {
+            $_.Extension -eq ".dll" -or `
+            ($_.Extension -eq ".exe" -and `
+             $_.Name -ne "hwi.exe" -and `
+             $_.Name -notmatch '^vc_redist\..+\.exe$')
+          }
+          foreach ($file in $targetPeFiles) {
+            $headers = & $dumpbin /HEADERS $file.FullName 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0 -or `
+                $headers -notmatch $env:TARGET_MACHINE_PATTERN) {
+              Write-Error "$($file.FullName) không phải PE $env:TARGET_ARCH hợp lệ."
+              exit 1
+            }
+          }
+
+          $hwiHeaders = & $dumpbin /HEADERS (Join-Path $stage "hwi.exe") `
+            2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or `
+              $hwiHeaders -notmatch '8664 machine \(x64\)') {
+            Write-Error "hwi.exe tạm bundle phải là PE x64 hợp lệ."
+            exit 1
+          }
+          if ($env:TARGET_ARCH -eq "arm64") {
+            Write-Host "HWI architecture exception: x64 on Windows ARM64 (emulation required)"
+          }
+
+          $peFiles = Get-ChildItem $stage -Recurse -File | Where-Object {
+            $_.Extension -in @(".exe", ".dll")
+          }
+          $stagedNames = @{}
+          foreach ($file in $peFiles) {
+            $stagedNames[$file.Name.ToLowerInvariant()] = $true
+          }
+
+          $missing = [System.Collections.Generic.HashSet[string]]::new()
+          foreach ($file in $peFiles) {
+            $output = & $dumpbin /DEPENDENTS $file.FullName 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              [void]$missing.Add("$($file.Name): dumpbin failed")
+              continue
+            }
+
+            foreach ($line in $output) {
+              if ($line -notmatch '^\s+([A-Za-z0-9_.+\-]+\.dll)\s*$') {
+                continue
+              }
+              $dependency = $Matches[1]
+              $dependencyKey = $dependency.ToLowerInvariant()
+              if ($stagedNames.ContainsKey($dependencyKey)) {
+                continue
+              }
+              if ($dependencyKey.StartsWith("api-ms-win-") -or `
+                  $dependencyKey.StartsWith("ext-ms-win-")) {
+                continue
+              }
+
+              $system32 = Join-Path "$env:WINDIR\System32" $dependency
+              $windows = Join-Path $env:WINDIR $dependency
+              if (!(Test-Path $system32) -and !(Test-Path $windows)) {
+                [void]$missing.Add("$($file.Name) -> $dependency")
+              }
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Host "---- Missing staged DLL dependencies ----"
+            $missing | Sort-Object | ForEach-Object { Write-Host $_ }
+            exit 1
+          }
+          Write-Host "Windows runtime dependency closure: PASS ($($peFiles.Count) PE files)"
+
+      # ----------------------------------------------------------------------
+      # Tạo installer bằng Inno Setup.
+      # ----------------------------------------------------------------------
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          # Hỗ trợ cả Inno Setup 6 và 7, bản 32-bit hoặc 64-bit.
+          $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | `
+            Where-Object { $_ -and (Test-Path $_) }
+          $iscc = $roots | ForEach-Object {
+            Get-ChildItem "$_\Inno Setup *\ISCC.exe" -File `
+              -ErrorAction SilentlyContinue
+          } | Where-Object {
+            $_.DirectoryName -match 'Inno Setup [67]'
+          } | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($null -eq $iscc) {
+            Write-Error "ISCC.exe không tồn tại sau khi cài Inno Setup."
+            exit 1
+          }
+          "ISCC=$($iscc.FullName)" | Out-File $env:GITHUB_ENV `
+            -Encoding utf8 -Append
+          Write-Host "Using Inno Setup compiler: $($iscc.FullName)"
+
+      - name: Generate Inno Setup script
+        shell: pwsh
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          INSTALLER_ARCH_ALLOWED: ${{ matrix.installer_arch_allowed }}
+          INSTALLER_64BIT_MODE: ${{ matrix.installer_64bit_mode }}
+          VC_REDIST: ${{ matrix.vc_redist }}
+          HWI_REDIST: vc_redist.x64.exe
+        run: |
+          # Inno Setup yêu cầu AppVersion dạng số x.y.z; tag có thể có tiền tố/hậu tố.
+          # Lấy phần số đầu tiên, fallback 0.0.0 nếu không match.
+          $rawVersion = "${{ env.LATEST_VERSION }}"
+          if ($rawVersion -match '(\d+(\.\d+){1,3})') { $appVersion = $Matches[1] } else { $appVersion = "0.0.0" }
+          echo "APP_VERSION=$appVersion" >> $env:GITHUB_ENV
+          Write-Host "Installer AppVersion = $appVersion (from tag '$rawVersion')"
+
+          $hwiRedistFileEntry = ""
+          $hwiRedistRunEntry = ""
+          if ($env:HWI_REDIST -ne $env:VC_REDIST) {
+            $hwiRedistFileEntry = "Source: `"staging\$env:HWI_REDIST`"; DestDir: `"{tmp}`"; Flags: deleteafterinstall"
+            $hwiRedistRunEntry = "Filename: `"{tmp}\$env:HWI_REDIST`"; Parameters: `"/install /quiet /norestart`"; StatusMsg: `"Installing x64 runtime for HWI...`"; Flags: runhidden waituntilterminated"
+          }
+
+          $iss = @"
+          #define MyAppName "Nunchuk"
+          #define MyAppVersion "$appVersion"
+          #define MyAppExeName "nunchuk-qt.exe"
+
+          [Setup]
+          AppId={{8F1B9C2A-4D3E-4A21-9C7B-1E2F3A4B5C6D}}
+          AppName={#MyAppName}
+          AppVersion={#MyAppVersion}
+          AppPublisher=Nunchuk
+          DefaultDirName={autopf}\{#MyAppName}
+          DefaultGroupName={#MyAppName}
+          OutputDir=installer
+          OutputBaseFilename=nunchuk-windows-$env:TARGET_ARCH-v$appVersion-setup
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=$env:INSTALLER_ARCH_ALLOWED
+          ArchitecturesInstallIn64BitMode=$env:INSTALLER_64BIT_MODE
+          PrivilegesRequired=admin
+          WizardStyle=modern
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+          [Files]
+          Source: "staging\*"; Excludes: "vc_redist.*.exe"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+          Source: "staging\$env:VC_REDIST"; DestDir: "{tmp}"; Flags: deleteafterinstall
+          $hwiRedistFileEntry
+
+          [Icons]
+          Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+          Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+          Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{tmp}\$env:VC_REDIST"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: runhidden waituntilterminated
+          $hwiRedistRunEntry
+          Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+          "@
+          Set-Content -Path "nunchuk.iss" -Value $iss -Encoding UTF8
+          Write-Host "---- nunchuk.iss ----"
+          Get-Content "nunchuk.iss"
+
+      - name: Build installer with Inno Setup
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "installer" -Force | Out-Null
+          & "${{ env.ISCC }}" "nunchuk.iss"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Inno Setup failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+          Write-Host "---- installer dir ----"
+          $installers = @(Get-ChildItem "installer" -Filter "*.exe" -File)
+          if ($installers.Count -ne 1) {
+            Write-Error "Expected exactly one installer, found $($installers.Count)."
+            exit 1
+          }
+          Get-ChildItem "installer"
+
+      - name: Smoke test installer contents
+        if: matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "installer" -Filter "*.exe" -File | `
+            Select-Object -First 1
+          if ($null -eq $installer) {
+            Write-Error "Installer not found."
+            exit 1
+          }
+
+          $installDir = Join-Path $env:TEMP "NunchukInstallerSmoke"
+          if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
+
+          & $installer.FullName `
+            "/VERYSILENT" `
+            "/SUPPRESSMSGBOXES" `
+            "/NORESTART" `
+            "/DIR=$installDir" `
+            "/TASKS="
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Silent installer smoke test failed: $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          foreach ($file in @(
+            "nunchuk-qt.exe",
+            "hwi.exe",
+            "Qt6Core.dll",
+            "Qt6ShaderTools.dll",
+            "Qt6WebEngineCore.dll",
+            "platforms\qwindows.dll",
+            "qml\Qt5Compat\GraphicalEffects\private"
+          )) {
+            if (!(Test-Path (Join-Path $installDir $file))) {
+              Write-Error "Installed application thiếu: $file"
+              exit 1
+            }
+          }
+          Write-Host "Installer smoke test: PASS"
+
+      - name: Zip deployed release folder
+        if: env.UPLOAD_BUILT == 'true'
+        shell: pwsh
+        run: |
+          $src = "staging"
+          $dst = "nunchuk-qt-windows-${{ matrix.arch }}.zip"
+          if (!(Test-Path $src)) {
+            Write-Error "❌ Cannot zip: Folder $src does not exist"
+            exit 1
+          }
+          Compress-Archive -Path "$src\*" -DestinationPath $dst -Force
+          Write-Host "✅ Zipped $src to $dst"
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-windows-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}
+          path: installer/*.exe
+
+      - name: Upload deployment artifact
+        if: env.UPLOAD_BUILT == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-windows-${{ matrix.arch }}-v${{ env.LATEST_VERSION }}_${{ env.BUILD_BRANCH }}_${{ env.TIMESTAMP }}-built
+          path: nunchuk-qt-windows-${{ matrix.arch }}.zip
+
+  smoke-arm64:
+    name: Smoke test Windows ARM64 installer
+    needs: build
+    runs-on: windows-11-arm
+    steps:
+      - name: Download ARM64 installer
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nunchuk-windows-arm64-v*
+          path: downloaded-installer
+          merge-multiple: true
+
+      - name: Install and verify on native Windows ARM64
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne "ARM64") {
+            Write-Error "Smoke runner không phải Windows ARM64."
+            exit 1
+          }
+
+          $installer = Get-ChildItem "downloaded-installer" -Recurse -File `
+            -Filter "nunchuk-windows-arm64-*-setup.exe" | `
+            Select-Object -First 1
+          if ($null -eq $installer) {
+            Write-Error "Không tìm thấy ARM64 installer artifact."
+            exit 1
+          }
+
+          $installDir = Join-Path $env:TEMP "NunchukArm64InstallerSmoke"
+          $installLog = Join-Path $env:TEMP "nunchuk-arm64-install.log"
+          if (Test-Path $installDir) {
+            Remove-Item $installDir -Recurse -Force
+          }
+
+          & $installer.FullName `
+            "/VERYSILENT" `
+            "/SUPPRESSMSGBOXES" `
+            "/NORESTART" `
+            "/DIR=$installDir" `
+            "/TASKS=" `
+            "/LOG=$installLog"
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path $installLog) { Get-Content $installLog }
+            Write-Error "ARM64 installer smoke test failed: $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          foreach ($file in @(
+            "nunchuk-qt.exe",
+            "hwi.exe",
+            "Qt6Core.dll",
+            "Qt6ShaderTools.dll",
+            "Qt6WebEngineCore.dll",
+            "platforms\qwindows.dll",
+            "qml\Qt5Compat\GraphicalEffects\private"
+          )) {
+            if (!(Test-Path (Join-Path $installDir $file))) {
+              Write-Error "ARM64 installed application thiếu: $file"
+              exit 1
+            }
+          }
+
+          # Xác nhận HWI x64 thực sự chạy được qua emulation trên Windows ARM.
+          & "$installDir\hwi.exe" --help
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "HWI x64 không chạy được trên Windows ARM64."
+            exit $LASTEXITCODE
+          }
+          Write-Host "Native Windows ARM64 installer + HWI emulation: PASS"
