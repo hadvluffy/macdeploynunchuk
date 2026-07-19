@@ -150,9 +150,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg
             ${{ github.workspace }}/vcpkg/installed
-          key: vcpkg-f523208-${{ runner.os }}-x64-static-v3-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
+          key: vcpkg-f523208-${{ runner.os }}-x64-static-v4-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
-            vcpkg-f523208-${{ runner.os }}-x64-static-v3-
+            vcpkg-f523208-${{ runner.os }}-x64-static-v4-
 
       - name: Set up vcpkg
         working-directory: ${{ github.workspace }}
@@ -179,13 +179,15 @@ jobs:
         shell: pwsh
         run: |
           $packages = @(
-            # Chỉ cài các module được include trong branch qt6 và libnunchuk.
+            # Chỉ cài các module được include trong branch qt6, libnunchuk và
+            # nested Bitcoin Core.
             # Metaport "boost" kéo cả Boost.Python -> Python -> libffi -> MSYS2,
             # dù app không sử dụng, làm build phụ thuộc các archive MSYS đã cũ.
             "boost-algorithm",
             "boost-asio",
             "boost-bind",
             "boost-format",
+            "boost-multi-index",
             "boost-process",
             "boost-signals2",
             "boost-tokenizer",
@@ -222,10 +224,14 @@ jobs:
             "asio\ssl.hpp",
             "bind.hpp",
             "format.hpp",
+            "multi_index\hashed_index.hpp",
+            "multi_index_container.hpp",
+            "operators.hpp",
             "process.hpp",
             "process\windows.hpp",
             "signals2.hpp",
-            "tokenizer.hpp"
+            "tokenizer.hpp",
+            "tuple\tuple.hpp"
           )
           foreach ($relativePath in $requiredBoostHeaders) {
             $header = Join-Path $boostInclude $relativePath
