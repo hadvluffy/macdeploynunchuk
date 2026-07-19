@@ -4,7 +4,9 @@ env:
   QT_VERSION: '6.9.3'
   QT_ARCH: win64_msvc2022_64
   QT_DIR_NAME: msvc2022_64
-  VCPKG_TRIPLET: x64-windows
+  # libnunchuk khai báo libevent::libevent là STATIC IMPORTED và dùng /MT.
+  # Triplet static bảo đảm event.lib là archive thật, không phải import lib DLL.
+  VCPKG_TRIPLET: x64-windows-static
   VC_REDIST: vc_redist.x64.exe
   TARGET_ARCH: x64
   TARGET_MACHINE_PATTERN: '8664 machine \(x64\)'
@@ -148,9 +150,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg
             ${{ github.workspace }}/vcpkg/installed
-          key: vcpkg-f523208-${{ runner.os }}-x64-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
+          key: vcpkg-f523208-${{ runner.os }}-x64-static-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
-            vcpkg-f523208-${{ runner.os }}-x64-
+            vcpkg-f523208-${{ runner.os }}-x64-static-
 
       - name: Set up vcpkg
         working-directory: ${{ github.workspace }}
@@ -181,6 +183,32 @@ jobs:
                         
           vcpkg\vcpkg.exe integrate install
           vcpkg\vcpkg.exe list
+
+          # libnunchuk/contrib/libnunchuk/CMakeLists.txt tìm đúng thư viện
+          # static với NAMES libevent.a event. Trên MSVC file tương ứng là
+          # event.lib; kiểm tra ngay tại đây và truyền đường dẫn tuyệt đối cho
+          # CMake để không phụ thuộc thứ tự search path.
+          $eventLibraryPath = "vcpkg\installed\$env:VCPKG_TRIPLET\lib\event.lib"
+          if (!(Test-Path $eventLibraryPath -PathType Leaf)) {
+            Write-Error "libevent static không tồn tại: $eventLibraryPath"
+            Get-ChildItem "vcpkg\installed\$env:VCPKG_TRIPLET\lib" `
+              -Filter "*event*.lib" -ErrorAction SilentlyContinue | `
+              Select-Object FullName
+            exit 1
+          }
+
+          $eventHeaders = & dumpbin.exe /HEADERS $eventLibraryPath 2>&1 | `
+            Out-String
+          if ($LASTEXITCODE -ne 0 -or `
+              $eventHeaders -notmatch $env:TARGET_MACHINE_PATTERN) {
+            Write-Error "event.lib không đúng kiến trúc $env:TARGET_ARCH."
+            exit 1
+          }
+
+          $eventLibrary = (Resolve-Path $eventLibraryPath).Path.Replace('\', '/')
+          "EVENT_LIBRARY=$eventLibrary" | `
+            Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "libevent static: PASS ($eventLibrary)"
 
       - name: Checkout Olm
         working-directory: ${{ github.workspace }}
@@ -309,6 +337,7 @@ jobs:
             "-DCMAKE_BUILD_TYPE=$env:build_mode",
             "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
             "-DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET",
+            "-Devent_lib:FILEPATH=$env:EVENT_LIBRARY",
             "-DUR__DISABLE_TESTS=ON",
             "-DQt6_DIR=$env:QT_DIR/lib/cmake/Qt6",
             "-DCMAKE_PREFIX_PATH=$env:QT_DIR;$env:qt_keychain_installed;C:/olmInstalled",
@@ -363,15 +392,13 @@ jobs:
           }
 
       # ----------------------------------------------------------------------
-      # Bổ sung DLL bên thứ ba vào staging.
-      # windeployqt chỉ copy DLL của Qt -> phải copy thêm DLL bên thứ ba
-      # từ vcpkg (boost, zeromq, libevent, sqlcipher, openssl, ...) và
-      # qt6keychain.dll, nếu không app sẽ thiếu DLL khi chạy trên máy sạch.
+      # Bổ sung runtime ngoài Qt vào staging. Các dependency vcpkg dùng triplet
+      # static nên thường không có DLL; qt6keychain vẫn là DLL riêng.
       # ----------------------------------------------------------------------
       - name: Stage application files
         shell: pwsh
         env:
-          vcpkg_bin: ${{ github.workspace }}/vcpkg/installed/x64-windows/bin
+          vcpkg_bin: ${{ github.workspace }}/vcpkg/installed/${{ env.VCPKG_TRIPLET }}/bin
           qtkeychain_dll: C:/qtkeychainInstalled/bin/qt6keychain.dll
         run: |
           $stage = "staging"
@@ -380,17 +407,15 @@ jobs:
             exit 1
           }
 
-          # 2) Copy DLL bên thứ ba (release) từ vcpkg.
-          #    vcpkg để DLL debug trong /bin và DLL debug trong /debug/bin;
-          #    /installed/<triplet>/bin là bản release.
+          # Nếu một port static vẫn phát sinh runtime DLL, copy chúng. Thư mục
+          # bin không tồn tại là trạng thái bình thường của triplet static.
           if (Test-Path $env:vcpkg_bin) {
             Get-ChildItem -Path $env:vcpkg_bin -Filter *.dll | ForEach-Object {
               Copy-Item $_.FullName -Destination $stage -Force
               Write-Host "📌 Copied vcpkg DLL: $($_.Name)"
             }
           } else {
-            Write-Error "❌ vcpkg bin dir not found at $env:vcpkg_bin"
-            exit 1
+            Write-Host "Không có vcpkg runtime DLL (đúng với static triplet)."
           }
 
           # 3) qt6keychain được link động nhưng nằm ngoài Qt SDK.
