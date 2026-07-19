@@ -89,30 +89,13 @@ jobs:
 
       - name: Install aqtinstall and ninja
         run: |
-          pip install "aqtinstall==3.3.0" ninja
+          pip install "aqtinstall==3.3.0" "py7zr==1.1.0" ninja
+          pip check
+          python -c "import py7zr; assert py7zr.__version__ == '1.1.0', py7zr.__version__"
   
       - name: Install Qt 6.9.3 (MSVC 2022)
         shell: pwsh
         run: |
-          $sevenZipCommand = Get-Command 7z.exe -ErrorAction SilentlyContinue
-          if ($null -ne $sevenZipCommand) {
-            $sevenZip = $sevenZipCommand.Source
-          } else {
-            $sevenZip = "$env:ProgramFiles\7-Zip\7z.exe"
-          }
-
-          if (!(Test-Path $sevenZip -PathType Leaf)) {
-            Write-Error "Không tìm thấy external 7-Zip trên runner."
-            exit 1
-          }
-
-          $sevenZipInfo = & $sevenZip i 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0 -or $sevenZipInfo -notmatch "7-Zip") {
-            Write-Error "External 7-Zip không hoạt động: $sevenZip"
-            exit 1
-          }
-          Write-Host "External extractor: $sevenZip"
-
           $modules = @(
             "qtmultimedia",
             "qtwebengine",
@@ -123,7 +106,6 @@ jobs:
           )
 
           & aqt install-qt windows desktop "$env:QT_VERSION" "$env:QT_ARCH" `
-            --external "$sevenZip" `
             --outputdir C:\qt `
             -m $modules
 
