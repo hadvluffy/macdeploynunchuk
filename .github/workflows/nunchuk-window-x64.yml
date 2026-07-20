@@ -422,9 +422,9 @@ jobs:
           echo "Current commit: $currentCommit"
           echo "LATEST_VERSION=$latestTag" >> $env:GITHUB_ENV
 
-      # Một số CMakeLists trong source/submodule cũ tự chèn /MT, ghi đè
-      # CMAKE_MSVC_RUNTIME_LIBRARY. Qt official dùng /MD nên chuẩn hoá toàn bộ
-      # target được link vào cùng process trước khi configure.
+      # Source Windows cũ vừa ép /MT vừa bỏ MSVCRT khỏi default libraries.
+      # Qt official dùng /MD, vì vậy phải chuẩn hoá cả compiler lẫn linker
+      # trước khi configure; chỉ đổi /MT -> /MD là chưa đủ.
       - name: Normalize source MSVC runtime to dynamic CRT
         working-directory: ${{ github.workspace }}/nunchuk-qt
         shell: pwsh
@@ -444,6 +444,16 @@ jobs:
             $updated = $updated -replace `
               '(?<![A-Za-z0-9_])[/-]MT(?![A-Za-z0-9_])', '/MD'
 
+            # /MD tự thêm MSVCRT vào default libraries. Source hiện tại lại
+            # có /NODEFAULTLIB:MSVCRT nên gây hàng loạt unresolved CRT symbols.
+            # Không giữ bất kỳ biến thể /NODEFAULTLIB nào: với một graph /MD
+            # đồng nhất, các cờ này không cần thiết và có thể loại CRT gián tiếp.
+            $updated = $updated -replace `
+              '(?i)(?<![A-Za-z0-9_])[/-]NODEFAULTLIB(?::[A-Za-z0-9_.-]+)?(?![A-Za-z0-9_])', ''
+            # /Zl loại default-library directive khỏi từng object file.
+            $updated = $updated -replace `
+              '(?i)(?<![A-Za-z0-9_])[/-]Zl(?![A-Za-z0-9_])', ''
+
             # CMake MSVC_RUNTIME_LIBRARY property nếu source tự đặt static CRT.
             $updated = $updated -replace `
               'MultiThreaded\$<\$<CONFIG:Debug>:Debug>(?!DLL)', `
@@ -455,6 +465,12 @@ jobs:
               '(?<![A-Za-z0-9_])MultiThreaded(?!Debug|DLL|\$<|[A-Za-z0-9_])', `
               'MultiThreadedDLL'
 
+            # Giữ khai báo vcpkg trong source đồng nhất với triplet
+            # x64-windows-static-md (static libraries + dynamic CRT).
+            $updated = $updated -replace `
+              '(?im)(set\s*\(\s*VCPKG_CRT_LINKAGE\s+)static(\s*\))', `
+              '${1}dynamic${2}'
+
             if ($updated -cne $original) {
               Set-Content $file.FullName $updated -Encoding UTF8 -NoNewline
               $changedFiles += $file.FullName
@@ -464,19 +480,19 @@ jobs:
 
           Write-Host "Normalized CMake files: $($changedFiles.Count)"
 
-          # Chặn mọi khai báo static CRT còn sót trong build scripts.
+          # Chặn mọi khai báo static/suppressed CRT còn sót trong build scripts.
           $remaining = Get-ChildItem . -Recurse -File | Where-Object {
             $_.Name -eq "CMakeLists.txt" -or $_.Extension -eq ".cmake"
           } | Select-String -Pattern `
-            '(?<![A-Za-z0-9_])[/-]MTd?(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreadedDebug(?!DLL|[A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreaded(?!Debug|DLL|\$<|[A-Za-z0-9_])' `
+            '(?<![A-Za-z0-9_])[/-]MTd?(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreadedDebug(?!DLL|[A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreaded(?!Debug|DLL|\$<|[A-Za-z0-9_])|(?i:(?<![A-Za-z0-9_])[/-]NODEFAULTLIB(?::[A-Za-z0-9_.-]+)?(?![A-Za-z0-9_]))|(?i:(?<![A-Za-z0-9_])[/-]Zl(?![A-Za-z0-9_]))|VCPKG_CRT_LINKAGE\s+static' `
             -AllMatches
           if ($remaining) {
-            Write-Host "---- Static CRT declarations still present ----"
+            Write-Host "---- Invalid MSVC CRT declarations still present ----"
             $remaining | Select-Object Path, LineNumber, Line | Format-Table -AutoSize
-            Write-Error "Source vẫn còn khai báo static CRT."
+            Write-Error "Source vẫn còn khai báo static hoặc suppressed CRT."
             exit 1
           }
-          Write-Host "Source MSVC runtime normalization: PASS (/MD)"
+          Write-Host "Source MSVC runtime normalization: PASS (/MD + default CRT)"
       
       - name: Generate build timestamp
         shell: pwsh
@@ -564,7 +580,27 @@ jobs:
             Write-Error "Không xác nhận được project đang dùng dynamic CRT (/MD)."
             exit 1
           }
-          Write-Host "nunchuk-qt MSVC runtime /MD: PASS"
+
+          # compile_commands chỉ chứa compiler flags; linker flags nằm trong
+          # graph Ninja. Kiểm tra riêng để không tái diễn /NODEFAULTLIB:MSVCRT.
+          $buildGraphFiles = @(Get-ChildItem "build" -Recurse -File `
+            -Filter "*.ninja")
+          if ($buildGraphFiles.Count -eq 0) {
+            Write-Error "Không tìm thấy Ninja build graph trong thư mục build."
+            exit 1
+          }
+          $forbiddenLinkFlags = Select-String `
+            -Path $buildGraphFiles.FullName -Pattern `
+            '(?i)[/-]NODEFAULTLIB(?::[A-Za-z0-9_.-]+)?|(?:^|\s)[/-]Zl(?=\s|$)' `
+            -AllMatches
+          if ($forbiddenLinkFlags) {
+            Write-Host "---- Linker flags suppressing dynamic CRT ----"
+            $forbiddenLinkFlags | Select-Object -First 20 `
+              Path, LineNumber, Line | Format-Table -AutoSize
+            Write-Error "Build graph vẫn vô hiệu default MSVC CRT libraries."
+            exit 1
+          }
+          Write-Host "nunchuk-qt MSVC runtime /MD + default CRT linkage: PASS"
 
       - name: Build nunchuk-qt
         shell: pwsh
