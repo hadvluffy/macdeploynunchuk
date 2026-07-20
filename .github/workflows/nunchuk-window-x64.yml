@@ -308,16 +308,20 @@ jobs:
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DBUILD_SHARED_LIBS=OFF `
-            -DOLM_TESTS=OFF `
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            -DOLM_TESTS=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $compileDb = Get-Content "build/compile_commands.json" -Raw
-          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+          $compileDbPath = "build/compile_commands.json"
+          if (!(Test-Path $compileDbPath -PathType Leaf)) {
+            Write-Error "Olm compile database không tồn tại: $compileDbPath"
+            exit 1
+          }
+          $compileDb = Get-Content $compileDbPath -Raw
+          if ($compileDb -match '(?i)(?:^|[\s"])[\/-]MTd?(?=[\s"]|$)') {
             Write-Error "Olm đang dùng static CRT (/MT), không tương thích Qt official."
             exit 1
           }
-          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])[\/-]MD(?=[\s"]|$)') {
             Write-Error "Không xác nhận được Olm đang dùng dynamic CRT (/MD)."
             exit 1
           }
@@ -356,12 +360,17 @@ jobs:
             -DBUILD_TRANSLATIONS=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $compileDb = Get-Content "build/compile_commands.json" -Raw
-          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+          $compileDbPath = "build/compile_commands.json"
+          if (!(Test-Path $compileDbPath -PathType Leaf)) {
+            Write-Error "QtKeychain compile database không tồn tại: $compileDbPath"
+            exit 1
+          }
+          $compileDb = Get-Content $compileDbPath -Raw
+          if ($compileDb -match '(?i)(?:^|[\s"])[\/-]MTd?(?=[\s"]|$)') {
             Write-Error "QtKeychain đang dùng static CRT (/MT)."
             exit 1
           }
-          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])[\/-]MD(?=[\s"]|$)') {
             Write-Error "Không xác nhận được QtKeychain đang dùng dynamic CRT (/MD)."
             exit 1
           }
@@ -474,11 +483,11 @@ jobs:
             exit 1
           }
           $compileDb = Get-Content $compileDbPath -Raw
-          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+          if ($compileDb -match '(?i)(?:^|[\s"])[\/-]MTd?(?=[\s"]|$)') {
             Write-Error "Project còn compiler flag /MT; không được trộn CRT với Qt /MD."
             exit 1
           }
-          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])[\/-]MD(?=[\s"]|$)') {
             Write-Error "Không xác nhận được project đang dùng dynamic CRT (/MD)."
             exit 1
           }
