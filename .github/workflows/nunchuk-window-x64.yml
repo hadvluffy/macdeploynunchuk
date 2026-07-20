@@ -421,6 +421,62 @@ jobs:
           echo "Latest tag found: $latestTag (commit $taggedCommit)"
           echo "Current commit: $currentCommit"
           echo "LATEST_VERSION=$latestTag" >> $env:GITHUB_ENV
+
+      # Một số CMakeLists trong source/submodule cũ tự chèn /MT, ghi đè
+      # CMAKE_MSVC_RUNTIME_LIBRARY. Qt official dùng /MD nên chuẩn hoá toàn bộ
+      # target được link vào cùng process trước khi configure.
+      - name: Normalize source MSVC runtime to dynamic CRT
+        working-directory: ${{ github.workspace }}/nunchuk-qt
+        shell: pwsh
+        run: |
+          $cmakeFiles = Get-ChildItem . -Recurse -File | Where-Object {
+            $_.Name -eq "CMakeLists.txt" -or $_.Extension -eq ".cmake"
+          }
+          $changedFiles = @()
+
+          foreach ($file in $cmakeFiles) {
+            $original = Get-Content $file.FullName -Raw
+            $updated = $original
+
+            # Compiler flags cũ.
+            $updated = $updated -replace `
+              '(?<![A-Za-z0-9_])[/-]MTd(?![A-Za-z0-9_])', '/MDd'
+            $updated = $updated -replace `
+              '(?<![A-Za-z0-9_])[/-]MT(?![A-Za-z0-9_])', '/MD'
+
+            # CMake MSVC_RUNTIME_LIBRARY property nếu source tự đặt static CRT.
+            $updated = $updated -replace `
+              'MultiThreaded\$<\$<CONFIG:Debug>:Debug>(?!DLL)', `
+              'MultiThreaded$<$<CONFIG:Debug>:Debug>DLL'
+            $updated = $updated -replace `
+              '(?<![A-Za-z0-9_])MultiThreadedDebug(?!DLL|[A-Za-z0-9_])', `
+              'MultiThreadedDebugDLL'
+            $updated = $updated -replace `
+              '(?<![A-Za-z0-9_])MultiThreaded(?!Debug|DLL|\$<|[A-Za-z0-9_])', `
+              'MultiThreadedDLL'
+
+            if ($updated -cne $original) {
+              Set-Content $file.FullName $updated -Encoding UTF8 -NoNewline
+              $changedFiles += $file.FullName
+              Write-Host "Normalized CRT flags: $($file.FullName)"
+            }
+          }
+
+          Write-Host "Normalized CMake files: $($changedFiles.Count)"
+
+          # Chặn mọi khai báo static CRT còn sót trong build scripts.
+          $remaining = Get-ChildItem . -Recurse -File | Where-Object {
+            $_.Name -eq "CMakeLists.txt" -or $_.Extension -eq ".cmake"
+          } | Select-String -Pattern `
+            '(?<![A-Za-z0-9_])[/-]MTd?(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreadedDebug(?!DLL|[A-Za-z0-9_])|(?<![A-Za-z0-9_])MultiThreaded(?!Debug|DLL|\$<|[A-Za-z0-9_])' `
+            -AllMatches
+          if ($remaining) {
+            Write-Host "---- Static CRT declarations still present ----"
+            $remaining | Select-Object Path, LineNumber, Line | Format-Table -AutoSize
+            Write-Error "Source vẫn còn khai báo static CRT."
+            exit 1
+          }
+          Write-Host "Source MSVC runtime normalization: PASS (/MD)"
       
       - name: Generate build timestamp
         shell: pwsh
@@ -471,8 +527,7 @@ jobs:
             "-Devent_lib:FILEPATH=$env:EVENT_LIBRARY",
             "-DUR__DISABLE_TESTS=ON",
             "-DQt6_DIR=$env:QT_DIR/lib/cmake/Qt6",
-            "-DCMAKE_PREFIX_PATH=$env:QT_DIR;$env:qt_keychain_installed;C:/olmInstalled",
-            "-D_WIN32_WINNT=0x0A00"
+            "-DCMAKE_PREFIX_PATH=$env:QT_DIR;$env:qt_keychain_installed;C:/olmInstalled"
           )
           cmake @cmakeConfigureCmd
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -482,11 +537,29 @@ jobs:
             Write-Error "CMake compile database không tồn tại: $compileDbPath"
             exit 1
           }
-          $compileDb = Get-Content $compileDbPath -Raw
-          if ($compileDb -match '(?i)(?:^|[\s"])[\/-]MTd?(?=[\s"]|$)') {
+          $compileEntries = @(Get-Content $compileDbPath -Raw | ConvertFrom-Json)
+          $mtEntries = @($compileEntries | Where-Object {
+            $commandLine = if ($_.command) {
+              $_.command
+            } else {
+              $_.arguments -join ' '
+            }
+            $commandLine -match '(?i)(?:^|[\s"])[\/-]MTd?(?=[\s"]|$)'
+          })
+          if ($mtEntries.Count -gt 0) {
+            Write-Host "---- Compile commands still using /MT ----"
+            $mtEntries | Select-Object -First 20 | ForEach-Object {
+              Write-Host "Source: $($_.file)"
+              if ($_.command) {
+                Write-Host $_.command
+              } else {
+                Write-Host ($_.arguments -join ' ')
+              }
+            }
             Write-Error "Project còn compiler flag /MT; không được trộn CRT với Qt /MD."
             exit 1
           }
+          $compileDb = Get-Content $compileDbPath -Raw
           if ($compileDb -notmatch '(?i)(?:^|[\s"])[\/-]MD(?=[\s"]|$)') {
             Write-Error "Không xác nhận được project đang dùng dynamic CRT (/MD)."
             exit 1
