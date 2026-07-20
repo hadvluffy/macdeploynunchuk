@@ -4,9 +4,9 @@ env:
   QT_VERSION: '6.9.3'
   QT_ARCH: win64_msvc2022_64
   QT_DIR_NAME: msvc2022_64
-  # libnunchuk khai báo libevent::libevent là STATIC IMPORTED và dùng /MT.
-  # Triplet static bảo đảm event.lib là archive thật, không phải import lib DLL.
-  VCPKG_TRIPLET: x64-windows-static
+  # Qt official MSVC dùng CRT động (/MD). Giữ dependency là static archive để
+  # giảm DLL phải deploy, nhưng toàn bộ process phải dùng cùng CRT động.
+  VCPKG_TRIPLET: x64-windows-static-md
   VC_REDIST: vc_redist.x64.exe
   TARGET_ARCH: x64
   TARGET_MACHINE_PATTERN: '8664 machine \(x64\)'
@@ -158,9 +158,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg
             ${{ github.workspace }}/vcpkg/installed
-          key: vcpkg-f523208-${{ runner.os }}-x64-static-v4-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
+          key: vcpkg-f523208-${{ runner.os }}-x64-static-md-v1-${{ github.ref }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
-            vcpkg-f523208-${{ runner.os }}-x64-static-v4-
+            vcpkg-f523208-${{ runner.os }}-x64-static-md-v1-
 
       - name: Set up vcpkg
         working-directory: ${{ github.workspace }}
@@ -186,6 +186,24 @@ jobs:
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
+          $tripletFile = @(
+            "$env:VCPKG_ROOT\triplets\$env:VCPKG_TRIPLET.cmake",
+            "$env:VCPKG_ROOT\triplets\community\$env:VCPKG_TRIPLET.cmake"
+          ) | Where-Object { Test-Path $_ -PathType Leaf } | `
+            Select-Object -First 1
+          if (!$tripletFile) {
+            Write-Error "vcpkg triplet không tồn tại: $env:VCPKG_TRIPLET"
+            exit 1
+          }
+          $triplet = Get-Content $tripletFile -Raw
+          if ($triplet -notmatch 'VCPKG_LIBRARY_LINKAGE\s+static' -or `
+              $triplet -notmatch 'VCPKG_CRT_LINKAGE\s+dynamic') {
+            Write-Error "Triplet phải dùng static libraries + dynamic CRT (/MD)."
+            Get-Content $tripletFile
+            exit 1
+          }
+          Write-Host "vcpkg linkage: static libraries + dynamic CRT (/MD): PASS"
+
           $packages = @(
             # Chỉ cài các module được include trong branch qt6, libnunchuk và
             # nested Bitcoin Core.
@@ -286,11 +304,29 @@ jobs:
           cmake -S . -B build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="C:/olmInstalled" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DBUILD_SHARED_LIBS=OFF `
             -DOLM_TESTS=OFF `
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $compileDb = Get-Content "build/compile_commands.json" -Raw
+          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+            Write-Error "Olm đang dùng static CRT (/MT), không tương thích Qt official."
+            exit 1
+          }
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+            Write-Error "Không xác nhận được Olm đang dùng dynamic CRT (/MD)."
+            exit 1
+          }
+          Write-Host "Olm MSVC runtime /MD: PASS"
+
           cmake --build build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           if (!(Test-Path "C:/olmInstalled/lib/cmake/Olm/OlmConfig.cmake")) {
             Write-Error "OlmConfig.cmake not found after install."
@@ -312,12 +348,29 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
             -DCMAKE_INSTALL_PREFIX="C:/qtkeychainInstalled" `
             -DCMAKE_PREFIX_PATH="$env:QT_DIR" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DBUILD_WITH_QT6=ON `
             -DBUILD_TEST_APPLICATION=OFF `
             -DBUILD_TRANSLATIONS=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $compileDb = Get-Content "build/compile_commands.json" -Raw
+          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+            Write-Error "QtKeychain đang dùng static CRT (/MT)."
+            exit 1
+          }
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+            Write-Error "Không xác nhận được QtKeychain đang dùng dynamic CRT (/MD)."
+            exit 1
+          }
+          Write-Host "QtKeychain MSVC runtime /MD: PASS"
 
           cmake --build build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           echo "QTKEYCHAIN_PATH=C:/qtkeychainInstalled" >> $env:GITHUB_ENV
           
           $keychainDll = "C:/qtkeychainInstalled/bin/qt6keychain.dll"
@@ -403,6 +456,9 @@ jobs:
             "-DCMAKE_BUILD_TYPE=$env:build_mode",
             "-DCMAKE_TOOLCHAIN_FILE=$env:toolchainFile",
             "-DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET",
+            "-DCMAKE_POLICY_DEFAULT_CMP0091=NEW",
+            "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+            "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-Devent_lib:FILEPATH=$env:EVENT_LIBRARY",
             "-DUR__DISABLE_TESTS=ON",
             "-DQt6_DIR=$env:QT_DIR/lib/cmake/Qt6",
@@ -410,12 +466,30 @@ jobs:
             "-D_WIN32_WINNT=0x0A00"
           )
           cmake @cmakeConfigureCmd
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $compileDbPath = "build/compile_commands.json"
+          if (!(Test-Path $compileDbPath -PathType Leaf)) {
+            Write-Error "CMake compile database không tồn tại: $compileDbPath"
+            exit 1
+          }
+          $compileDb = Get-Content $compileDbPath -Raw
+          if ($compileDb -match '(?i)(?:^|[\s"])\/MTd?(?:[\s"]|$)') {
+            Write-Error "Project còn compiler flag /MT; không được trộn CRT với Qt /MD."
+            exit 1
+          }
+          if ($compileDb -notmatch '(?i)(?:^|[\s"])\/MD(?:[\s"]|$)') {
+            Write-Error "Không xác nhận được project đang dùng dynamic CRT (/MD)."
+            exit 1
+          }
+          Write-Host "nunchuk-qt MSVC runtime /MD: PASS"
 
       - name: Build nunchuk-qt
         shell: pwsh
         run: |
           # Ninja tự song song hoá; không có --config (single-config).
           cmake --build build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # ----------------------------------------------------------------------
       # Deploy Qt runtime TRỰC TIẾP vào thư mục staging sạch.
@@ -458,8 +532,8 @@ jobs:
           }
 
       # ----------------------------------------------------------------------
-      # Bổ sung runtime ngoài Qt vào staging. Các dependency vcpkg dùng triplet
-      # static nên thường không có DLL; qt6keychain vẫn là DLL riêng.
+      # Bổ sung runtime ngoài Qt vào staging. Dependency vcpkg là static archive
+      # nhưng dùng CRT động (/MD); qt6keychain vẫn là DLL riêng.
       # ----------------------------------------------------------------------
       - name: Stage application files
         shell: pwsh
@@ -790,14 +864,23 @@ jobs:
           AppPublisher=Nunchuk
           DefaultDirName={autopf}\{#MyAppName}
           DefaultGroupName={#MyAppName}
+          UninstallDisplayIcon={app}\{#MyAppExeName}
           OutputDir=installer
           OutputBaseFilename=nunchuk-windows-$env:TARGET_ARCH-v$appVersion-setup
           Compression=lzma2
           SolidCompression=yes
           ArchitecturesAllowed=$env:INSTALLER_ARCH_ALLOWED
           ArchitecturesInstallIn64BitMode=$env:INSTALLER_64BIT_MODE
+          MinVersion=10.0
           PrivilegesRequired=admin
           WizardStyle=modern
+          CloseApplications=yes
+          RestartApplications=no
+          VersionInfoVersion={#MyAppVersion}
+          VersionInfoCompany=Nunchuk
+          VersionInfoDescription=Nunchuk Bitcoin Wallet Installer
+          VersionInfoProductName={#MyAppName}
+          VersionInfoProductVersion={#MyAppVersion}
 
           [Languages]
           Name: "english"; MessagesFile: "compiler:Default.isl"
