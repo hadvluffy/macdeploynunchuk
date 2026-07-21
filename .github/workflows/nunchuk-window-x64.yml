@@ -1102,6 +1102,7 @@ jobs:
 
       - name: Smoke test installer contents
         shell: pwsh
+        timeout-minutes: 10
         run: |
           $installer = Get-ChildItem "installer" -Filter "*.exe" -File | `
             Select-Object -First 1
@@ -1111,34 +1112,79 @@ jobs:
           }
 
           $installDir = Join-Path $env:TEMP "NunchukInstallerSmoke"
+          $installLog = Join-Path $env:TEMP "nunchuk-installer-smoke.log"
           if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
+          if (Test-Path $installLog) { Remove-Item $installLog -Force }
 
-          & $installer.FullName `
-            "/VERYSILENT" `
-            "/SUPPRESSMSGBOXES" `
-            "/NORESTART" `
-            "/DIR=$installDir" `
-            "/TASKS="
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Silent installer smoke test failed: $LASTEXITCODE"
-            exit $LASTEXITCODE
+          function Show-InstallerLog {
+            if (Test-Path $installLog -PathType Leaf) {
+              Write-Host "---- Inno Setup smoke log (last 250 lines) ----"
+              Get-Content $installLog -Tail 250
+            } else {
+              Write-Host "Inno Setup không tạo smoke log: $installLog"
+            }
+          }
+
+          $installerArgs = @(
+            "/VERYSILENT"
+            "/SUPPRESSMSGBOXES"
+            "/NORESTART"
+            "/NOCANCEL"
+            "/SP-"
+            "/NOICONS"
+            "/DIR=`"$installDir`""
+            '/TASKS=""'
+            "/LOG=`"$installLog`""
+          )
+          Write-Host "Running silent installer: $($installer.FullName)"
+
+          try {
+            # Inno Setup là GUI executable. -Wait chờ toàn bộ process tree;
+            # -PassThru cung cấp ExitCode thật thay vì dựa vào $LASTEXITCODE.
+            $installerProcess = Start-Process `
+              -FilePath $installer.FullName `
+              -ArgumentList $installerArgs `
+              -Wait -PassThru -ErrorAction Stop
+          } catch {
+            Show-InstallerLog
+            Write-Error "Không thể chạy silent installer: $($_.Exception.Message)"
+            exit 1
+          }
+
+          $installerExitCode = $installerProcess.ExitCode
+          Write-Host "Inno Setup exit code: $installerExitCode"
+          if ($installerExitCode -ne 0) {
+            Show-InstallerLog
+            Write-Error "Silent installer smoke test failed with exit code $installerExitCode."
+            exit $installerExitCode
           }
 
           foreach ($file in @(
             "nunchuk-qt.exe",
             "hwi.exe",
+            "qt6keychain.dll",
             "Qt6Core.dll",
             "Qt6ShaderTools.dll",
             "Qt6WebEngineCore.dll",
             "platforms\qwindows.dll",
-            "qml\Qt5Compat\GraphicalEffects\private"
+            "qml\Qt5Compat\GraphicalEffects\private",
+            "unins000.exe"
           )) {
             if (!(Test-Path (Join-Path $installDir $file))) {
+              Show-InstallerLog
               Write-Error "Installed application thiếu: $file"
               exit 1
             }
           }
           Write-Host "Installer smoke test: PASS"
+
+      - name: Upload installer smoke log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nunchuk-windows-x64-installer-smoke-log
+          path: ${{ runner.temp }}/nunchuk-installer-smoke.log
+          if-no-files-found: ignore
 
       - name: Zip deployed release folder
         if: env.UPLOAD_BUILT == 'true'
