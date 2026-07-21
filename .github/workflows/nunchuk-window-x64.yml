@@ -620,6 +620,7 @@ jobs:
         shell: pwsh
         env:
           project_path: ${{ github.workspace }}\nunchuk-qt
+          qtkeychain_dll: C:/qtkeychainInstalled/bin/qt6keychain.dll
         run: |
           $windeployqt = "$env:QT_DIR\bin\windeployqt.exe"
           $built_exe = "build\nunchuk-qt.exe"
@@ -634,19 +635,70 @@ jobs:
             Get-ChildItem "build" | Select-Object Name
             exit 1
           }
+          if (!(Test-Path $env:qtkeychain_dll -PathType Leaf)) {
+            Write-Error "qt6keychain.dll not found at $env:qtkeychain_dll"
+            exit 1
+          }
 
           if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
           New-Item -ItemType Directory -Path $stage | Out-Null
           Copy-Item $built_exe -Destination $stage -Force
 
-          & $windeployqt `
-            "--release" `
-            "--verbose" "2" `
-            "--qmldir" $env:project_path `
-            "$stage\nunchuk-qt.exe"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "windeployqt failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
+          # QtKeychain là DLL bên thứ ba: pre-stage đúng binary cạnh EXE để tạo
+          # deployment hoàn chỉnh. Phần tương thích heuristic windeployqt nằm
+          # ngay bên dưới.
+          Copy-Item $env:qtkeychain_dll -Destination $stage -Force `
+            -ErrorAction Stop
+          $stagePath = (Resolve-Path $stage).Path
+          $qtkeychainBin = Split-Path $env:qtkeychain_dll -Parent
+          $env:PATH = "$stagePath;$qtkeychainBin;$env:QT_DIR\bin;$env:PATH"
+
+          $keychainHeaders = & dumpbin.exe /HEADERS `
+            "$stage\qt6keychain.dll" 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or `
+              $keychainHeaders -notmatch $env:TARGET_MACHINE_PATTERN) {
+            Write-Error "qt6keychain.dll không phải PE $env:TARGET_ARCH hợp lệ."
+            exit 1
+          }
+          Write-Host "Pre-staged third-party runtime: qt6keychain.dll"
+
+          # Qt 6.9.3 nhận mọi tên bắt đầu bằng "Qt6" là Qt module và luôn ghép
+          # tên đó với QT_DIR\bin. qt6keychain.dll vô tình trúng heuristic này.
+          # Mirror tạm đúng binary vào Qt bin để scanner đọc dependency, sau đó
+          # luôn dọn lại và vẫn giữ chế độ fail cứng khi dependency thực sự lỗi.
+          $scannerKeychain = "$env:QT_DIR\bin\qt6keychain.dll"
+          $scannerShimCreated = $false
+          if (Test-Path $scannerKeychain -PathType Leaf) {
+            $existingHash = (Get-FileHash $scannerKeychain -Algorithm SHA256).Hash
+            $sourceHash = (Get-FileHash $env:qtkeychain_dll -Algorithm SHA256).Hash
+            if ($existingHash -ne $sourceHash) {
+              Write-Error "Qt bin đã có qt6keychain.dll khác với bản vừa build."
+              exit 1
+            }
+          } else {
+            Copy-Item $env:qtkeychain_dll -Destination $scannerKeychain -Force `
+              -ErrorAction Stop
+            $scannerShimCreated = $true
+          }
+
+          $deployExitCode = 1
+          try {
+            & $windeployqt `
+              "--release" `
+              "--verbose" "2" `
+              "--qmldir" $env:project_path `
+              "$stage\nunchuk-qt.exe"
+            $deployExitCode = $LASTEXITCODE
+          } finally {
+            if ($scannerShimCreated -and `
+                (Test-Path $scannerKeychain -PathType Leaf)) {
+              Remove-Item $scannerKeychain -Force -ErrorAction Stop
+              Write-Host "Removed temporary windeployqt scanner shim."
+            }
+          }
+          if ($deployExitCode -ne 0) {
+            Write-Error "windeployqt failed with exit code $deployExitCode"
+            exit $deployExitCode
           }
 
       # ----------------------------------------------------------------------
@@ -676,14 +728,22 @@ jobs:
             Write-Host "Không có vcpkg runtime DLL (đúng với static triplet)."
           }
 
-          # 3) qt6keychain được link động nhưng nằm ngoài Qt SDK.
-          if (Test-Path $env:qtkeychain_dll) {
-            Copy-Item $env:qtkeychain_dll -Destination $stage -Force
-            Write-Host "Copied qt6keychain.dll"
-          } else {
-            Write-Error "qt6keychain.dll not found at $env:qtkeychain_dll"
+          # QtKeychain đã được pre-stage làm runtime; scanner dùng mirror tạm
+          # trong Qt bin. Xác nhận file phát hành vẫn đúng bản vừa build.
+          $stagedKeychain = Join-Path $stage "qt6keychain.dll"
+          if (!(Test-Path $stagedKeychain -PathType Leaf)) {
+            Write-Error "qt6keychain.dll bị thiếu sau bước windeployqt."
             exit 1
           }
+          $sourceKeychainHash = (Get-FileHash $env:qtkeychain_dll `
+            -Algorithm SHA256).Hash
+          $stagedKeychainHash = (Get-FileHash $stagedKeychain `
+            -Algorithm SHA256).Hash
+          if ($sourceKeychainHash -ne $stagedKeychainHash) {
+            Write-Error "qt6keychain.dll trong staging không khớp bản vừa build."
+            exit 1
+          }
+          Write-Host "qt6keychain.dll pre-stage integrity: PASS"
 
           # Qt5Compat.GraphicalEffects nạp ShaderTools động; copy rõ ràng để
           # không phụ thuộc khả năng phát hiện QML runtime của windeployqt.
